@@ -6,7 +6,7 @@ import { zoomViewportAt } from '../render/layout';
 import { renderMosaicToCanvas } from '../render/mosaicImage';
 import { devicePixelRatioSafe, prefersReducedMotion } from '../render/motion';
 import { StorageFullError } from '../storage/db';
-import { PANEL_SIZE, type PictureSave } from '../types';
+import { EMPTY, PANEL_SIZE, type PictureSave } from '../types';
 import { celebrate } from './celebrate';
 import { h, icon, iconButton, openSheet, toast } from './dom';
 import { maybePromptInstall } from './install';
@@ -391,9 +391,30 @@ export function mountPanelPlay(
       goBack(true);
     };
 
+    // Every stud filled but some dots wrong: buzz once and pulse Hint until the board changes.
+    let fullButWrong = false;
+    const checkFullButWrong = (): void => {
+      let full = true;
+      for (let y = 0; y < PANEL_SIZE && full; y++) {
+        for (let x = 0; x < PANEL_SIZE; x++) {
+          if (session.cellAt(x, y).placed === EMPTY) {
+            full = false;
+            break;
+          }
+        }
+      }
+      const now = full && !session.isComplete();
+      if (now && !fullButWrong) {
+        play('error');
+        haptic('error');
+      }
+      fullButWrong = now;
+      hintBtn.classList.toggle('attention', now);
+    };
     const afterChange = (): void => {
       syncTray(true);
       updateHud();
+      checkFullButWrong();
       void finishIfComplete();
     };
 
@@ -411,6 +432,7 @@ export function mountPanelPlay(
       updateHud();
     });
     hintBtn.addEventListener('click', () => {
+      hintBtn.classList.remove('attention');
       const wrong = session.wrongCells();
       if (wrong.length === 0) {
         board.clearHighlight();

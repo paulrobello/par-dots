@@ -318,6 +318,7 @@ describe('audio + haptics', () => {
       'colorDone',
       'panelComplete',
       'pictureComplete',
+      'error',
     ] as const) {
       const before = oscs.length + sources.length;
       play(name);

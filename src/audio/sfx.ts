@@ -1,13 +1,20 @@
 import { getSettings, type PlaceSound } from '../storage/settings';
 
-export type SoundName = 'place' | 'remove' | 'colorDone' | 'panelComplete' | 'pictureComplete';
-export type HapticName = 'place' | 'remove' | 'colorDone' | 'panelComplete' | 'pictureComplete';
+export type SoundName =
+  | 'place'
+  | 'remove'
+  | 'colorDone'
+  | 'panelComplete'
+  | 'pictureComplete'
+  | 'error';
+export type HapticName = SoundName;
 
 /** Vibration patterns (ms) per named haptic. */
 export const HAPTIC_PATTERNS: Record<HapticName, number | number[]> = {
   place: 8,
   remove: 5,
   colorDone: [15, 40, 15],
+  error: [60, 40, 60],
   panelComplete: [30, 50, 30, 50, 60],
   pictureComplete: [40, 60, 40, 60, 40, 60, 120],
 };
@@ -33,6 +40,10 @@ const G6 = 1567.98;
 export const SOUNDS: Record<SoundName, Note[]> = {
   place: [{ freq: 1800, toFreq: 900, start: 0, dur: 0.045, type: 'triangle', gain: 0.35 }],
   remove: [{ freq: 700, toFreq: 350, start: 0, dur: 0.06, type: 'sine', gain: 0.2 }],
+  error: [
+    { freq: 330, toFreq: 300, start: 0, dur: 0.14, type: 'square', gain: 0.12 },
+    { freq: 247, toFreq: 220, start: 0.15, dur: 0.22, type: 'square', gain: 0.12 },
+  ],
   colorDone: [
     { freq: E6, start: 0, dur: 0.25, type: 'sine', gain: 0.25 },
     { freq: G6, start: 0.08, dur: 0.35, type: 'sine', gain: 0.22 },

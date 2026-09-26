@@ -1309,3 +1309,25 @@ p {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+.tool.attention {
+  background: var(--accent);
+  color: var(--accent-ink);
+  animation: hint-pulse 1s ease-in-out infinite;
+}
+
+@keyframes hint-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(242, 205, 55, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(242, 205, 55, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tool.attention {
+    animation: none;
+  }
+}
