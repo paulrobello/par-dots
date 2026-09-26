@@ -115,71 +115,69 @@ export function drawDot(
   const cy = y + size / 2;
   const r = size * DOT_R * scale;
   const t = plasticTones(hex);
+  // Thin flat cylinder seen from slightly above: a short side wall below a flat top face.
+  const wall = size * 0.06 * scale;
+  const topY = cy - wall / 2;
+  const baseY = topY + wall;
 
   ctx.save();
-  // Soft drop shadow; its outer radius stays within the cell.
-  const sOff = size * 0.035 * scale;
-  const sR = Math.min(r * 1.1, size * 0.5 - sOff);
-  const shadow = ctx.createRadialGradient(cx + sOff, cy + sOff, r * 0.7, cx + sOff, cy + sOff, sR);
-  shadow.addColorStop(0, 'rgba(0,0,0,0.45)');
+  // Contact shadow on the plate, tight around the base.
+  const shadow = ctx.createRadialGradient(
+    cx,
+    baseY + wall * 0.4,
+    r * 0.85,
+    cx,
+    baseY + wall * 0.4,
+    r * 1.12,
+  );
+  shadow.addColorStop(0, 'rgba(0,0,0,0.4)');
   shadow.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = shadow;
   ctx.beginPath();
-  ctx.arc(cx + sOff, cy + sOff, sR, 0, Math.PI * 2);
+  ctx.arc(cx, baseY + wall * 0.4, Math.min(r * 1.12, size * 0.5), 0, Math.PI * 2);
   ctx.fill();
 
-  // Tile edge/thickness: slightly offset darker disc.
-  const th = size * 0.03 * scale;
-  ctx.fillStyle = t.rim;
+  // Side wall: horizontal gradient so the curved edge reads as a cylinder.
+  const side = ctx.createLinearGradient(cx - r, 0, cx + r, 0);
+  side.addColorStop(0, t.dark);
+  side.addColorStop(0.35, t.rim);
+  side.addColorStop(1, shade(t.rim, -0.2));
+  ctx.fillStyle = side;
   ctx.beginPath();
-  ctx.arc(cx + th * 0.3, cy + th, r, 0, Math.PI * 2);
+  ctx.arc(cx, baseY, r, 0, Math.PI);
+  ctx.lineTo(cx - r, topY);
+  ctx.arc(cx, topY, r, Math.PI, 0, true);
+  ctx.closePath();
   ctx.fill();
 
-  // Body: radial gradient, lit from the upper left, darkening toward the edge.
-  const body = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.05, cx, cy, r);
-  body.addColorStop(0, t.light);
-  body.addColorStop(0.35, t.base);
-  body.addColorStop(0.78, t.base);
-  body.addColorStop(0.93, t.dark);
-  body.addColorStop(1, t.rim);
-  ctx.fillStyle = body;
+  // Flat top face: nearly uniform color with a very gentle light falloff.
+  const top = ctx.createLinearGradient(cx - r, topY - r, cx + r, topY + r);
+  top.addColorStop(0, shade(hex, 0.06));
+  top.addColorStop(1, shade(hex, -0.06));
+  ctx.fillStyle = top;
   ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.arc(cx, topY, r, 0, Math.PI * 2);
   ctx.fill();
 
-  // Faint bevel ring just inside the edge (flat top of the tile meeting its rounded edge).
-  ctx.lineWidth = Math.max(0.5, size * 0.018);
-  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  // Chamfered top edge: a thin bright rim on the lit side, darker on the far side.
+  ctx.lineWidth = Math.max(0.6, size * 0.022 * scale);
+  ctx.strokeStyle = `rgba(255,255,255,${t.specularAlpha * 0.45})`;
   ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.8, 0, Math.PI * 2);
+  ctx.arc(cx, topY, r - ctx.lineWidth / 2, Math.PI * 0.95, Math.PI * 1.75);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath();
+  ctx.arc(cx, topY, r - ctx.lineWidth / 2, Math.PI * 1.95, Math.PI * 0.75);
   ctx.stroke();
 
-  // Broad specular sheen (upper-left ellipse).
-  ctx.save();
-  ctx.translate(cx - r * 0.3, cy - r * 0.38);
-  ctx.rotate(-Math.PI / 4);
-  ctx.scale(1, 0.55);
-  const spec = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.5);
-  spec.addColorStop(0, `rgba(255,255,255,${t.specularAlpha})`);
-  spec.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = spec;
+  // Soft satin sheen across the flat face (no glint: the top is flat, not domed).
+  const sheen = ctx.createLinearGradient(cx - r, topY - r, cx + r * 0.2, topY + r * 0.2);
+  sheen.addColorStop(0, `rgba(255,255,255,${t.specularAlpha * 0.16})`);
+  sheen.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = sheen;
   ctx.beginPath();
-  ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2);
+  ctx.arc(cx, topY, r * 0.92, 0, Math.PI * 2);
   ctx.fill();
-  ctx.restore();
-
-  // Crisp glint.
-  ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.beginPath();
-  ctx.arc(cx - r * 0.42, cy - r * 0.42, Math.max(0.6, r * 0.09), 0, Math.PI * 2);
-  ctx.fill();
-
-  // Reflected light along the lower-right edge.
-  ctx.lineWidth = Math.max(0.5, size * 0.02);
-  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.9, Math.PI * 0.1, Math.PI * 0.45);
-  ctx.stroke();
   ctx.restore();
 }
 

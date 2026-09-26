@@ -276,17 +276,16 @@ p {
   width: 1em;
   height: 1em;
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.9) 0 6%, transparent 7%),
-    radial-gradient(ellipse at 34% 30%, rgba(255, 255, 255, 0.55), transparent 42%),
-    radial-gradient(
-      circle at 40% 38%,
-      var(--c, #c91a09) 55%,
-      color-mix(in srgb, var(--c, #c91a09) 72%, #000) 92%
-    );
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--c, #c91a09) 92%, #fff),
+    color-mix(in srgb, var(--c, #c91a09) 92%, #000)
+  );
   box-shadow:
-    0 0.06em 0 color-mix(in srgb, var(--c, #c91a09) 60%, #000),
-    0 0.12em 0.18em rgba(0, 0, 0, 0.45);
+    inset 0.03em 0.03em 0 rgba(255, 255, 255, 0.28),
+    inset -0.02em -0.02em 0 rgba(0, 0, 0, 0.18),
+    0 0.07em 0 color-mix(in srgb, var(--c, #c91a09) 55%, #000),
+    0 0.1em 0.14em rgba(0, 0, 0, 0.4);
 }
 
 .dot-cluster {
@@ -1111,6 +1110,26 @@ p {
   }
   .crop-stage {
     height: min(60dvh, 520px);
+  }
+}
+
+@media (min-width: 900px) and (min-height: 561px) {
+  .play-body {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+  }
+  .play-side {
+    flex-direction: column;
+    flex: 0 0 auto;
+  }
+  .ref-thumb canvas {
+    width: min(34vw, 50dvh, 420px);
+    height: min(34vw, 50dvh, 420px);
+  }
+  .board-wrap {
+    align-self: stretch;
   }
 }
 

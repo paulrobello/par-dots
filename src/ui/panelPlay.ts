@@ -93,7 +93,7 @@ export function mountPanelPlay(
     // ---- DOM ----------------------------------------------------------------
     const pctEl = h('span', { class: 'pill', 'aria-label': 'Panel progress' });
     const timeEl = h('span', { class: 'pill mono', 'aria-label': 'Panel time' });
-    const refCanvas = renderMosaicToCanvas(save, Math.round(6 * devicePixelRatioSafe()), 'dots', {
+    const refCanvas = renderMosaicToCanvas(save, Math.round(20 * devicePixelRatioSafe()), 'dots', {
       region: { x: origin.x, y: origin.y, w: PANEL_SIZE, h: PANEL_SIZE },
     });
     const refBtn = h(
@@ -110,7 +110,7 @@ export function mountPanelPlay(
         'aria-label': 'Show reference on the board',
       },
       icon('eye'),
-      h('span', {}, 'Overlay'),
+      h('span', {}, 'Reference'),
     );
     const boardCanvas = h('canvas', {
       class: 'board-canvas',
