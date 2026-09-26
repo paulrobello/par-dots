@@ -758,7 +758,7 @@ p {
 
 .toolbar {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 8px;
 }
 
@@ -1220,6 +1220,14 @@ p {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+.board-canvas.panning {
+  cursor: grab;
+}
+
+.board-canvas.panning:active {
+  cursor: grabbing;
 }
 
 .url-form {

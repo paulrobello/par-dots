@@ -58,6 +58,7 @@ export function mountPanelPlay(
     const lockedAtOpen = session.isComplete();
     let selected = -1;
     let removeMode = false;
+    let panMode = false;
     let finished = false;
     let completing = false;
     let lastSound = 0;
@@ -125,6 +126,17 @@ export function mountPanelPlay(
       icon('eraser'),
       h('span', {}, 'Remove'),
     );
+    const moveBtn = h(
+      'button',
+      {
+        type: 'button',
+        class: 'tool',
+        'aria-pressed': 'false',
+        'aria-label': 'Move tool: drag to pan',
+      },
+      icon('move'),
+      h('span', {}, 'Move'),
+    );
     const hintBtn = h(
       'button',
       { type: 'button', class: 'tool', 'aria-label': 'Hint: show wrong dots' },
@@ -149,6 +161,7 @@ export function mountPanelPlay(
       'div',
       { class: 'toolbar', role: 'toolbar', 'aria-label': 'Tools' },
       removeBtn,
+      moveBtn,
       hintBtn,
       undoBtn,
       redoBtn,
@@ -222,6 +235,9 @@ export function mountPanelPlay(
       redoBtn.disabled = !session.canRedo;
       removeBtn.setAttribute('aria-pressed', String(removeMode));
       removeBtn.classList.toggle('on', removeMode);
+      moveBtn.setAttribute('aria-pressed', String(panMode));
+      moveBtn.classList.toggle('on', panMode);
+      boardCanvas.classList.toggle('panning', panMode);
     };
     const tick = setInterval(() => {
       timeEl.textContent = formatDuration(elapsed());
@@ -299,7 +315,7 @@ export function mountPanelPlay(
     };
     const markSelected = (): void => {
       for (const [c, el] of trayEls) {
-        const on = c === selected && !removeMode;
+        const on = c === selected && !removeMode && !panMode;
         el.classList.toggle('selected', on);
         el.setAttribute('aria-checked', String(on));
       }
@@ -318,6 +334,7 @@ export function mountPanelPlay(
     };
     const select = (c: number): void => {
       removeMode = false;
+      panMode = false;
       selectRaw(c);
       updateHud();
     };
@@ -382,6 +399,13 @@ export function mountPanelPlay(
     // ---- tools --------------------------------------------------------------
     removeBtn.addEventListener('click', () => {
       removeMode = !removeMode;
+      panMode = false;
+      markSelected();
+      updateHud();
+    });
+    moveBtn.addEventListener('click', () => {
+      panMode = !panMode;
+      if (panMode) removeMode = false;
       markSelected();
       updateHud();
     });
@@ -416,6 +440,7 @@ export function mountPanelPlay(
     let strokeTouchDownAt: number | null = null;
     let lastCell: { x: number; y: number } | null = null;
     let pinch: { dist: number; mx: number; my: number } | null = null;
+    let drag: { id: number; x: number; y: number } | null = null;
 
     const canvasPoint = (x: number, y: number): { x: number; y: number } => {
       const r = boardCanvas.getBoundingClientRect();
@@ -505,12 +530,17 @@ export function mountPanelPlay(
         } else {
           endStroke();
         }
+        drag = null;
         pinch = pinchState();
         pinchDown = true;
         syncOverlay();
         return;
       }
-      if (lockedAtOpen || finished) return;
+      if (panMode || lockedAtOpen) {
+        drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+        return;
+      }
+      if (finished) return;
       if (e.pointerType !== 'touch') {
         startStroke(e.pointerId, e.clientX, e.clientY, null);
         return;
@@ -541,6 +571,12 @@ export function mountPanelPlay(
         pinch = next;
         return;
       }
+      if (drag && e.pointerId === drag.id) {
+        const vp = board.getViewport();
+        clampVp(vp.scale, vp.offsetX + (e.clientX - drag.x), vp.offsetY + (e.clientY - drag.y));
+        drag = { id: drag.id, x: e.clientX, y: e.clientY };
+        return;
+      }
       if (pending && e.pointerId === pending.id) {
         if (Math.hypot(e.clientX - pending.x, e.clientY - pending.y) < TOUCH_SLOP_PX) return;
         startStroke(pending.id, pending.x, pending.y, pending.downAt);
@@ -556,6 +592,7 @@ export function mountPanelPlay(
       const wasPending = pending && pending.id === e.pointerId && e.type === 'pointerup';
       if (wasPending && pending) startStroke(pending.id, pending.x, pending.y, pending.downAt);
       pointers.delete(e.pointerId);
+      if (drag && drag.id === e.pointerId) drag = null;
       if (e.pointerId === strokePointer) endStroke();
       else if (pending && pending.id === e.pointerId) cancelPending();
       pinch = pointers.size >= 2 ? pinchState() : null;
