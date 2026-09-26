@@ -58,6 +58,48 @@ async function main(): Promise<void> {
 
   const box = await page.locator('.board-canvas').boundingBox();
   if (!box) throw new Error('no board');
+
+  // Two-finger pinch via real touch events must zoom without placing a dot.
+  const cdp = await context.newCDPSession(page);
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  const pt = (x: number, y: number, id: number) => ({ x, y, id, radiusX: 4, radiusY: 4, force: 1 });
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [pt(cx - 20, cy, 1)],
+  });
+  await page.waitForTimeout(20);
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [pt(cx - 20, cy, 1), pt(cx + 20, cy, 2)],
+  });
+  for (let k = 1; k <= 6; k++) {
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [pt(cx - 20 - k * 15, cy, 1), pt(cx + 20 + k * 15, cy, 2)],
+    });
+    await page.waitForTimeout(16);
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await page.waitForTimeout(150);
+  await shot(page, '05b-pinch-zoomed');
+  const afterPinch = {
+    pct: await page.locator('.topbar .pill').first().textContent(),
+    undoDisabled: await page.getByRole('button', { name: 'Undo' }).isDisabled(),
+  };
+  console.log('after pinch:', afterPinch);
+  if (afterPinch.pct !== '0%' || !afterPinch.undoDisabled) throw new Error('pinch placed a dot');
+  // Single touch tap places one dot.
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [pt(cx, cy, 3)] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await page.waitForTimeout(100);
+  const tapUndo = await page.getByRole('button', { name: 'Undo' }).isEnabled();
+  console.log('touch tap created a move:', tapUndo);
+  if (!tapUndo) throw new Error('touch tap did not place');
+  await page.getByRole('button', { name: 'Undo' }).click();
+  // Reset zoom by reopening the panel.
+  await page.reload();
+  await page.locator('.tray-dot').first().waitFor();
   const cell = Math.min(box.width, box.height) / 16.5;
   const x0 = box.x + (box.width - cell * 16) / 2;
   const y0 = box.y + (box.height - cell * 16) / 2;
@@ -133,6 +175,9 @@ async function main(): Promise<void> {
 
   // Completion: fill every stud correctly except panel 1's first stud, then place it.
   await page.setViewportSize({ width: 390, height: 844 });
+  // Leave the panel first: its cleanup persists the in-memory save.
+  await page.goto(`${base}#/`);
+  await page.locator('.save-card').first().waitFor();
   const saveId = await page.evaluate(
     () =>
       new Promise<string>((resolve, reject) => {
@@ -178,11 +223,91 @@ async function main(): Promise<void> {
   await page.locator('.locked-note').waitFor();
   await shot(page, '17-panel-locked');
 
+  // Landscape shots of the other screens.
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.goto(`${base}#/`);
+  await page.locator('.save-card').first().waitFor();
+  await shot(page, '18-gallery-landscape');
+  await page.goto(`${base}#/play/${saveId}`);
+  await page.locator('.panel-btn').first().waitFor();
+  await shot(page, '19-overview-landscape');
+
+  // Upload flow in all aspects.
+  await page.goto(`${base}#/new`);
+  await page.locator('#upload-input').setInputFiles('images/cheshire-cat.jpg');
+  await page.waitForURL(/#\/setup/);
+  await page.locator('.preview-box canvas').waitFor();
+  await shot(page, '20-setup-landscape-upload');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('radio', { name: 'Square' }).click();
+  await page.getByText(/9 panels/).waitFor();
+  await page.getByRole('radio', { name: 'Free colors' }).click();
+  await page.getByText(/9 panels/).waitFor();
+  await page.getByRole('radio', { name: 'Portrait' }).click();
+  await page.getByText(/12 panels/).waitFor();
+  await shot(page, '21-setup-upload-portrait-free');
+  await page.getByRole('radio', { name: 'Square' }).click();
+  await page.getByRole('button', { name: 'Start' }).click();
+  await page.waitForURL(/#\/play\/[^/]+$/);
+  await page.locator('.panel-btn').first().waitFor();
+  const panels = await page.locator('.panel-btn').count();
+  console.log('upload square panels:', panels);
+  if (panels !== 9) throw new Error('expected 9 panels');
+  await page.getByRole('button', { name: 'Back to gallery' }).click();
+  await page.locator('.save-card').nth(1).waitFor();
+  const cards = await page.locator('.save-card').count();
+  await page
+    .locator('.save-card')
+    .first()
+    .getByRole('button', { name: /^Restart/ })
+    .click();
+  await shot(page, '22-confirm-restart');
+  await page.getByRole('dialog').getByRole('button', { name: 'Restart' }).click();
+  await page
+    .locator('.save-card')
+    .first()
+    .getByRole('button', { name: /^Delete/ })
+    .click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+  await page.waitForFunction(
+    (n) => document.querySelectorAll('.save-card').length === n - 1,
+    cards,
+  );
+  console.log('cards before/after delete:', cards, cards - 1);
+  // Setup without a source redirects.
+  await page.goto(`${base}#/setup`);
+  await page.reload();
+  await page.waitForURL(/#\/new/);
+  console.log('setup without source redirected to #/new');
+
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
   );
   console.log('horizontal overflow:', overflow);
   console.log('errors:', errors.length ? errors : 'none');
+  // Offline: allow the service worker, let it precache, then play offline.
+  const swCtx = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const sw = await swCtx.newPage();
+  sw.on('pageerror', (e) => errors.push(`offline: ${String(e)}`));
+  await sw.goto(base);
+  await sw.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await sw.reload();
+  await sw.waitForFunction(() => navigator.serviceWorker.controller !== null);
+  await swCtx.setOffline(true);
+  await sw.reload();
+  await sw.getByRole('button', { name: 'New Picture' }).click();
+  await sw.getByRole('button', { name: 'Lighthouse' }).click();
+  await sw.locator('.preview-box canvas').waitFor({ timeout: 10000 });
+  await sw.screenshot({ path: `${out}/23-offline-setup.png` });
+  console.log('offline: setup preview rendered');
+  await swCtx.close();
+
   await browser.close();
   if (errors.length) process.exitCode = 1;
 }
