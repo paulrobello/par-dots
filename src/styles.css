@@ -1267,3 +1267,26 @@ p {
   min-height: 44px;
   padding: 0 18px;
 }
+
+.colors-ctl {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.28);
+  font-weight: 700;
+}
+
+.colors-range {
+  flex: 1 1 auto;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+
+.colors-value {
+  min-width: 2ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

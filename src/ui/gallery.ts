@@ -3,6 +3,7 @@ import { renderMosaicToCanvas } from '../render/mosaicImage';
 import { deleteSave, listSaves } from '../storage/db';
 import { EMPTY, type PictureSave } from '../types';
 import { asThumb, confirmDialog, h, icon, toast } from './dom';
+import { exportPng } from './exportImage';
 import { formatDuration, routeHash } from './pure';
 import type { Cleanup, ScreenContext } from './screen';
 import { forgetSave, persist } from './state';
@@ -148,6 +149,19 @@ export function mountGallery({ root, navigate }: ScreenContext): Cleanup {
           icon('play'),
           done ? 'View' : 'Continue',
         ),
+        done
+          ? h(
+              'button',
+              {
+                type: 'button',
+                class: 'icon-btn',
+                'aria-label': `Download ${save.name} as PNG`,
+                title: 'Download PNG',
+                on: { click: () => exportPng(save) },
+              },
+              icon('download'),
+            )
+          : null,
         h(
           'button',
           {

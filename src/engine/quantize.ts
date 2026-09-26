@@ -70,7 +70,7 @@ function selectionError(dist: Float64Array[], weight: number[], selected: number
 }
 
 /** Choose up to MAX_COLORS LEGO colors minimizing weighted Lab error. */
-function chooseLegoEntries(colors: ColorSet): Entry[] {
+function chooseLegoEntries(colors: ColorSet, maxColors: number): Entry[] {
   const lego: Entry[] = LEGO_COLORS.map((c) => {
     const [r, g, b] = hexToRgb(c.hex);
     return { color: c, lab: rgbToLab(r, g, b) };
@@ -80,7 +80,7 @@ function chooseLegoEntries(colors: ColorSet): Entry[] {
   // Candidates that are the nearest LEGO color for at least one pixel color.
   const used = new Set<number>();
   for (let i = 0; i < n; i++) used.add(nearest(colors.lab[i], lego));
-  if (used.size <= MAX_COLORS) return [...used].map((j) => lego[j]);
+  if (used.size <= maxColors) return [...used].map((j) => lego[j]);
 
   const dist = lego.map((e) => {
     const row = new Float64Array(n);
@@ -91,7 +91,7 @@ function chooseLegoEntries(colors: ColorSet): Entry[] {
   // Greedy forward selection.
   const selected: number[] = [];
   const cur = new Float64Array(n).fill(Number.POSITIVE_INFINITY);
-  while (selected.length < MAX_COLORS) {
+  while (selected.length < maxColors) {
     let bestJ = -1;
     let bestErr = Number.POSITIVE_INFINITY;
     for (let j = 0; j < lego.length; j++) {
@@ -201,11 +201,11 @@ function entryFromPacked(rgb: number): Entry {
 }
 
 /** Seeded weighted k-means (k-means++ init) in Lab. Centroid colors are RGB means. */
-function chooseFreeEntries(colors: ColorSet): Entry[] {
+function chooseFreeEntries(colors: ColorSet, maxColors: number): Entry[] {
   const n = colors.lab.length;
-  if (n <= MAX_COLORS) return colors.rgb.map(entryFromPacked);
+  if (n <= maxColors) return colors.rgb.map(entryFromPacked);
 
-  const k = MAX_COLORS;
+  const k = maxColors;
   const rand = mulberry32(FREE_SEED);
   const centers: Lab[] = [];
 
@@ -310,8 +310,10 @@ export function buildMosaic(
   width: number,
   height: number,
   mode: PaletteMode,
+  maxColors: number = MAX_COLORS,
 ): Mosaic {
   const count = width * height;
+  const limit = Math.max(2, Math.min(MAX_COLORS, Math.round(maxColors)));
   if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0) {
     throw new RangeError(`Invalid mosaic size ${width}x${height}`);
   }
@@ -319,7 +321,8 @@ export function buildMosaic(
     throw new RangeError(`Expected ${count * 4} RGBA bytes, got ${pixels.length}`);
   }
   const colors = collectColors(pixels, count);
-  const candidates = mode === 'lego' ? chooseLegoEntries(colors) : chooseFreeEntries(colors);
+  const candidates =
+    mode === 'lego' ? chooseLegoEntries(colors, limit) : chooseFreeEntries(colors, limit);
 
   // Map each distinct color to its nearest candidate, then keep only used candidates.
   const colorToCand = colors.lab.map((lab) => nearest(lab, candidates));

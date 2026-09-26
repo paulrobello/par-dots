@@ -7,6 +7,7 @@ export interface QuantizeRequest {
   width: number;
   height: number;
   mode: PaletteMode;
+  maxColors?: number;
 }
 
 export type QuantizeResponse = { id: number; mosaic: Mosaic } | { id: number; error: string };
@@ -14,9 +15,9 @@ export type QuantizeResponse = { id: number; mosaic: Mosaic } | { id: number; er
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 
 ctx.onmessage = (ev: MessageEvent<QuantizeRequest>): void => {
-  const { id, pixels, width, height, mode } = ev.data;
+  const { id, pixels, width, height, mode, maxColors } = ev.data;
   try {
-    const mosaic = buildMosaic(pixels, width, height, mode);
+    const mosaic = buildMosaic(pixels, width, height, mode, maxColors);
     const msg: QuantizeResponse = { id, mosaic };
     ctx.postMessage(msg, [mosaic.target.buffer]);
   } catch (err) {

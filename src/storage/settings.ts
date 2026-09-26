@@ -8,6 +8,7 @@ export interface Settings {
   placeSound: PlaceSound;
   haptics: boolean;
   paletteMode: PaletteMode;
+  maxColors: number;
 }
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
@@ -15,6 +16,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   placeSound: 'click',
   haptics: true,
   paletteMode: 'lego',
+  maxColors: 32,
 });
 
 export const SETTINGS_KEY = 'par-dots:settings';
@@ -30,6 +32,9 @@ function sanitize(raw: unknown): Settings {
     if (PLACE_SOUNDS.includes(r.placeSound as PlaceSound))
       s.placeSound = r.placeSound as PlaceSound;
     if (typeof r.haptics === 'boolean') s.haptics = r.haptics;
+    if (typeof r.maxColors === 'number' && Number.isInteger(r.maxColors)) {
+      s.maxColors = Math.max(2, Math.min(32, r.maxColors));
+    }
     if (r.paletteMode === 'lego' || r.paletteMode === 'free') s.paletteMode = r.paletteMode;
   }
   return s;

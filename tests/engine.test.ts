@@ -244,3 +244,28 @@ describe('panels', () => {
     expect(panelColors(mosaic, '4:3', 11)).toEqual([0]);
   });
 });
+
+describe('buildMosaic maxColors', () => {
+  const noise = (w: number, hgt: number): Uint8ClampedArray => {
+    const px = new Uint8ClampedArray(w * hgt * 4);
+    let seed = 7;
+    for (let i = 0; i < px.length; i++) {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      px[i] = i % 4 === 3 ? 255 : seed & 255;
+    }
+    return px;
+  };
+  it('respects the limit in both modes', () => {
+    for (const mode of ['lego', 'free'] as const) {
+      for (const max of [4, 12, 32]) {
+        expect(buildMosaic(noise(48, 48), 48, 48, mode, max).palette.length).toBeLessThanOrEqual(
+          max,
+        );
+      }
+    }
+  });
+  it('clamps out-of-range limits to 2..32', () => {
+    expect(buildMosaic(noise(48, 48), 48, 48, 'free', 1).palette.length).toBeLessThanOrEqual(2);
+    expect(buildMosaic(noise(48, 48), 48, 48, 'free', 99).palette.length).toBeLessThanOrEqual(32);
+  });
+});

@@ -41,6 +41,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
   const img = src.image;
   let aspect: Aspect = src.aspect;
   let mode: PaletteMode = getSettings().paletteMode;
+  let maxColors = getSettings().maxColors;
   let crop: CropState = clampCrop(
     img.width,
     img.height,
@@ -126,6 +127,30 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
     },
   );
 
+  const colorsValue = h('output', { class: 'colors-value' }, String(maxColors));
+  const colorsInput = h('input', {
+    type: 'range',
+    min: '4',
+    max: '32',
+    step: '1',
+    value: String(maxColors),
+    class: 'colors-range',
+    'aria-label': 'Maximum colors',
+  });
+  colorsInput.addEventListener('input', () => {
+    maxColors = Number(colorsInput.value);
+    colorsValue.textContent = String(maxColors);
+    setSettings({ maxColors });
+    schedulePreview();
+  });
+  const colorsCtl = h(
+    'label',
+    { class: 'colors-ctl' },
+    h('span', {}, 'Max colors'),
+    colorsInput,
+    colorsValue,
+  );
+
   root.append(
     h(
       'div',
@@ -141,7 +166,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
         'div',
         { class: 'setup-body' },
         h('div', { class: 'setup-crop' }, stageWrap, aspectCtl),
-        h('div', { class: 'setup-side' }, modeCtl, preview, previewNote, startBtn),
+        h('div', { class: 'setup-side' }, modeCtl, colorsCtl, preview, previewNote, startBtn),
       ),
     ),
   );
@@ -261,7 +286,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
     const dims = studDims(aspect);
     const rect = cropRectFor(img.width, img.height, aspect, crop);
     const pixels = cropAndResample(img, rect, dims.width, dims.height);
-    return quantizeInWorker(pixels, dims.width, dims.height, mode);
+    return quantizeInWorker(pixels, dims.width, dims.height, mode, maxColors);
   };
   const runPreview = (): void => {
     const my = ++token;

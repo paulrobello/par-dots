@@ -5,7 +5,8 @@ import { prefersReducedMotion } from '../render/motion';
 import { OverviewRenderer } from '../render/overviewRenderer';
 import type { PictureSave } from '../types';
 import { celebrate } from './celebrate';
-import { downloadBlob, h, icon, iconButton, openSheet, toast } from './dom';
+import { h, icon, iconButton, openSheet, toast } from './dom';
+import { exportPng } from './exportImage';
 import { formatDuration, routeHash } from './pure';
 import type { Cleanup, ScreenContext } from './screen';
 import { loadSave, takeTransitionHint } from './state';
@@ -38,7 +39,7 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
     'button',
     { type: 'button', class: 'btn primary', hidden: true },
     icon('download'),
-    'Export PNG',
+    'Download PNG',
   );
   const panelList = h('div', { class: 'visually-hidden' });
 
@@ -65,18 +66,6 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
       ),
     ),
   );
-
-  const exportPng = (save: PictureSave): void => {
-    const canvasOut = renderMosaicToCanvas(save, 24, 'dots', { cells: save.placed });
-    canvasOut.toBlob((blob) => {
-      if (!blob) {
-        toast('Export failed');
-        return;
-      }
-      const safe = save.name.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '') || 'mosaic';
-      downloadBlob(blob, `${safe}-dots.png`);
-    }, 'image/png');
-  };
 
   const openPanel = (save: PictureSave, index: number): void => {
     if (leaving || !renderer) return;
@@ -130,7 +119,7 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
       'button',
       { type: 'button', class: 'btn primary big' },
       icon('download'),
-      'Export PNG',
+      'Download PNG',
     );
     dl.addEventListener('click', () => exportPng(save));
     openSheet(

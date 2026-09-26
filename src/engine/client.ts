@@ -15,7 +15,7 @@ const pending = new Map<number, Pending>();
 
 function runOnMainThread(p: Pending): void {
   try {
-    p.resolve(buildMosaic(p.req.pixels, p.req.width, p.req.height, p.req.mode));
+    p.resolve(buildMosaic(p.req.pixels, p.req.width, p.req.height, p.req.mode, p.req.maxColors));
   } catch (err) {
     p.reject(err instanceof Error ? err : new Error(String(err)));
   }
@@ -62,9 +62,10 @@ export function quantizeInWorker(
   w: number,
   h: number,
   mode: PaletteMode,
+  maxColors?: number,
 ): Promise<Mosaic> {
   return new Promise<Mosaic>((resolve, reject) => {
-    const req: QuantizeRequest = { id: nextId++, pixels, width: w, height: h, mode };
+    const req: QuantizeRequest = { id: nextId++, pixels, width: w, height: h, mode, maxColors };
     const p: Pending = { req, resolve, reject };
     const wk = getWorker();
     if (!wk) {
