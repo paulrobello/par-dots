@@ -3,7 +3,7 @@
 export function prefersReducedMotion(): boolean {
   try {
     return (
-      typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches
+      typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
     );
   } catch {
     return false;
@@ -11,12 +11,12 @@ export function prefersReducedMotion(): boolean {
 }
 
 export function devicePixelRatioSafe(): number {
-  const d = typeof window !== "undefined" ? window.devicePixelRatio : 1;
+  const d = typeof window !== 'undefined' ? window.devicePixelRatio : 1;
   return Number.isFinite(d) && d > 0 ? Math.min(d, 3) : 1;
 }
 
 export function now(): number {
-  return typeof performance !== "undefined" ? performance.now() : Date.now();
+  return typeof performance !== 'undefined' ? performance.now() : Date.now();
 }
 
 /** Client (viewport) coords to canvas-local CSS px, tolerant of CSS transforms on the canvas. */

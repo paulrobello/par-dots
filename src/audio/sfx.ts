@@ -1,7 +1,7 @@
-import { getSettings } from "../storage/settings";
+import { getSettings } from '../storage/settings';
 
-export type SoundName = "place" | "remove" | "colorDone" | "panelComplete" | "pictureComplete";
-export type HapticName = "place" | "remove" | "colorDone" | "panelComplete" | "pictureComplete";
+export type SoundName = 'place' | 'remove' | 'colorDone' | 'panelComplete' | 'pictureComplete';
+export type HapticName = 'place' | 'remove' | 'colorDone' | 'panelComplete' | 'pictureComplete';
 
 /** Vibration patterns (ms) per named haptic. */
 export const HAPTIC_PATTERNS: Record<HapticName, number | number[]> = {
@@ -31,27 +31,27 @@ const G6 = 1567.98;
 
 /** Synthesized note sequences; no audio assets are shipped. */
 export const SOUNDS: Record<SoundName, Note[]> = {
-  place: [{ freq: 1800, toFreq: 900, start: 0, dur: 0.045, type: "triangle", gain: 0.35 }],
-  remove: [{ freq: 700, toFreq: 350, start: 0, dur: 0.06, type: "sine", gain: 0.2 }],
+  place: [{ freq: 1800, toFreq: 900, start: 0, dur: 0.045, type: 'triangle', gain: 0.35 }],
+  remove: [{ freq: 700, toFreq: 350, start: 0, dur: 0.06, type: 'sine', gain: 0.2 }],
   colorDone: [
-    { freq: E6, start: 0, dur: 0.25, type: "sine", gain: 0.25 },
-    { freq: G6, start: 0.08, dur: 0.35, type: "sine", gain: 0.22 },
+    { freq: E6, start: 0, dur: 0.25, type: 'sine', gain: 0.25 },
+    { freq: G6, start: 0.08, dur: 0.35, type: 'sine', gain: 0.22 },
   ],
   panelComplete: [
-    { freq: C5, start: 0, dur: 0.15, type: "triangle", gain: 0.3 },
-    { freq: E5, start: 0.12, dur: 0.15, type: "triangle", gain: 0.3 },
-    { freq: G5, start: 0.24, dur: 0.15, type: "triangle", gain: 0.3 },
-    { freq: C6, start: 0.36, dur: 0.5, type: "triangle", gain: 0.32 },
+    { freq: C5, start: 0, dur: 0.15, type: 'triangle', gain: 0.3 },
+    { freq: E5, start: 0.12, dur: 0.15, type: 'triangle', gain: 0.3 },
+    { freq: G5, start: 0.24, dur: 0.15, type: 'triangle', gain: 0.3 },
+    { freq: C6, start: 0.36, dur: 0.5, type: 'triangle', gain: 0.32 },
   ],
   pictureComplete: [
-    { freq: C5, start: 0, dur: 0.18, type: "triangle", gain: 0.28 },
-    { freq: E5, start: 0.15, dur: 0.18, type: "triangle", gain: 0.28 },
-    { freq: G5, start: 0.3, dur: 0.18, type: "triangle", gain: 0.28 },
-    { freq: C6, start: 0.45, dur: 0.25, type: "triangle", gain: 0.3 },
-    { freq: G5, start: 0.7, dur: 0.15, type: "triangle", gain: 0.25 },
-    { freq: C6, start: 0.85, dur: 0.9, type: "triangle", gain: 0.3 },
-    { freq: E6, start: 0.85, dur: 0.9, type: "sine", gain: 0.18 },
-    { freq: G6, start: 0.85, dur: 0.9, type: "sine", gain: 0.14 },
+    { freq: C5, start: 0, dur: 0.18, type: 'triangle', gain: 0.28 },
+    { freq: E5, start: 0.15, dur: 0.18, type: 'triangle', gain: 0.28 },
+    { freq: G5, start: 0.3, dur: 0.18, type: 'triangle', gain: 0.28 },
+    { freq: C6, start: 0.45, dur: 0.25, type: 'triangle', gain: 0.3 },
+    { freq: G5, start: 0.7, dur: 0.15, type: 'triangle', gain: 0.25 },
+    { freq: C6, start: 0.85, dur: 0.9, type: 'triangle', gain: 0.3 },
+    { freq: E6, start: 0.85, dur: 0.9, type: 'sine', gain: 0.18 },
+    { freq: G6, start: 0.85, dur: 0.9, type: 'sine', gain: 0.14 },
   ],
 };
 
@@ -76,7 +76,7 @@ export function unlockAudio(): AudioContext | null {
       return null;
     }
   }
-  if (ctx.state === "suspended") void ctx.resume().catch(() => undefined);
+  if (ctx.state === 'suspended') void ctx.resume().catch(() => undefined);
   return ctx;
 }
 
@@ -84,21 +84,21 @@ export function unlockAudio(): AudioContext | null {
 export function initAudio(target: EventTarget = globalThis): void {
   if (listening) return;
   listening = true;
-  const events = ["pointerdown", "touchend", "keydown"];
+  const events = ['pointerdown', 'touchend', 'keydown'];
   const detach = (): void => {
     for (const e of events) target.removeEventListener(e, handler);
   };
   // Detach only once audio is running: iOS may ignore a gesture it does not treat as activation.
   const handler = (): void => {
     const ac = unlockAudio();
-    if (!ac || ac.state === "running") {
+    if (!ac || ac.state === 'running') {
       detach();
       return;
     }
     void ac
       .resume()
       .then(() => {
-        if (ac.state === "running") detach();
+        if (ac.state === 'running') detach();
       })
       .catch(() => undefined);
   };
@@ -129,7 +129,7 @@ function schedule(ac: AudioContext, notes: Note[]): void {
 export function play(name: SoundName): void {
   if (!getSettings().sound) return;
   const ac = ctx ?? unlockAudio();
-  if (!ac || ac.state === "closed") return;
+  if (!ac || ac.state === 'closed') return;
   try {
     schedule(ac, SOUNDS[name]);
   } catch {
@@ -141,8 +141,8 @@ export function play(name: SoundName): void {
 export function haptic(pattern: HapticName | number | number[]): void {
   if (!getSettings().haptics) return;
   const nav = globalThis.navigator as (Navigator & { vibrate?: unknown }) | undefined;
-  if (!nav || typeof nav.vibrate !== "function") return;
-  const p = typeof pattern === "string" ? HAPTIC_PATTERNS[pattern] : pattern;
+  if (!nav || typeof nav.vibrate !== 'function') return;
+  const p = typeof pattern === 'string' ? HAPTIC_PATTERNS[pattern] : pattern;
   try {
     nav.vibrate(p);
   } catch {

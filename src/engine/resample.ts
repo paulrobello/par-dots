@@ -1,4 +1,4 @@
-import type { CropRect } from "../types";
+import type { CropRect } from '../types';
 
 export interface ImageLike {
   data: Uint8ClampedArray | Uint8Array;

@@ -1,4 +1,4 @@
-export { panelCount, panelOrigin, studIndex } from "./geometry";
+export { panelCount, panelOrigin, studIndex } from './geometry';
 export {
   type ChangeCause,
   MAX_HISTORY,
@@ -6,7 +6,7 @@ export {
   type PanelListener,
   PanelSession,
   type StrokeMode,
-} from "./panelSession";
+} from './panelSession';
 export {
   isCorrect,
   overallProgress,
@@ -14,4 +14,4 @@ export {
   panelComplete,
   panelProgress,
   pictureComplete,
-} from "./progress";
+} from './progress';

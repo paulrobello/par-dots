@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from 'vitest';
 import {
   MAX_HISTORY,
   overallProgress,
@@ -10,11 +10,11 @@ import {
   panelProgress,
   pictureComplete,
   studIndex,
-} from "../src/game";
-import { type Aspect, EMPTY, LAYOUT, type PictureSave } from "../src/types";
+} from '../src/game';
+import { type Aspect, EMPTY, LAYOUT, type PictureSave } from '../src/types';
 
 /** Target color = (x + y) % colors, so every panel uses all colors. */
-function makeSave(aspect: Aspect = "1:1", colors = 3): PictureSave {
+function makeSave(aspect: Aspect = '1:1', colors = 3): PictureSave {
   const { cols, rows } = LAYOUT[aspect];
   const width = cols * 16;
   const height = rows * 16;
@@ -22,14 +22,14 @@ function makeSave(aspect: Aspect = "1:1", colors = 3): PictureSave {
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) target[y * width + x] = (x + y) % colors;
   return {
-    id: "t",
+    id: 't',
     createdAt: 0,
     updatedAt: 0,
-    name: "test",
-    sourceImageId: "library:test",
+    name: 'test',
+    sourceImageId: 'library:test',
     aspect,
-    paletteMode: "free",
-    palette: Array.from({ length: colors }, (_, i) => ({ hex: "#000000", name: `c${i}` })),
+    paletteMode: 'free',
+    palette: Array.from({ length: colors }, (_, i) => ({ hex: '#000000', name: `c${i}` })),
     width,
     height,
     target,
@@ -50,44 +50,44 @@ function fillPanel(save: PictureSave, panel: number, skip: Array<[number, number
 }
 
 function paint(s: PanelSession, color: number, cells: Array<[number, number]>): boolean[] {
-  s.beginStroke("paint", color);
+  s.beginStroke('paint', color);
   const r = cells.map(([x, y]) => s.applyAt(x, y));
   s.endStroke();
   return r;
 }
 
 function remove(s: PanelSession, cells: Array<[number, number]>): boolean[] {
-  s.beginStroke("remove");
+  s.beginStroke('remove');
   const r = cells.map(([x, y]) => s.applyAt(x, y));
   s.endStroke();
   return r;
 }
 
-describe("geometry", () => {
-  it("computes panel counts and origins per aspect", () => {
-    expect(panelCount(makeSave("1:1"))).toBe(9);
-    expect(panelCount(makeSave("3:4"))).toBe(12);
-    expect(panelCount(makeSave("4:3"))).toBe(12);
-    const land = makeSave("4:3");
+describe('geometry', () => {
+  it('computes panel counts and origins per aspect', () => {
+    expect(panelCount(makeSave('1:1'))).toBe(9);
+    expect(panelCount(makeSave('3:4'))).toBe(12);
+    expect(panelCount(makeSave('4:3'))).toBe(12);
+    const land = makeSave('4:3');
     expect(panelOrigin(land, 0)).toEqual({ x: 0, y: 0 });
     expect(panelOrigin(land, 3)).toEqual({ x: 48, y: 0 });
     expect(panelOrigin(land, 4)).toEqual({ x: 0, y: 16 });
     expect(panelOrigin(land, 11)).toEqual({ x: 48, y: 32 });
-    const port = makeSave("3:4");
+    const port = makeSave('3:4');
     expect(panelOrigin(port, 11)).toEqual({ x: 32, y: 48 });
     expect(studIndex(port, 4, 2, 3)).toBe((16 + 3) * 48 + 16 + 2);
   });
 
-  it("rejects out-of-range panels", () => {
-    expect(() => panelOrigin(makeSave("1:1"), 9)).toThrow(RangeError);
-    expect(() => panelOrigin(makeSave("1:1"), -1)).toThrow(RangeError);
-    expect(() => new PanelSession(makeSave("1:1"), 9)).toThrow(RangeError);
+  it('rejects out-of-range panels', () => {
+    expect(() => panelOrigin(makeSave('1:1'), 9)).toThrow(RangeError);
+    expect(() => panelOrigin(makeSave('1:1'), -1)).toThrow(RangeError);
+    expect(() => new PanelSession(makeSave('1:1'), 9)).toThrow(RangeError);
   });
 });
 
-describe("PanelSession painting", () => {
-  it("paints empty studs into save.placed at the panel offset", () => {
-    const save = makeSave("4:3");
+describe('PanelSession painting', () => {
+  it('paints empty studs into save.placed at the panel offset', () => {
+    const save = makeSave('4:3');
     const s = new PanelSession(save, 5);
     expect(paint(s, 1, [[2, 3]])).toEqual([true]);
     expect(save.placed[studIndex(save, 5, 2, 3)]).toBe(1);
@@ -95,14 +95,14 @@ describe("PanelSession painting", () => {
     expect(save.placed[studIndex(save, 0, 2, 3)]).toBe(EMPTY);
   });
 
-  it("ignores occupied studs, out-of-bounds, and calls without a stroke", () => {
+  it('ignores occupied studs, out-of-bounds, and calls without a stroke', () => {
     const save = makeSave();
     const s = new PanelSession(save, 0);
     expect(s.applyAt(0, 0)).toBe(false);
-    s.beginStroke("paint", 0);
+    s.beginStroke('paint', 0);
     expect(s.applyAt(0, 0)).toBe(true);
     s.endStroke();
-    s.beginStroke("paint", 2);
+    s.beginStroke('paint', 2);
     expect(s.applyAt(0, 0)).toBe(false);
     expect(s.applyAt(16, 0)).toBe(false);
     expect(s.applyAt(-1, 0)).toBe(false);
@@ -111,7 +111,7 @@ describe("PanelSession painting", () => {
     expect(s.cellAt(0, 0).placed).toBe(0);
   });
 
-  it("allows incorrect colors and reports them as wrong", () => {
+  it('allows incorrect colors and reports them as wrong', () => {
     const save = makeSave();
     const s = new PanelSession(save, 0);
     paint(s, 1, [
@@ -122,7 +122,7 @@ describe("PanelSession painting", () => {
     expect(s.progress()).toEqual({ correct: 1, total: 256 });
   });
 
-  it("removes any dot in remove mode, and ignores empty studs", () => {
+  it('removes any dot in remove mode, and ignores empty studs', () => {
     const save = makeSave();
     const s = new PanelSession(save, 0);
     paint(s, 1, [
@@ -141,15 +141,15 @@ describe("PanelSession painting", () => {
     expect(s.progress().correct).toBe(0);
   });
 
-  it("validates paint colors", () => {
+  it('validates paint colors', () => {
     const s = new PanelSession(makeSave(), 0);
-    expect(() => s.beginStroke("paint")).toThrow(RangeError);
-    expect(() => s.beginStroke("paint", 3)).toThrow(RangeError);
-    expect(() => s.beginStroke("paint", -1)).toThrow(RangeError);
+    expect(() => s.beginStroke('paint')).toThrow(RangeError);
+    expect(() => s.beginStroke('paint', 3)).toThrow(RangeError);
+    expect(() => s.beginStroke('paint', -1)).toThrow(RangeError);
     expect(() => s.cellAt(16, 0)).toThrow(RangeError);
   });
 
-  it("reads existing progress from the save at construction", () => {
+  it('reads existing progress from the save at construction', () => {
     const save = makeSave();
     fillPanel(save, 2, [[0, 0]]);
     const s = new PanelSession(save, 2);
@@ -159,8 +159,8 @@ describe("PanelSession painting", () => {
   });
 });
 
-describe("PanelSession undo/redo", () => {
-  it("treats one stroke as one move", () => {
+describe('PanelSession undo/redo', () => {
+  it('treats one stroke as one move', () => {
     const save = makeSave();
     const s = new PanelSession(save, 0);
     paint(s, 0, [
@@ -180,28 +180,28 @@ describe("PanelSession undo/redo", () => {
     expect(s.canRedo).toBe(false);
   });
 
-  it("does not record empty strokes", () => {
+  it('does not record empty strokes', () => {
     const s = new PanelSession(makeSave(), 0);
-    s.beginStroke("remove");
+    s.beginStroke('remove');
     s.applyAt(0, 0);
     s.endStroke();
-    s.beginStroke("paint", 0);
+    s.beginStroke('paint', 0);
     s.endStroke();
     expect(s.canUndo).toBe(false);
     expect(s.undo()).toBe(false);
     expect(s.redo()).toBe(false);
   });
 
-  it("empty stroke does not clear redo", () => {
+  it('empty stroke does not clear redo', () => {
     const s = new PanelSession(makeSave(), 0);
     paint(s, 0, [[0, 0]]);
     s.undo();
-    s.beginStroke("paint", 0);
+    s.beginStroke('paint', 0);
     s.endStroke();
     expect(s.canRedo).toBe(true);
   });
 
-  it("a new move clears redo", () => {
+  it('a new move clears redo', () => {
     const s = new PanelSession(makeSave(), 0);
     paint(s, 0, [[0, 0]]);
     s.undo();
@@ -210,7 +210,7 @@ describe("PanelSession undo/redo", () => {
     expect(s.redo()).toBe(false);
   });
 
-  it("keeps at most MAX_HISTORY moves", () => {
+  it('keeps at most MAX_HISTORY moves', () => {
     const save = makeSave();
     const s = new PanelSession(save, 0);
     for (let i = 0; i < MAX_HISTORY + 2; i++) paint(s, 0, [[i, 0]]);
@@ -222,7 +222,7 @@ describe("PanelSession undo/redo", () => {
     expect(s.cellAt(2, 0).placed).toBe(EMPTY);
   });
 
-  it("undoes remove strokes restoring previous colors", () => {
+  it('undoes remove strokes restoring previous colors', () => {
     const s = new PanelSession(makeSave(), 0);
     paint(s, 1, [
       [0, 0],
@@ -237,7 +237,7 @@ describe("PanelSession undo/redo", () => {
     expect(s.cellAt(1, 0).placed).toBe(1);
   });
 
-  it("history is per session (per panel)", () => {
+  it('history is per session (per panel)', () => {
     const save = makeSave();
     const a = new PanelSession(save, 0);
     paint(a, 0, [[0, 0]]);
@@ -245,10 +245,10 @@ describe("PanelSession undo/redo", () => {
     expect(b.canUndo).toBe(false);
   });
 
-  it("disables undo while a stroke is open", () => {
+  it('disables undo while a stroke is open', () => {
     const s = new PanelSession(makeSave(), 0);
     paint(s, 0, [[0, 0]]);
-    s.beginStroke("paint", 0);
+    s.beginStroke('paint', 0);
     expect(s.strokeActive).toBe(true);
     expect(s.canUndo).toBe(false);
     s.endStroke();
@@ -256,9 +256,9 @@ describe("PanelSession undo/redo", () => {
   });
 });
 
-describe("PanelSession tray", () => {
-  it("lists needed colors in palette order and depletes/returns them", () => {
-    const save = makeSave("1:1", 3);
+describe('PanelSession tray', () => {
+  it('lists needed colors in palette order and depletes/returns them', () => {
+    const save = makeSave('1:1', 3);
     fillPanel(save, 0, [
       [0, 0],
       [1, 0],
@@ -276,8 +276,8 @@ describe("PanelSession tray", () => {
     expect(s.trayColors()).toEqual([0, 1]);
   });
 
-  it("a wrong dot on a color C stud keeps C in the tray", () => {
-    const save = makeSave("1:1", 3);
+  it('a wrong dot on a color C stud keeps C in the tray', () => {
+    const save = makeSave('1:1', 3);
     fillPanel(save, 0, [[0, 0]]);
     const s = new PanelSession(save, 0);
     paint(s, 2, [[0, 0]]);
@@ -285,17 +285,17 @@ describe("PanelSession tray", () => {
     expect(s.isComplete()).toBe(false);
   });
 
-  it("never includes palette colors absent from the panel", () => {
-    const save = makeSave("1:1", 4);
-    save.palette.push({ hex: "#ffffff", name: "unused" });
+  it('never includes palette colors absent from the panel', () => {
+    const save = makeSave('1:1', 4);
+    save.palette.push({ hex: '#ffffff', name: 'unused' });
     const s = new PanelSession(save, 0);
     expect(s.trayColors()).toEqual([0, 1, 2, 3]);
   });
 });
 
-describe("PanelSession events", () => {
-  it("emits placed/removed/colorDone/colorReturned/complete", () => {
-    const save = makeSave("1:1", 3);
+describe('PanelSession events', () => {
+  it('emits placed/removed/colorDone/colorReturned/complete', () => {
+    const save = makeSave('1:1', 3);
     fillPanel(save, 4, [
       [0, 0],
       [1, 0],
@@ -308,48 +308,48 @@ describe("PanelSession events", () => {
 
     paint(s, t0, [[0, 0]]);
     expect(events).toEqual([
-      { type: "placed", x: 0, y: 0, colorIndex: t0, correct: true, cause: "stroke" },
-      { type: "colorDone", colorIndex: t0 },
+      { type: 'placed', x: 0, y: 0, colorIndex: t0, correct: true, cause: 'stroke' },
+      { type: 'colorDone', colorIndex: t0 },
     ]);
 
     events.length = 0;
     remove(s, [[0, 0]]);
     expect(events).toEqual([
-      { type: "removed", x: 0, y: 0, colorIndex: t0, cause: "stroke" },
-      { type: "colorReturned", colorIndex: t0 },
+      { type: 'removed', x: 0, y: 0, colorIndex: t0, cause: 'stroke' },
+      { type: 'colorReturned', colorIndex: t0 },
     ]);
 
     events.length = 0;
     paint(s, t0, [[0, 0]]);
     paint(s, t1, [[1, 0]]);
     expect(events.map((e) => e.type)).toEqual([
-      "placed",
-      "colorDone",
-      "placed",
-      "colorDone",
-      "complete",
+      'placed',
+      'colorDone',
+      'placed',
+      'colorDone',
+      'complete',
     ]);
     expect(s.isComplete()).toBe(true);
 
     events.length = 0;
     off();
-    s.beginStroke("remove");
+    s.beginStroke('remove');
     expect(s.applyAt(0, 0)).toBe(false);
     s.endStroke();
     expect(events).toEqual([]);
   });
 
-  it("marks wrong placements with correct: false and emits no colorDone", () => {
+  it('marks wrong placements with correct: false and emits no colorDone', () => {
     const s = new PanelSession(makeSave(), 0);
     const events: PanelEvent[] = [];
     s.onChange((e) => events.push(e));
     paint(s, 1, [[0, 0]]);
     expect(events).toEqual([
-      { type: "placed", x: 0, y: 0, colorIndex: 1, correct: false, cause: "stroke" },
+      { type: 'placed', x: 0, y: 0, colorIndex: 1, correct: false, cause: 'stroke' },
     ]);
   });
 
-  it("tags undo/redo events with their cause", () => {
+  it('tags undo/redo events with their cause', () => {
     const s = new PanelSession(makeSave(), 0);
     paint(s, 0, [[0, 0]]);
     const events: PanelEvent[] = [];
@@ -357,25 +357,25 @@ describe("PanelSession events", () => {
     s.undo();
     s.redo();
     expect(events).toContainEqual({
-      type: "removed",
+      type: 'removed',
       x: 0,
       y: 0,
       colorIndex: 0,
-      cause: "undo",
+      cause: 'undo',
     });
     expect(events).toContainEqual({
-      type: "placed",
+      type: 'placed',
       x: 0,
       y: 0,
       colorIndex: 0,
       correct: true,
-      cause: "redo",
+      cause: 'redo',
     });
   });
 });
 
-describe("PanelSession completion lock", () => {
-  it("locks strokes and history once complete", () => {
+describe('PanelSession completion lock', () => {
+  it('locks strokes and history once complete', () => {
     const save = makeSave();
     fillPanel(save, 0, [[0, 0]]);
     const s = new PanelSession(save, 0);
@@ -388,16 +388,16 @@ describe("PanelSession completion lock", () => {
     expect(s.progress()).toEqual({ correct: 256, total: 256 });
   });
 
-  it("a panel already complete at construction is complete", () => {
+  it('a panel already complete at construction is complete', () => {
     const save = makeSave();
     fillPanel(save, 8);
     expect(new PanelSession(save, 8).isComplete()).toBe(true);
   });
 });
 
-describe("progress helpers", () => {
-  it("computes overall and panel progress", () => {
-    const save = makeSave("3:4");
+describe('progress helpers', () => {
+  it('computes overall and panel progress', () => {
+    const save = makeSave('3:4');
     expect(overallProgress(save)).toEqual({ correct: 0, total: 48 * 64, percent: 0 });
     fillPanel(save, 7);
     expect(panelProgress(save, 7)).toEqual({ correct: 256, total: 256, percent: 100 });
@@ -406,7 +406,7 @@ describe("progress helpers", () => {
     expect(overallProgress(save)).toEqual({ correct: 256, total: 3072, percent: 8.3 });
   });
 
-  it("does not count wrong dots", () => {
+  it('does not count wrong dots', () => {
     const save = makeSave();
     const i = studIndex(save, 0, 0, 0);
     save.placed[i] = (save.target[i] + 1) % 3;
@@ -414,8 +414,8 @@ describe("progress helpers", () => {
     expect(overallProgress(save).correct).toBe(0);
   });
 
-  it("detects picture completion", () => {
-    const save = makeSave("4:3");
+  it('detects picture completion', () => {
+    const save = makeSave('4:3');
     for (let p = 0; p < 11; p++) fillPanel(save, p);
     expect(pictureComplete(save)).toBe(false);
     fillPanel(save, 11);
@@ -423,7 +423,7 @@ describe("progress helpers", () => {
     expect(overallProgress(save).percent).toBe(100);
   });
 
-  it("agrees with PanelSession.progress", () => {
+  it('agrees with PanelSession.progress', () => {
     const save = makeSave();
     const s = new PanelSession(save, 3);
     paint(s, 0, [

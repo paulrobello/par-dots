@@ -5,3 +5,4 @@ public/library/
 *.local
 test-results/
 playwright-report/
+.claude/

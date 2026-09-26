@@ -1,6 +1,6 @@
-import type { Mosaic, PaletteMode } from "../types";
-import { buildMosaic } from "./quantize";
-import type { QuantizeRequest, QuantizeResponse } from "./worker";
+import type { Mosaic, PaletteMode } from '../types';
+import { buildMosaic } from './quantize';
+import type { QuantizeRequest, QuantizeResponse } from './worker';
 
 interface Pending {
   req: QuantizeRequest;
@@ -24,12 +24,12 @@ function runOnMainThread(p: Pending): void {
 function getWorker(): Worker | null {
   if (workerBroken) return null;
   if (worker) return worker;
-  if (typeof Worker === "undefined") {
+  if (typeof Worker === 'undefined') {
     workerBroken = true;
     return null;
   }
   try {
-    worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
+    worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
   } catch {
     workerBroken = true;
     return null;
@@ -38,7 +38,7 @@ function getWorker(): Worker | null {
     const p = pending.get(ev.data.id);
     if (!p) return;
     pending.delete(ev.data.id);
-    if ("mosaic" in ev.data) p.resolve(ev.data.mosaic);
+    if ('mosaic' in ev.data) p.resolve(ev.data.mosaic);
     else p.reject(new Error(ev.data.error));
   };
   worker.onerror = (): void => {

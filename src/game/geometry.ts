@@ -1,4 +1,4 @@
-import { LAYOUT, PANEL_SIZE, type PictureSave } from "../types";
+import { LAYOUT, PANEL_SIZE, type PictureSave } from '../types';
 
 /** Number of panels in a picture. */
 export function panelCount(save: PictureSave): number {

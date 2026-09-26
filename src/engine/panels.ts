@@ -1,4 +1,4 @@
-import { type Aspect, LAYOUT, type Mosaic, PANEL_SIZE } from "../types";
+import { type Aspect, LAYOUT, type Mosaic, PANEL_SIZE } from '../types';
 
 export function panelCount(aspect: Aspect): number {
   const { cols, rows } = LAYOUT[aspect];

@@ -1,9 +1,9 @@
 /** Offscreen rendering of a whole mosaic for thumbnails, the panel reference image, and PNG export. */
 
-import type { Mosaic } from "../types";
-import { drawDot, drawStud, PLATE_GREEN } from "./sprites";
+import type { Mosaic } from '../types';
+import { drawDot, drawStud, PLATE_GREEN } from './sprites';
 
-export type MosaicStyle = "dots" | "flat";
+export type MosaicStyle = 'dots' | 'flat';
 
 export interface MosaicImageOptions {
   /** Render only this stud region (e.g. one 16x16 panel for the reference image). */
@@ -37,21 +37,21 @@ export function renderMosaicToCanvas(
   const region = opts.region ?? { x: 0, y: 0, w: mosaic.width, h: mosaic.height };
   const c = Math.max(1, Math.round(cellPx));
   const size = mosaicImageSize(region.w, region.h, c);
-  const canvas = document.createElement("canvas");
+  const canvas = document.createElement('canvas');
   canvas.width = size.width;
   canvas.height = size.height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("2D canvas context unavailable");
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2D canvas context unavailable');
   const cells = opts.cells ?? mosaic.target;
   const plate = opts.plateColor ?? PLATE_GREEN;
 
   let stud: HTMLCanvasElement | null = null;
   const dotCache = new Map<string, HTMLCanvasElement>();
   const sprite = (paint: (g: CanvasRenderingContext2D) => void): HTMLCanvasElement => {
-    const s = document.createElement("canvas");
+    const s = document.createElement('canvas');
     s.width = c;
     s.height = c;
-    const g = s.getContext("2d");
+    const g = s.getContext('2d');
     if (g) paint(g);
     return s;
   };
@@ -65,7 +65,7 @@ export function renderMosaicToCanvas(
       const color = idx === undefined ? undefined : mosaic.palette[idx];
       const px = rx * c;
       const py = ry * c;
-      if (style === "flat") {
+      if (style === 'flat') {
         ctx.fillStyle = color ? color.hex : plate;
         ctx.fillRect(px, py, c, c);
         continue;

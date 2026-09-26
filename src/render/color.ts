@@ -10,12 +10,12 @@ const clamp255 = (v: number): number => Math.max(0, Math.min(255, Math.round(v))
 
 /** Parse "#rrggbb" or "#rgb" (case-insensitive). Invalid input yields mid gray. */
 export function hexToRgb(hex: string): Rgb {
-  let h = hex.trim().replace(/^#/, "");
+  let h = hex.trim().replace(/^#/, '');
   if (h.length === 3) {
     h = h
-      .split("")
+      .split('')
       .map((c) => c + c)
-      .join("");
+      .join('');
   }
   if (!/^[0-9a-fA-F]{6}$/.test(h)) return { r: 128, g: 128, b: 128 };
   const n = Number.parseInt(h, 16);
@@ -23,7 +23,7 @@ export function hexToRgb(hex: string): Rgb {
 }
 
 export function rgbToHex({ r, g, b }: Rgb): string {
-  return `#${[r, g, b].map((v) => clamp255(v).toString(16).padStart(2, "0")).join("")}`;
+  return `#${[r, g, b].map((v) => clamp255(v).toString(16).padStart(2, '0')).join('')}`;
 }
 
 /** Linear mix of a toward b by t in [0,1]. */

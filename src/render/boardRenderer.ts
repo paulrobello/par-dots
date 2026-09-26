@@ -6,7 +6,7 @@
  * layout centers the 16x16 plate in the canvas at scale 1 (see layout.ts).
  */
 
-import { EMPTY, PANEL_SIZE, type PaletteColor } from "../types";
+import { EMPTY, PANEL_SIZE, type PaletteColor } from '../types';
 import {
   cellDeviceRect,
   fitGrid,
@@ -16,9 +16,9 @@ import {
   pulseAlpha,
   screenToCell,
   type Viewport,
-} from "./layout";
-import { clientToCanvas, devicePixelRatioSafe, now, prefersReducedMotion } from "./motion";
-import { PLATE_GREEN, SpriteCache } from "./sprites";
+} from './layout';
+import { clientToCanvas, devicePixelRatioSafe, now, prefersReducedMotion } from './motion';
+import { PLATE_GREEN, SpriteCache } from './sprites';
 
 export interface Cell {
   x: number;
@@ -65,8 +65,8 @@ export class BoardRenderer {
 
   constructor(canvas: HTMLCanvasElement, opts: BoardRendererOptions = {}) {
     this.canvas = canvas;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("2D canvas context unavailable");
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('2D canvas context unavailable');
     this.ctx = ctx;
     this.sprites = new SpriteCache({ plateColor: opts.plateColor ?? PLATE_GREEN });
     this.background = opts.background === undefined ? null : opts.background;
@@ -213,7 +213,7 @@ export class BoardRenderer {
     const d = this.dpr;
     const ctx = this.ctx;
     ctx.save();
-    ctx.shadowColor = "rgba(0,0,0,0.35)";
+    ctx.shadowColor = 'rgba(0,0,0,0.35)';
     ctx.shadowBlur = 12 * d;
     ctx.shadowOffsetY = 4 * d;
     ctx.fillStyle = this.sprites.plateColor;
@@ -257,7 +257,7 @@ export class BoardRenderer {
   }
 
   private ensureLoop(): void {
-    if (this.raf || this.destroyed || typeof requestAnimationFrame !== "function") return;
+    if (this.raf || this.destroyed || typeof requestAnimationFrame !== 'function') return;
     this.raf = requestAnimationFrame(this.tick);
   }
 

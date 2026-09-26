@@ -3,7 +3,7 @@ export type Lab = [number, number, number];
 
 /** Parse "#rrggbb" (or "rrggbb") into an RGB triple. */
 export function hexToRgb(hex: string): RGB {
-  const h = hex.startsWith("#") ? hex.slice(1) : hex;
+  const h = hex.startsWith('#') ? hex.slice(1) : hex;
   if (!/^[0-9a-fA-F]{6}$/.test(h)) throw new Error(`Invalid hex color: ${hex}`);
   const n = Number.parseInt(h, 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
@@ -14,7 +14,7 @@ export function rgbToHex(r: number, g: number, b: number): string {
   const c = (v: number): string =>
     Math.max(0, Math.min(255, Math.round(v)))
       .toString(16)
-      .padStart(2, "0");
+      .padStart(2, '0');
   return `#${c(r)}${c(g)}${c(b)}`;
 }
 

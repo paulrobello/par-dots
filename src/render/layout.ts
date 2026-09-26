@@ -1,6 +1,6 @@
 /** Pure layout / coordinate math shared by renderers and hit tests. DOM-free. */
 
-import { PANEL_SIZE } from "../types";
+import { PANEL_SIZE } from '../types';
 
 /** Fitted grid inside a CSS-pixel area, before any viewport transform. */
 export interface GridLayout {

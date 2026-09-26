@@ -1,17 +1,17 @@
-import type { PictureSave } from "../types";
-import { newId } from "./id";
+import type { PictureSave } from '../types';
+import { newId } from './id';
 
-const DB_NAME = "par-dots";
+const DB_NAME = 'par-dots';
 const DB_VERSION = 1;
-const SAVES = "saves";
-const IMAGES = "images";
-const LIBRARY_PREFIX = "library:";
+const SAVES = 'saves';
+const IMAGES = 'images';
+const LIBRARY_PREFIX = 'library:';
 
 /** Thrown when the browser storage quota is exhausted. */
 export class StorageFullError extends Error {
-  constructor(message = "Storage is full. Delete some saved pictures to free space.") {
+  constructor(message = 'Storage is full. Delete some saved pictures to free space.') {
     super(message);
-    this.name = "StorageFullError";
+    this.name = 'StorageFullError';
   }
 }
 
@@ -23,7 +23,7 @@ function openDb(): Promise<IDBDatabase> {
       const req = indexedDB.open(DB_NAME, DB_VERSION);
       req.onupgradeneeded = () => {
         const db = req.result;
-        if (!db.objectStoreNames.contains(SAVES)) db.createObjectStore(SAVES, { keyPath: "id" });
+        if (!db.objectStoreNames.contains(SAVES)) db.createObjectStore(SAVES, { keyPath: 'id' });
         if (!db.objectStoreNames.contains(IMAGES)) db.createObjectStore(IMAGES);
       };
       req.onsuccess = () => {
@@ -57,7 +57,7 @@ export async function closeDb(): Promise<void> {
 }
 
 function mapError(err: unknown): unknown {
-  if (err && typeof err === "object" && (err as { name?: unknown }).name === "QuotaExceededError") {
+  if (err && typeof err === 'object' && (err as { name?: unknown }).name === 'QuotaExceededError') {
     return new StorageFullError();
   }
   return err;
@@ -98,21 +98,21 @@ async function tx<T>(
 
 /** All saves, most recently updated first. */
 export async function listSaves(): Promise<PictureSave[]> {
-  const all = await tx<PictureSave[]>([SAVES], "readonly", (t) => t.objectStore(SAVES).getAll());
+  const all = await tx<PictureSave[]>([SAVES], 'readonly', (t) => t.objectStore(SAVES).getAll());
   return all.sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 export function getSave(id: string): Promise<PictureSave | undefined> {
-  return tx<PictureSave | undefined>([SAVES], "readonly", (t) => t.objectStore(SAVES).get(id));
+  return tx<PictureSave | undefined>([SAVES], 'readonly', (t) => t.objectStore(SAVES).get(id));
 }
 
 export async function putSave(save: PictureSave): Promise<void> {
-  await tx([SAVES], "readwrite", (t) => t.objectStore(SAVES).put(save));
+  await tx([SAVES], 'readwrite', (t) => t.objectStore(SAVES).put(save));
 }
 
 /** Deletes a save and, when it references an uploaded (non-library) image, that image too. */
 export async function deleteSave(id: string): Promise<void> {
-  await tx([SAVES, IMAGES], "readwrite", (t) => {
+  await tx([SAVES, IMAGES], 'readwrite', (t) => {
     const saves = t.objectStore(SAVES);
     const get = saves.get(id);
     get.onsuccess = () => {
@@ -129,10 +129,10 @@ export async function deleteSave(id: string): Promise<void> {
 /** Stores an uploaded image and returns its new id. */
 export async function putImage(blob: Blob): Promise<string> {
   const id = newId();
-  await tx([IMAGES], "readwrite", (t) => t.objectStore(IMAGES).put(blob, id));
+  await tx([IMAGES], 'readwrite', (t) => t.objectStore(IMAGES).put(blob, id));
   return id;
 }
 
 export function getImage(id: string): Promise<Blob | undefined> {
-  return tx<Blob | undefined>([IMAGES], "readonly", (t) => t.objectStore(IMAGES).get(id));
+  return tx<Blob | undefined>([IMAGES], 'readonly', (t) => t.objectStore(IMAGES).get(id));
 }

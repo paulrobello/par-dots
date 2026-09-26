@@ -1,6 +1,6 @@
-import { MAX_COLORS, type Mosaic, type PaletteColor, type PaletteMode } from "../types";
-import { deltaE76Sq, hexToRgb, type Lab, rgbToHex, rgbToLab } from "./color";
-import { LEGO_COLORS } from "./legoPalette";
+import { MAX_COLORS, type Mosaic, type PaletteColor, type PaletteMode } from '../types';
+import { deltaE76Sq, hexToRgb, type Lab, rgbToHex, rgbToLab } from './color';
+import { LEGO_COLORS } from './legoPalette';
 
 /** Distinct pixel colors with their occurrence counts (the weighted point set). */
 interface ColorSet {
@@ -319,7 +319,7 @@ export function buildMosaic(
     throw new RangeError(`Expected ${count * 4} RGBA bytes, got ${pixels.length}`);
   }
   const colors = collectColors(pixels, count);
-  const candidates = mode === "lego" ? chooseLegoEntries(colors) : chooseFreeEntries(colors);
+  const candidates = mode === 'lego' ? chooseLegoEntries(colors) : chooseFreeEntries(colors);
 
   // Map each distinct color to its nearest candidate, then keep only used candidates.
   const colorToCand = colors.lab.map((lab) => nearest(lab, candidates));

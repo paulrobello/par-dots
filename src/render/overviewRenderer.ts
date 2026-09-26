@@ -4,8 +4,8 @@
  * Panels are indexed row-major: index = row * (width / 16) + col.
  */
 
-import { EMPTY, type Mosaic, PANEL_SIZE } from "../types";
-import { roundRect } from "./boardRenderer";
+import { EMPTY, type Mosaic, PANEL_SIZE } from '../types';
+import { roundRect } from './boardRenderer';
 import {
   fitGrid,
   type GridLayout,
@@ -14,9 +14,9 @@ import {
   panelGrid,
   panelIndexAt,
   screenToCell,
-} from "./layout";
-import { clientToCanvas, devicePixelRatioSafe } from "./motion";
-import { PLATE_GREEN, SpriteCache } from "./sprites";
+} from './layout';
+import { clientToCanvas, devicePixelRatioSafe } from './motion';
+import { PLATE_GREEN, SpriteCache } from './sprites';
 
 export interface OverviewRendererOptions {
   plateColor?: string;
@@ -42,8 +42,8 @@ export class OverviewRenderer {
 
   constructor(canvas: HTMLCanvasElement, opts: OverviewRendererOptions = {}) {
     this.canvas = canvas;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("2D canvas context unavailable");
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('2D canvas context unavailable');
     this.ctx = ctx;
     this.sprites = new SpriteCache({ plateColor: opts.plateColor ?? PLATE_GREEN, maxEntries: 96 });
     this.background = opts.background === undefined ? null : opts.background;
@@ -130,7 +130,7 @@ export class OverviewRenderer {
     // Plate with drop shadow.
     const pad = L.cell * 0.4;
     ctx.save();
-    ctx.shadowColor = "rgba(0,0,0,0.35)";
+    ctx.shadowColor = 'rgba(0,0,0,0.35)';
     ctx.shadowBlur = 10 * d;
     ctx.shadowOffsetY = 3 * d;
     ctx.fillStyle = this.sprites.plateColor;
@@ -189,26 +189,26 @@ export class OverviewRenderer {
     ctx.lineWidth = Math.max(1, 1.5 * d);
     for (let c = 1; c < cols; c++) {
       const x = edgesX[c * PANEL_SIZE] ?? 0;
-      line(ctx, x, edgesY[0] ?? 0, x, edgesY[m.height] ?? 0, "rgba(0,0,0,0.45)");
+      line(ctx, x, edgesY[0] ?? 0, x, edgesY[m.height] ?? 0, 'rgba(0,0,0,0.45)');
       line(
         ctx,
         x + ctx.lineWidth,
         edgesY[0] ?? 0,
         x + ctx.lineWidth,
         edgesY[m.height] ?? 0,
-        "rgba(255,255,255,0.18)",
+        'rgba(255,255,255,0.18)',
       );
     }
     for (let r = 1; r < rows; r++) {
       const y = edgesY[r * PANEL_SIZE] ?? 0;
-      line(ctx, edgesX[0] ?? 0, y, edgesX[m.width] ?? 0, y, "rgba(0,0,0,0.45)");
+      line(ctx, edgesX[0] ?? 0, y, edgesX[m.width] ?? 0, y, 'rgba(0,0,0,0.45)');
       line(
         ctx,
         edgesX[0] ?? 0,
         y + ctx.lineWidth,
         edgesX[m.width] ?? 0,
         y + ctx.lineWidth,
-        "rgba(255,255,255,0.18)",
+        'rgba(255,255,255,0.18)',
       );
     }
     ctx.restore();
@@ -256,23 +256,23 @@ function line(
 
 function drawCheckBadge(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number): void {
   ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,0.4)";
+  ctx.shadowColor = 'rgba(0,0,0,0.4)';
   ctx.shadowBlur = r * 0.4;
   ctx.shadowOffsetY = r * 0.12;
   const g = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.1, cx, cy, r);
-  g.addColorStop(0, "#5fe07a");
-  g.addColorStop(1, "#1f9d3a");
+  g.addColorStop(0, '#5fe07a');
+  g.addColorStop(1, '#1f9d3a');
   ctx.fillStyle = g;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
-  ctx.shadowColor = "transparent";
+  ctx.shadowColor = 'transparent';
   ctx.lineWidth = r * 0.14;
-  ctx.strokeStyle = "#ffffff";
+  ctx.strokeStyle = '#ffffff';
   ctx.stroke();
   ctx.lineWidth = r * 0.24;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
   ctx.beginPath();
   ctx.moveTo(cx - r * 0.45, cy + r * 0.02);
   ctx.lineTo(cx - r * 0.1, cy + r * 0.36);
@@ -289,20 +289,20 @@ function drawPercentBadge(
   frac: number,
 ): void {
   ctx.save();
-  ctx.fillStyle = "rgba(20,20,24,0.72)";
+  ctx.fillStyle = 'rgba(20,20,24,0.72)';
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
   ctx.lineWidth = r * 0.18;
-  ctx.strokeStyle = "#ffd23f";
-  ctx.lineCap = "round";
+  ctx.strokeStyle = '#ffd23f';
+  ctx.lineCap = 'round';
   ctx.beginPath();
   ctx.arc(cx, cy, r * 0.84, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
   ctx.stroke();
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = '#ffffff';
   ctx.font = `600 ${Math.round(r * 0.72)}px system-ui, -apple-system, sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
   ctx.fillText(`${Math.floor(frac * 100)}`, cx, cy + r * 0.04);
   ctx.restore();
 }

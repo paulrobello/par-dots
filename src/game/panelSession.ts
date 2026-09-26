@@ -1,24 +1,24 @@
-import { EMPTY, PANEL_SIZE, type PictureSave } from "../types";
-import { panelOrigin } from "./geometry";
+import { EMPTY, PANEL_SIZE, type PictureSave } from '../types';
+import { panelOrigin } from './geometry';
 
-export type StrokeMode = "paint" | "remove";
+export type StrokeMode = 'paint' | 'remove';
 
 /** What caused a board change: a live stroke, or history navigation. */
-export type ChangeCause = "stroke" | "undo" | "redo";
+export type ChangeCause = 'stroke' | 'undo' | 'redo';
 
 export type PanelEvent =
   | {
-      type: "placed";
+      type: 'placed';
       x: number;
       y: number;
       colorIndex: number;
       correct: boolean;
       cause: ChangeCause;
     }
-  | { type: "removed"; x: number; y: number; colorIndex: number; cause: ChangeCause }
-  | { type: "colorDone"; colorIndex: number }
-  | { type: "colorReturned"; colorIndex: number }
-  | { type: "complete" };
+  | { type: 'removed'; x: number; y: number; colorIndex: number; cause: ChangeCause }
+  | { type: 'colorDone'; colorIndex: number }
+  | { type: 'colorReturned'; colorIndex: number }
+  | { type: 'complete' };
 
 export type PanelListener = (event: PanelEvent) => void;
 
@@ -82,7 +82,7 @@ export class PanelSession {
   beginStroke(mode: StrokeMode, colorIndex?: number): void {
     if (this.stroke) this.endStroke();
     let color = EMPTY;
-    if (mode === "paint") {
+    if (mode === 'paint') {
       if (
         colorIndex === undefined ||
         !Number.isInteger(colorIndex) ||
@@ -102,7 +102,7 @@ export class PanelSession {
     if (!s || this.isComplete() || !this.inBounds(localX, localY)) return false;
     const before = this.save.placed[this.idx(localX, localY)];
     let after: number;
-    if (s.mode === "paint") {
+    if (s.mode === 'paint') {
       if (before !== EMPTY) return false;
       after = s.color;
     } else {
@@ -111,7 +111,7 @@ export class PanelSession {
     }
     const change: CellChange = { x: localX, y: localY, before, after };
     s.changes.push(change);
-    this.applyChange(change, false, "stroke");
+    this.applyChange(change, false, 'stroke');
     return true;
   }
 
@@ -140,7 +140,7 @@ export class PanelSession {
   undo(): boolean {
     const move = this.canUndo ? this.undoStack.pop() : undefined;
     if (!move) return false;
-    for (let k = move.length - 1; k >= 0; k--) this.applyChange(move[k], true, "undo");
+    for (let k = move.length - 1; k >= 0; k--) this.applyChange(move[k], true, 'undo');
     this.redoStack.push(move);
     return true;
   }
@@ -148,7 +148,7 @@ export class PanelSession {
   redo(): boolean {
     const move = this.canRedo ? this.redoStack.pop() : undefined;
     if (!move) return false;
-    for (const c of move) this.applyChange(c, false, "redo");
+    for (const c of move) this.applyChange(c, false, 'redo');
     this.undoStack.push(move);
     return true;
   }
@@ -211,20 +211,20 @@ export class PanelSession {
     const nowCorrect = to === t;
     this.save.placed[i] = to;
     if (to === EMPTY) {
-      this.emit({ type: "removed", x: c.x, y: c.y, colorIndex: from, cause });
+      this.emit({ type: 'removed', x: c.x, y: c.y, colorIndex: from, cause });
     } else {
-      this.emit({ type: "placed", x: c.x, y: c.y, colorIndex: to, correct: nowCorrect, cause });
+      this.emit({ type: 'placed', x: c.x, y: c.y, colorIndex: to, correct: nowCorrect, cause });
     }
     if (wasCorrect && !nowCorrect) {
       const wasDone = this.remaining[t] === 0;
       this.remaining[t]++;
       this.remainingTotal++;
-      if (wasDone) this.emit({ type: "colorReturned", colorIndex: t });
+      if (wasDone) this.emit({ type: 'colorReturned', colorIndex: t });
     } else if (!wasCorrect && nowCorrect) {
       this.remaining[t]--;
       this.remainingTotal--;
-      if (this.remaining[t] === 0) this.emit({ type: "colorDone", colorIndex: t });
-      if (this.remainingTotal === 0) this.emit({ type: "complete" });
+      if (this.remaining[t] === 0) this.emit({ type: 'colorDone', colorIndex: t });
+      if (this.remainingTotal === 0) this.emit({ type: 'complete' });
     }
   }
 }

@@ -1,5 +1,5 @@
-import { EMPTY, PANEL_SIZE, type PictureSave } from "../types";
-import { panelCount, panelOrigin } from "./geometry";
+import { EMPTY, PANEL_SIZE, type PictureSave } from '../types';
+import { panelCount, panelOrigin } from './geometry';
 
 export interface Progress {
   correct: number;

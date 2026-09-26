@@ -1,4 +1,4 @@
-import type { PaletteMode } from "../types";
+import type { PaletteMode } from '../types';
 
 export interface Settings {
   sound: boolean;
@@ -9,21 +9,21 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   sound: true,
   haptics: true,
-  paletteMode: "lego",
+  paletteMode: 'lego',
 });
 
-export const SETTINGS_KEY = "par-dots:settings";
+export const SETTINGS_KEY = 'par-dots:settings';
 
 // Used when localStorage is unavailable, so settings still hold for the session.
 let memory: Settings | null = null;
 
 function sanitize(raw: unknown): Settings {
   const s: Settings = { ...DEFAULT_SETTINGS };
-  if (raw && typeof raw === "object") {
+  if (raw && typeof raw === 'object') {
     const r = raw as Record<string, unknown>;
-    if (typeof r.sound === "boolean") s.sound = r.sound;
-    if (typeof r.haptics === "boolean") s.haptics = r.haptics;
-    if (r.paletteMode === "lego" || r.paletteMode === "free") s.paletteMode = r.paletteMode;
+    if (typeof r.sound === 'boolean') s.sound = r.sound;
+    if (typeof r.haptics === 'boolean') s.haptics = r.haptics;
+    if (r.paletteMode === 'lego' || r.paletteMode === 'free') s.paletteMode = r.paletteMode;
   }
   return s;
 }

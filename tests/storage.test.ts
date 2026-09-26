@@ -1,5 +1,5 @@
-import "fake-indexeddb/auto";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import 'fake-indexeddb/auto';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   HAPTIC_PATTERNS,
   haptic,
@@ -7,7 +7,7 @@ import {
   play,
   resetAudioForTests,
   unlockAudio,
-} from "../src/audio/sfx";
+} from '../src/audio/sfx';
 import {
   closeDb,
   deleteSave,
@@ -17,10 +17,10 @@ import {
   putImage,
   putSave,
   StorageFullError,
-} from "../src/storage/db";
-import { newId } from "../src/storage/id";
-import { DEFAULT_SETTINGS, getSettings, SETTINGS_KEY, setSettings } from "../src/storage/settings";
-import { EMPTY, type PictureSave } from "../src/types";
+} from '../src/storage/db';
+import { newId } from '../src/storage/id';
+import { DEFAULT_SETTINGS, getSettings, SETTINGS_KEY, setSettings } from '../src/storage/settings';
+import { EMPTY, type PictureSave } from '../src/types';
 
 class MemoryStorage {
   map = new Map<string, string>();
@@ -46,11 +46,11 @@ function makeSave(overrides: Partial<PictureSave> = {}): PictureSave {
     id: newId(),
     createdAt: 1,
     updatedAt: 1,
-    name: "Test",
-    sourceImageId: "library:lighthouse",
-    aspect: "1:1",
-    paletteMode: "lego",
-    palette: [{ hex: "#ff0000", name: "Red" }],
+    name: 'Test',
+    sourceImageId: 'library:lighthouse',
+    aspect: '1:1',
+    paletteMode: 'lego',
+    palette: [{ hex: '#ff0000', name: 'Red' }],
     width: 48,
     height: 48,
     target,
@@ -60,15 +60,15 @@ function makeSave(overrides: Partial<PictureSave> = {}): PictureSave {
   };
 }
 
-describe("newId", () => {
-  it("returns unique uuid-shaped ids", () => {
+describe('newId', () => {
+  it('returns unique uuid-shaped ids', () => {
     const ids = new Set(Array.from({ length: 100 }, () => newId()));
     expect(ids.size).toBe(100);
     for (const id of ids) expect(id).toMatch(/^[0-9a-f-]{36}$/);
   });
 
-  it("falls back when randomUUID is missing", () => {
-    const spy = vi.spyOn(globalThis, "crypto", "get").mockReturnValue({
+  it('falls back when randomUUID is missing', () => {
+    const spy = vi.spyOn(globalThis, 'crypto', 'get').mockReturnValue({
       getRandomValues: <T extends ArrayBufferView>(a: T) => a,
     } as unknown as Crypto);
     try {
@@ -81,13 +81,13 @@ describe("newId", () => {
   });
 });
 
-describe("db", () => {
+describe('db', () => {
   beforeEach(async () => {
     await closeDb();
     globalThis.indexedDB = new IDBFactory();
   });
 
-  it("round-trips saves including Uint8Arrays", async () => {
+  it('round-trips saves including Uint8Arrays', async () => {
     const save = makeSave();
     await putSave(save);
     const got = await getSave(save.id);
@@ -97,37 +97,37 @@ describe("db", () => {
     expect(Array.from(got?.target ?? [])).toEqual(Array.from(save.target));
     expect(got?.placed[3]).toBe(2);
     expect(got?.placed[0]).toBe(EMPTY);
-    expect(await getSave("missing")).toBeUndefined();
+    expect(await getSave('missing')).toBeUndefined();
   });
 
-  it("lists saves sorted by updatedAt desc", async () => {
-    await putSave(makeSave({ id: "a", updatedAt: 10 }));
-    await putSave(makeSave({ id: "b", updatedAt: 30 }));
-    await putSave(makeSave({ id: "c", updatedAt: 20 }));
-    expect((await listSaves()).map((s) => s.id)).toEqual(["b", "c", "a"]);
+  it('lists saves sorted by updatedAt desc', async () => {
+    await putSave(makeSave({ id: 'a', updatedAt: 10 }));
+    await putSave(makeSave({ id: 'b', updatedAt: 30 }));
+    await putSave(makeSave({ id: 'c', updatedAt: 20 }));
+    expect((await listSaves()).map((s) => s.id)).toEqual(['b', 'c', 'a']);
   });
 
-  it("putSave overwrites by id", async () => {
-    await putSave(makeSave({ id: "x", name: "one" }));
-    await putSave(makeSave({ id: "x", name: "two" }));
+  it('putSave overwrites by id', async () => {
+    await putSave(makeSave({ id: 'x', name: 'one' }));
+    await putSave(makeSave({ id: 'x', name: 'two' }));
     const all = await listSaves();
     expect(all).toHaveLength(1);
-    expect(all[0].name).toBe("two");
+    expect(all[0].name).toBe('two');
   });
 
-  it("stores and retrieves images", async () => {
-    const blob = new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" });
+  it('stores and retrieves images', async () => {
+    const blob = new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' });
     const id = await putImage(blob);
     const got = await getImage(id);
     expect(got).toBeDefined();
     expect(got?.size).toBe(3);
-    expect(await getImage("nope")).toBeUndefined();
+    expect(await getImage('nope')).toBeUndefined();
   });
 
-  it("deleteSave removes an uploaded image but keeps library references", async () => {
+  it('deleteSave removes an uploaded image but keeps library references', async () => {
     const imgId = await putImage(new Blob([new Uint8Array([9])]));
     const uploaded = makeSave({ sourceImageId: imgId });
-    const lib = makeSave({ sourceImageId: "library:lighthouse" });
+    const lib = makeSave({ sourceImageId: 'library:lighthouse' });
     await putSave(uploaded);
     await putSave(lib);
 
@@ -137,18 +137,18 @@ describe("db", () => {
 
     await deleteSave(lib.id);
     expect(await getSave(lib.id)).toBeUndefined();
-    await expect(deleteSave("missing")).resolves.toBeUndefined();
+    await expect(deleteSave('missing')).resolves.toBeUndefined();
   });
 
-  it("surfaces QuotaExceededError as StorageFullError", async () => {
-    const quota = new DOMException("full", "QuotaExceededError");
-    const spy = vi.spyOn(IDBObjectStore.prototype, "put").mockImplementation(() => {
+  it('surfaces QuotaExceededError as StorageFullError', async () => {
+    const quota = new DOMException('full', 'QuotaExceededError');
+    const spy = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(() => {
       throw quota;
     });
     try {
       const err = await putSave(makeSave()).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(StorageFullError);
-      expect((err as Error).name).toBe("StorageFullError");
+      expect((err as Error).name).toBe('StorageFullError');
       await expect(putImage(new Blob([]))).rejects.toBeInstanceOf(StorageFullError);
     } finally {
       spy.mockRestore();
@@ -156,42 +156,42 @@ describe("db", () => {
   });
 });
 
-describe("settings", () => {
+describe('settings', () => {
   let storage: MemoryStorage;
   beforeEach(() => {
     storage = new MemoryStorage();
-    vi.stubGlobal("localStorage", storage);
+    vi.stubGlobal('localStorage', storage);
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it("returns defaults when empty", () => {
+  it('returns defaults when empty', () => {
     expect(getSettings()).toEqual(DEFAULT_SETTINGS);
   });
 
-  it("persists partial updates", () => {
+  it('persists partial updates', () => {
     setSettings({ sound: false });
-    setSettings({ paletteMode: "free" });
-    expect(getSettings()).toEqual({ sound: false, haptics: true, paletteMode: "free" });
-    expect(JSON.parse(storage.getItem(SETTINGS_KEY) ?? "{}").sound).toBe(false);
+    setSettings({ paletteMode: 'free' });
+    expect(getSettings()).toEqual({ sound: false, haptics: true, paletteMode: 'free' });
+    expect(JSON.parse(storage.getItem(SETTINGS_KEY) ?? '{}').sound).toBe(false);
   });
 
-  it("ignores corrupt or invalid values", () => {
-    storage.setItem(SETTINGS_KEY, "{not json");
+  it('ignores corrupt or invalid values', () => {
+    storage.setItem(SETTINGS_KEY, '{not json');
     expect(getSettings()).toEqual(DEFAULT_SETTINGS);
     storage.setItem(
       SETTINGS_KEY,
-      JSON.stringify({ sound: "no", paletteMode: "x", haptics: false }),
+      JSON.stringify({ sound: 'no', paletteMode: 'x', haptics: false }),
     );
     expect(getSettings()).toEqual({ ...DEFAULT_SETTINGS, haptics: false });
   });
 
-  it("survives a throwing localStorage", () => {
-    vi.stubGlobal("localStorage", {
+  it('survives a throwing localStorage', () => {
+    vi.stubGlobal('localStorage', {
       getItem() {
-        throw new Error("denied");
+        throw new Error('denied');
       },
       setItem() {
-        throw new Error("denied");
+        throw new Error('denied');
       },
     });
     expect(setSettings({ haptics: false }).haptics).toBe(false);
@@ -207,7 +207,7 @@ class FakeNode {
   connect = vi.fn();
 }
 class FakeOsc extends FakeNode {
-  type = "sine";
+  type = 'sine';
   frequency = new FakeParam();
   start = vi.fn();
   stop = vi.fn();
@@ -218,14 +218,14 @@ class FakeGain extends FakeNode {
 const oscs: FakeOsc[] = [];
 let ctxCount = 0;
 class FakeAudioContext {
-  state: AudioContextState = "suspended";
+  state: AudioContextState = 'suspended';
   currentTime = 0;
   destination = {};
   constructor() {
     ctxCount++;
   }
   resume = vi.fn(async () => {
-    this.state = "running";
+    this.state = 'running';
   });
   createOscillator(): FakeOsc {
     const o = new FakeOsc();
@@ -237,56 +237,56 @@ class FakeAudioContext {
   }
 }
 
-describe("audio + haptics", () => {
+describe('audio + haptics', () => {
   let vibrate: ReturnType<typeof vi.fn>;
   beforeEach(() => {
     resetAudioForTests();
     oscs.length = 0;
     ctxCount = 0;
     vibrate = vi.fn();
-    vi.stubGlobal("localStorage", new MemoryStorage());
-    vi.stubGlobal("AudioContext", FakeAudioContext);
-    vi.stubGlobal("navigator", { vibrate });
+    vi.stubGlobal('localStorage', new MemoryStorage());
+    vi.stubGlobal('AudioContext', FakeAudioContext);
+    vi.stubGlobal('navigator', { vibrate });
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it("creates the context lazily on first gesture, once", () => {
+  it('creates the context lazily on first gesture, once', () => {
     const target = new EventTarget();
     initAudio(target);
     expect(ctxCount).toBe(0);
-    target.dispatchEvent(new Event("pointerdown"));
-    target.dispatchEvent(new Event("pointerdown"));
+    target.dispatchEvent(new Event('pointerdown'));
+    target.dispatchEvent(new Event('pointerdown'));
     expect(ctxCount).toBe(1);
   });
 
-  it("keeps listening until the context actually runs", async () => {
+  it('keeps listening until the context actually runs', async () => {
     const target = new EventTarget();
-    const spy = vi.spyOn(target, "removeEventListener");
+    const spy = vi.spyOn(target, 'removeEventListener');
     const ac = unlockAudio() as unknown as FakeAudioContext;
-    ac.state = "suspended";
+    ac.state = 'suspended';
     ac.resume.mockImplementation(async () => undefined);
     initAudio(target);
-    target.dispatchEvent(new Event("pointerdown"));
+    target.dispatchEvent(new Event('pointerdown'));
     await Promise.resolve();
     await Promise.resolve();
     expect(spy).not.toHaveBeenCalled();
     ac.resume.mockImplementation(async () => {
-      ac.state = "running";
+      ac.state = 'running';
     });
-    target.dispatchEvent(new Event("pointerdown"));
+    target.dispatchEvent(new Event('pointerdown'));
     await Promise.resolve();
     await Promise.resolve();
     expect(spy).toHaveBeenCalled();
   });
 
-  it("plays every sound when enabled", () => {
+  it('plays every sound when enabled', () => {
     unlockAudio();
     for (const name of [
-      "place",
-      "remove",
-      "colorDone",
-      "panelComplete",
-      "pictureComplete",
+      'place',
+      'remove',
+      'colorDone',
+      'panelComplete',
+      'pictureComplete',
     ] as const) {
       const before = oscs.length;
       play(name);
@@ -295,31 +295,31 @@ describe("audio + haptics", () => {
     expect(oscs[0].start).toHaveBeenCalled();
   });
 
-  it("is silent when sound is disabled", () => {
+  it('is silent when sound is disabled', () => {
     setSettings({ sound: false });
-    play("place");
+    play('place');
     expect(oscs).toHaveLength(0);
   });
 
-  it("does nothing without Web Audio", () => {
-    vi.stubGlobal("AudioContext", undefined);
+  it('does nothing without Web Audio', () => {
+    vi.stubGlobal('AudioContext', undefined);
     expect(unlockAudio()).toBeNull();
-    expect(() => play("place")).not.toThrow();
+    expect(() => play('place')).not.toThrow();
   });
 
-  it("vibrates with named and explicit patterns when enabled", () => {
-    haptic("colorDone");
+  it('vibrates with named and explicit patterns when enabled', () => {
+    haptic('colorDone');
     expect(vibrate).toHaveBeenCalledWith(HAPTIC_PATTERNS.colorDone);
     haptic([1, 2]);
     expect(vibrate).toHaveBeenLastCalledWith([1, 2]);
   });
 
-  it("skips haptics when disabled or unsupported", () => {
+  it('skips haptics when disabled or unsupported', () => {
     setSettings({ haptics: false });
-    haptic("place");
+    haptic('place');
     expect(vibrate).not.toHaveBeenCalled();
     setSettings({ haptics: true });
-    vi.stubGlobal("navigator", {});
-    expect(() => haptic("place")).not.toThrow();
+    vi.stubGlobal('navigator', {});
+    expect(() => haptic('place')).not.toThrow();
   });
 });

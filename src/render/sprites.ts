@@ -4,30 +4,30 @@
  * that square so dirty-cell redraws never leave fragments on neighbours.
  */
 
-import { plasticTones, rgba, shade } from "./color";
-import { quantizeSpritePx } from "./layout";
+import { plasticTones, rgba, shade } from './color';
+import { quantizeSpritePx } from './layout';
 
-export const PLATE_GREEN = "#237841";
-export const PLATE_GRAY = "#A0A5A9";
+export const PLATE_GREEN = '#237841';
+export const PLATE_GRAY = '#A0A5A9';
 
 export type SpriteCanvas = HTMLCanvasElement | OffscreenCanvas;
 export type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
 /** Create a canvas usable as a drawImage source: DOM canvas when available, else OffscreenCanvas. */
 export function createSpriteCanvas(w: number, h: number): SpriteCanvas {
-  if (typeof document !== "undefined") {
-    const c = document.createElement("canvas");
+  if (typeof document !== 'undefined') {
+    const c = document.createElement('canvas');
     c.width = w;
     c.height = h;
     return c;
   }
-  if (typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(w, h);
-  throw new Error("No canvas implementation available");
+  if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(w, h);
+  throw new Error('No canvas implementation available');
 }
 
 export function context2d(canvas: SpriteCanvas): Ctx2D {
-  const ctx = canvas.getContext("2d") as Ctx2D | null;
-  if (!ctx) throw new Error("2D canvas context unavailable");
+  const ctx = canvas.getContext('2d') as Ctx2D | null;
+  if (!ctx) throw new Error('2D canvas context unavailable');
   return ctx;
 }
 
@@ -61,8 +61,8 @@ export function drawStud(ctx: Ctx2D, x: number, y: number, size: number, plate: 
     cy + sOff,
     r * 1.45,
   );
-  shadow.addColorStop(0, "rgba(0,0,0,0.38)");
-  shadow.addColorStop(1, "rgba(0,0,0,0)");
+  shadow.addColorStop(0, 'rgba(0,0,0,0.38)');
+  shadow.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = shadow;
   ctx.beginPath();
   ctx.arc(cx + sOff, cy + sOff, r * 1.45, 0, Math.PI * 2);
@@ -92,7 +92,7 @@ export function drawStud(ctx: Ctx2D, x: number, y: number, size: number, plate: 
 
   // Highlight arc on the upper-left edge.
   ctx.lineWidth = Math.max(0.5, size * 0.03);
-  ctx.strokeStyle = "rgba(255,255,255,0.35)";
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
   ctx.beginPath();
   ctx.arc(cx, cy, r * 0.82, Math.PI * 1.05, Math.PI * 1.55);
   ctx.stroke();
@@ -121,8 +121,8 @@ export function drawDot(
   const sOff = size * 0.035 * scale;
   const sR = Math.min(r * 1.1, size * 0.5 - sOff);
   const shadow = ctx.createRadialGradient(cx + sOff, cy + sOff, r * 0.7, cx + sOff, cy + sOff, sR);
-  shadow.addColorStop(0, "rgba(0,0,0,0.45)");
-  shadow.addColorStop(1, "rgba(0,0,0,0)");
+  shadow.addColorStop(0, 'rgba(0,0,0,0.45)');
+  shadow.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = shadow;
   ctx.beginPath();
   ctx.arc(cx + sOff, cy + sOff, sR, 0, Math.PI * 2);
@@ -149,7 +149,7 @@ export function drawDot(
 
   // Faint bevel ring just inside the edge (flat top of the tile meeting its rounded edge).
   ctx.lineWidth = Math.max(0.5, size * 0.018);
-  ctx.strokeStyle = "rgba(255,255,255,0.12)";
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
   ctx.beginPath();
   ctx.arc(cx, cy, r * 0.8, 0, Math.PI * 2);
   ctx.stroke();
@@ -161,7 +161,7 @@ export function drawDot(
   ctx.scale(1, 0.55);
   const spec = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.5);
   spec.addColorStop(0, `rgba(255,255,255,${t.specularAlpha})`);
-  spec.addColorStop(1, "rgba(255,255,255,0)");
+  spec.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = spec;
   ctx.beginPath();
   ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2);
@@ -169,14 +169,14 @@ export function drawDot(
   ctx.restore();
 
   // Crisp glint.
-  ctx.fillStyle = "rgba(255,255,255,0.9)";
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
   ctx.beginPath();
   ctx.arc(cx - r * 0.42, cy - r * 0.42, Math.max(0.6, r * 0.09), 0, Math.PI * 2);
   ctx.fill();
 
   // Reflected light along the lower-right edge.
   ctx.lineWidth = Math.max(0.5, size * 0.02);
-  ctx.strokeStyle = "rgba(255,255,255,0.18)";
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
   ctx.beginPath();
   ctx.arc(cx, cy, r * 0.9, Math.PI * 0.1, Math.PI * 0.45);
   ctx.stroke();
@@ -197,19 +197,19 @@ export function drawWrongOutline(ctx: Ctx2D, x: number, y: number, size: number,
   ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
   ctx.setLineDash([dash, dash * 0.6]);
   ctx.lineWidth = lw * 1.6;
-  ctx.strokeStyle = "rgba(0,0,0,0.85)";
+  ctx.strokeStyle = 'rgba(0,0,0,0.85)';
   ctx.beginPath();
   ctx.arc(cx, cy, r - lw * 0.3, 0, Math.PI * 2);
   ctx.stroke();
   ctx.lineWidth = lw * 0.8;
-  ctx.strokeStyle = "#ffffff";
+  ctx.strokeStyle = '#ffffff';
   ctx.stroke();
   ctx.setLineDash([]);
   // Small diagonal cross in the middle as a second, shape-based cue.
   const k = size * 0.1;
-  ctx.lineCap = "round";
+  ctx.lineCap = 'round';
   ctx.lineWidth = lw * 1.2;
-  ctx.strokeStyle = "rgba(0,0,0,0.85)";
+  ctx.strokeStyle = 'rgba(0,0,0,0.85)';
   ctx.beginPath();
   ctx.moveTo(cx - k, cy - k);
   ctx.lineTo(cx + k, cy + k);
@@ -217,7 +217,7 @@ export function drawWrongOutline(ctx: Ctx2D, x: number, y: number, size: number,
   ctx.lineTo(cx - k, cy + k);
   ctx.stroke();
   ctx.lineWidth = lw * 0.55;
-  ctx.strokeStyle = "#ffffff";
+  ctx.strokeStyle = '#ffffff';
   ctx.stroke();
   ctx.restore();
 }

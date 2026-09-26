@@ -1,5 +1,5 @@
-import type { Mosaic, PaletteMode } from "../types";
-import { buildMosaic } from "./quantize";
+import type { Mosaic, PaletteMode } from '../types';
+import { buildMosaic } from './quantize';
 
 export interface QuantizeRequest {
   id: number;
