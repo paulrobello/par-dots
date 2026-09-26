@@ -1,5 +1,5 @@
 import { haptic, play } from '../audio/sfx';
-import { PanelSession, panelCount, panelOrigin } from '../game';
+import { PanelSession, panelCount, panelOrigin, pictureComplete } from '../game';
 import { BoardRenderer } from '../render/boardRenderer';
 import { zoomViewportAt } from '../render/layout';
 import { renderMosaicToCanvas } from '../render/mosaicImage';
@@ -74,6 +74,7 @@ export function mountPanelPlay(
       (save.panelElapsedMs[panel] ?? 0) +
       (visibleSince !== null && !lockedAtOpen && !finished ? performance.now() - visibleSince : 0);
     const saveNow = (): void => {
+      flushTimer();
       persist(save).catch((err: unknown) => {
         toast(err instanceof StorageFullError ? err.message : `Save failed: ${String(err)}`, 4000);
       });
@@ -142,7 +143,7 @@ export function mountPanelPlay(
     );
 
     const goBack = (completed = false): void => {
-      setTransitionHint({ fromPanel: panel, justCompleted: completed });
+      setTransitionHint({ fromPanel: panel, justCompleted: completed || finished });
       navigate(routeHash({ name: 'overview', id: save.id }));
     };
 
@@ -318,6 +319,7 @@ export function mountPanelPlay(
       flushTimer();
       visibleSince = null;
       board.clearHighlight();
+      if (pictureComplete(save)) save.completedAt ??= Date.now();
       saveNow();
       play('panelComplete');
       haptic('panelComplete');
