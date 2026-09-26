@@ -1,0 +1,178 @@
+/** DOM-free UI helpers: routing, labels, stroke interpolation, crop math, formatting. */
+
+import type { Aspect, CropRect, PaletteColor } from '../types';
+
+export type Route =
+  | { name: 'gallery' }
+  | { name: 'new' }
+  | { name: 'setup' }
+  | { name: 'overview'; id: string }
+  | { name: 'panel'; id: string; panel: number };
+
+/** Parse a location hash ("#/play/abc/3") into a route. Unknown hashes go to the gallery. */
+export function parseRoute(hash: string): Route {
+  const path = hash.replace(/^#/, '').replace(/^\/+/, '').replace(/\/+$/, '');
+  const parts = path.split('/').filter((p) => p.length > 0);
+  if (parts.length === 0) return { name: 'gallery' };
+  if (parts[0] === 'new' && parts.length === 1) return { name: 'new' };
+  if (parts[0] === 'setup' && parts.length === 1) return { name: 'setup' };
+  if (parts[0] === 'play' && parts.length >= 2) {
+    const id = decodeURIComponent(parts[1]);
+    if (parts.length === 2) return { name: 'overview', id };
+    if (parts.length === 3 && /^\d+$/.test(parts[2])) {
+      return { name: 'panel', id, panel: Number.parseInt(parts[2], 10) };
+    }
+  }
+  return { name: 'gallery' };
+}
+
+/** Inverse of parseRoute. */
+export function routeHash(route: Route): string {
+  switch (route.name) {
+    case 'gallery':
+      return '#/';
+    case 'new':
+      return '#/new';
+    case 'setup':
+      return '#/setup';
+    case 'overview':
+      return `#/play/${encodeURIComponent(route.id)}`;
+    case 'panel':
+      return `#/play/${encodeURIComponent(route.id)}/${route.panel}`;
+  }
+}
+
+/**
+ * Display labels for a palette. Colors sharing a name get " 2", " 3", ... suffixes in
+ * palette order, so a label is stable across every panel of a picture.
+ */
+export function paletteLabels(palette: PaletteColor[]): string[] {
+  const seen = new Map<string, number>();
+  return palette.map((c) => {
+    const n = (seen.get(c.name) ?? 0) + 1;
+    seen.set(c.name, n);
+    return n === 1 ? c.name : `${c.name} ${n}`;
+  });
+}
+
+/** Cells on the Bresenham line from (x0, y0) to (x1, y1), inclusive of both ends. */
+export function cellLine(
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+): Array<{ x: number; y: number }> {
+  const out: Array<{ x: number; y: number }> = [];
+  const dx = Math.abs(x1 - x0);
+  const dy = -Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1;
+  const sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+  let x = x0;
+  let y = y0;
+  for (;;) {
+    out.push({ x, y });
+    if (x === x1 && y === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) {
+      err += dy;
+      x += sx;
+    }
+    if (e2 <= dx) {
+      err += dx;
+      y += sy;
+    }
+  }
+  return out;
+}
+
+/** Width / height ratio of an aspect. */
+export function aspectRatio(aspect: Aspect): number {
+  const [w, h] = aspect.split(':').map(Number);
+  return w / h;
+}
+
+/** Crop state: zoom >= 1 (1 = largest frame that fits), center in source pixels. */
+export interface CropState {
+  zoom: number;
+  cx: number;
+  cy: number;
+}
+
+export const MAX_CROP_ZOOM = 6;
+
+/** Size of the crop frame in source pixels for an aspect and zoom. */
+export function cropSize(
+  imgW: number,
+  imgH: number,
+  aspect: Aspect,
+  zoom: number,
+): { w: number; h: number } {
+  const r = aspectRatio(aspect);
+  let w = imgW;
+  let h = w / r;
+  if (h > imgH) {
+    h = imgH;
+    w = h * r;
+  }
+  const z = Math.max(1, Math.min(MAX_CROP_ZOOM, zoom));
+  return { w: w / z, h: h / z };
+}
+
+/** Clamp zoom and center so the crop frame stays fully inside the image. */
+export function clampCrop(imgW: number, imgH: number, aspect: Aspect, s: CropState): CropState {
+  const zoom = Math.max(1, Math.min(MAX_CROP_ZOOM, s.zoom));
+  const { w, h } = cropSize(imgW, imgH, aspect, zoom);
+  const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
+  return { zoom, cx: clamp(s.cx, w / 2, imgW - w / 2), cy: clamp(s.cy, h / 2, imgH - h / 2) };
+}
+
+/** Crop rectangle (source pixels) for a crop state, clamped inside the image. */
+export function cropRectFor(imgW: number, imgH: number, aspect: Aspect, s: CropState): CropRect {
+  const c = clampCrop(imgW, imgH, aspect, s);
+  const { w, h } = cropSize(imgW, imgH, aspect, c.zoom);
+  return { x: c.cx - w / 2, y: c.cy - h / 2, w, h };
+}
+
+/** Centered crop state at zoom 1. */
+export function defaultCrop(imgW: number, imgH: number): CropState {
+  return { zoom: 1, cx: imgW / 2, cy: imgH / 2 };
+}
+
+/** Fit (w, h) within a maxEdge x maxEdge box, never enlarging. Integer output. */
+export function fitWithin(w: number, h: number, maxEdge: number): { w: number; h: number } {
+  const k = Math.min(1, maxEdge / Math.max(w, h));
+  return { w: Math.max(1, Math.round(w * k)), h: Math.max(1, Math.round(h * k)) };
+}
+
+/** "m:ss" under an hour, "h:mm:ss" above. */
+export function formatDuration(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const ss = String(s).padStart(2, '0');
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
+}
+
+/** Picture name from an upload filename: "IMG_2041.HEIC" -> "IMG 2041". */
+export function nameFromFile(filename: string): string {
+  const base = filename.replace(/^.*[\\/]/, '').replace(/\.[^.]+$/, '');
+  const cleaned = base.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return cleaned.length > 0 ? cleaned.slice(0, 60) : 'My Picture';
+}
+
+/** Next color to select after `current` leaves the tray: the following one, else the previous. */
+export function nextSelection(tray: number[], previousTray: number[], current: number): number {
+  if (tray.length === 0) return -1;
+  if (tray.includes(current)) return current;
+  const pos = previousTray.indexOf(current);
+  if (pos < 0) return tray[0];
+  for (let i = pos + 1; i < previousTray.length; i++) {
+    if (tray.includes(previousTray[i])) return previousTray[i];
+  }
+  for (let i = pos - 1; i >= 0; i--) {
+    if (tray.includes(previousTray[i])) return previousTray[i];
+  }
+  return tray[0];
+}
