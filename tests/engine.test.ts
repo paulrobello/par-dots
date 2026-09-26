@@ -3,7 +3,7 @@ import { quantizeInWorker } from '../src/engine/client';
 import { deltaE, hexToRgb, rgbToHex, rgbToLab } from '../src/engine/color';
 import { LEGO_COLORS } from '../src/engine/legoPalette';
 import { panelColors, panelCount, panelIndexOf, panelOrigin, studDims } from '../src/engine/panels';
-import { buildMosaic } from '../src/engine/quantize';
+import { buildMosaic, MIN_DELTA_E } from '../src/engine/quantize';
 import { cropAndResample } from '../src/engine/resample';
 import { type Aspect, MAX_COLORS, PANEL_SIZE } from '../src/types';
 
@@ -267,5 +267,28 @@ describe('buildMosaic maxColors', () => {
   it('clamps out-of-range limits to 2..32', () => {
     expect(buildMosaic(noise(48, 48), 48, 48, 'free', 1).palette.length).toBeLessThanOrEqual(2);
     expect(buildMosaic(noise(48, 48), 48, 48, 'free', 99).palette.length).toBeLessThanOrEqual(32);
+  });
+});
+
+describe('buildMosaic contrast', () => {
+  it('keeps every palette pair at least MIN_DELTA_E apart', () => {
+    const w = 48;
+    const px = new Uint8ClampedArray(w * w * 4);
+    for (let i = 0; i < w * w; i++) {
+      // A smooth gray-blue ramp: many near-identical shades.
+      px[i * 4] = 60 + (i % w);
+      px[i * 4 + 1] = 70 + (i % w);
+      px[i * 4 + 2] = 120 + Math.floor(i / w);
+      px[i * 4 + 3] = 255;
+    }
+    for (const mode of ['lego', 'free'] as const) {
+      const pal = buildMosaic(px, w, w, mode, 32).palette.map((c) => {
+        const [r, g, b] = hexToRgb(c.hex);
+        return rgbToLab(r, g, b);
+      });
+      for (let i = 0; i < pal.length; i++)
+        for (let j = i + 1; j < pal.length; j++)
+          expect(deltaE(pal[i], pal[j])).toBeGreaterThanOrEqual(MIN_DELTA_E);
+    }
   });
 });

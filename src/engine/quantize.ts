@@ -17,6 +17,9 @@ interface Entry {
 }
 
 const FREE_SEED = 0x5eed_d075;
+
+/** Minimum CIE76 distance between palette colors, so every shade is tellable apart. */
+export const MIN_DELTA_E = 12;
 const KMEANS_MAX_ITER = 24;
 const SWAP_MAX_ROUNDS = 16;
 
@@ -301,6 +304,36 @@ function chooseFreeEntries(colors: ColorSet, maxColors: number): Entry[] {
 }
 
 /**
+ * Merge candidates closer than MIN_DELTA_E: the one covering fewer pixels is dropped, and
+ * its pixels fall to their next-nearest color. May leave fewer colors than requested.
+ */
+function enforceContrast(colors: ColorSet, candidates: Entry[]): void {
+  for (;;) {
+    const weight = new Float64Array(candidates.length);
+    for (let i = 0; i < colors.lab.length; i++) {
+      weight[nearest(colors.lab[i], candidates)] += colors.weight[i];
+    }
+    let a = -1;
+    let b = -1;
+    let best = MIN_DELTA_E * MIN_DELTA_E;
+    for (let i = 0; i < candidates.length; i++) {
+      if (weight[i] === 0) continue;
+      for (let j = i + 1; j < candidates.length; j++) {
+        if (weight[j] === 0) continue;
+        const d = deltaE76Sq(candidates[i].lab, candidates[j].lab);
+        if (d < best) {
+          best = d;
+          a = i;
+          b = j;
+        }
+      }
+    }
+    if (a < 0) return;
+    candidates.splice(weight[a] >= weight[b] ? b : a, 1);
+  }
+}
+
+/**
  * Quantize RGBA pixels (already at stud resolution) to a <=32 color mosaic.
  * Deterministic for identical input. Palette is sorted by luminance (dark to light),
  * contains only colors actually used, and in 'lego' mode only LEGO_COLORS entries.
@@ -323,6 +356,8 @@ export function buildMosaic(
   const colors = collectColors(pixels, count);
   const candidates =
     mode === 'lego' ? chooseLegoEntries(colors, limit) : chooseFreeEntries(colors, limit);
+
+  enforceContrast(colors, candidates);
 
   // Map each distinct color to its nearest candidate, then keep only used candidates.
   const colorToCand = colors.lab.map((lab) => nearest(lab, candidates));
