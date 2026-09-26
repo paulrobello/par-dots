@@ -6,7 +6,13 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png', 'CNAME'],
+      includeAssets: [
+        'favicon.svg',
+        'favicon-32.png',
+        'favicon-16.png',
+        'icons/apple-touch-icon.png',
+        'CNAME',
+      ],
       manifest: {
         name: 'par-dots — LEGO Dots Mosaic',
         short_name: 'par-dots',
