@@ -41,7 +41,14 @@ export function mountSource({ root, navigate }: ScreenContext): Cleanup {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const image = await decodeImage(await res.blob());
       if (!alive) return;
-      setPendingSource({ kind: 'library', name: e.title, slug: e.slug, aspect: e.aspect, image });
+      setPendingSource({
+        kind: 'library',
+        name: e.title,
+        slug: e.slug,
+        aspect: e.aspect,
+        crop: e.crop,
+        image,
+      });
       navigate('#/setup');
     } catch (err) {
       setBusy(null);

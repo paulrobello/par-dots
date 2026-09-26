@@ -41,10 +41,18 @@ export interface PictureSave {
   completedAt?: number;
 }
 
+/** Crop framing independent of image size: zoom >= 1, center as a 0..1 fraction of each edge. */
+export interface NormalizedCrop {
+  zoom: number;
+  cx: number;
+  cy: number;
+}
+
 export interface LibraryEntry {
   slug: string;
   title: string;
   aspect: Aspect;
+  crop: NormalizedCrop; // default framing in the crop editor
   src: string; // e.g. "library/lighthouse.webp"
   thumb: string;
 }

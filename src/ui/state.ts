@@ -1,7 +1,7 @@
 /** App-wide in-memory state: the pending picture source and cached saves. */
 
 import { getSave, putSave } from '../storage/db';
-import type { LibraryEntry, PictureSave } from '../types';
+import type { LibraryEntry, NormalizedCrop, PictureSave } from '../types';
 
 /** Source chosen on the New Picture screen, consumed by Setup. */
 export interface PendingSource {
@@ -11,6 +11,8 @@ export interface PendingSource {
   slug?: string;
   /** Default aspect (library) or best guess from dimensions (upload). */
   aspect: LibraryEntry['aspect'];
+  /** Default framing (library); uploads start centered. */
+  crop?: NormalizedCrop;
   /** Decoded, downscaled pixels. */
   image: ImageData;
   /** Original upload blob, stored at Start. */

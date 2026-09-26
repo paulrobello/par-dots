@@ -4,6 +4,7 @@ import {
   clampCrop,
   cropRectFor,
   cropSize,
+  defaultCrop,
   fitWithin,
   formatDuration,
   nameFromFile,
@@ -109,5 +110,18 @@ describe('misc helpers', () => {
     expect(nextSelection([1], [1, 2, 3], 3)).toBe(1);
     expect(nextSelection([1, 2], [1, 2], 2)).toBe(2);
     expect(nextSelection([], [1], 1)).toBe(-1);
+  });
+});
+
+describe('defaultCrop', () => {
+  it('centers at zoom 1 without a normalized crop', () => {
+    expect(defaultCrop(800, 600)).toEqual({ zoom: 1, cx: 400, cy: 300 });
+  });
+  it('scales a normalized crop to pixels', () => {
+    expect(defaultCrop(800, 600, { zoom: 2, cx: 0.25, cy: 0.75 })).toEqual({
+      zoom: 2,
+      cx: 200,
+      cy: 450,
+    });
   });
 });

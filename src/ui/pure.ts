@@ -1,6 +1,6 @@
 /** DOM-free UI helpers: routing, labels, stroke interpolation, crop math, formatting. */
 
-import type { Aspect, CropRect, PaletteColor } from '../types';
+import type { Aspect, CropRect, NormalizedCrop, PaletteColor } from '../types';
 
 export type Route =
   | { name: 'gallery' }
@@ -134,9 +134,10 @@ export function cropRectFor(imgW: number, imgH: number, aspect: Aspect, s: CropS
   return { x: c.cx - w / 2, y: c.cy - h / 2, w, h };
 }
 
-/** Centered crop state at zoom 1. */
-export function defaultCrop(imgW: number, imgH: number): CropState {
-  return { zoom: 1, cx: imgW / 2, cy: imgH / 2 };
+/** Initial crop state: a normalized default (library manifest) in pixels, else centered at zoom 1. */
+export function defaultCrop(imgW: number, imgH: number, n?: NormalizedCrop): CropState {
+  if (!n) return { zoom: 1, cx: imgW / 2, cy: imgH / 2 };
+  return { zoom: n.zoom, cx: n.cx * imgW, cy: n.cy * imgH };
 }
 
 /** Fit (w, h) within a maxEdge x maxEdge box, never enlarging. Integer output. */

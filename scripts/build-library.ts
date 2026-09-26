@@ -1,7 +1,7 @@
 import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Aspect, LibraryEntry } from '../src/types';
+import type { Aspect, LibraryEntry, NormalizedCrop } from '../src/types';
 
 const PORTRAIT = new Set(['autumn-tree', 'dachshund-in-hat', 'lighthouse', 'concert-singer']);
 const LANDSCAPE = new Set(['cartoon-dachshunds', 'cheshire-cat', 'orange-sunset']);
@@ -15,6 +15,11 @@ export function defaultAspectFor(slug: string): Aspect {
   if (PORTRAIT.has(slug)) return '3:4';
   if (LANDSCAPE.has(slug)) return '4:3';
   return '1:1';
+}
+
+/** Default crop for a bundled library image: centered at zoom 1 (PRD §5.2). */
+export function defaultCropFor(_slug: string): NormalizedCrop {
+  return { zoom: 1, cx: 0.5, cy: 0.5 };
 }
 
 /** Human title from a kebab-case slug: "dachshund-in-hat" -> "Dachshund in Hat". */
@@ -33,6 +38,7 @@ export function entryFor(slug: string): LibraryEntry {
     slug,
     title: titleFor(slug),
     aspect: defaultAspectFor(slug),
+    crop: defaultCropFor(slug),
     src: `library/${slug}.webp`,
     thumb: `library/${slug}-thumb.webp`,
   };

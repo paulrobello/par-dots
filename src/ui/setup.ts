@@ -41,7 +41,12 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
   const img = src.image;
   let aspect: Aspect = src.aspect;
   let mode: PaletteMode = getSettings().paletteMode;
-  let crop: CropState = defaultCrop(img.width, img.height);
+  let crop: CropState = clampCrop(
+    img.width,
+    img.height,
+    aspect,
+    defaultCrop(img.width, img.height, src.crop),
+  );
   let alive = true;
   let token = 0;
   let latest: Promise<Mosaic> | null = null;

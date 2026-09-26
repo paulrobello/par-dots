@@ -39,6 +39,7 @@ describe('manifest', () => {
       slug: 'lighthouse',
       title: 'Lighthouse',
       aspect: '3:4',
+      crop: { zoom: 1, cx: 0.5, cy: 0.5 },
       src: 'library/lighthouse.webp',
       thumb: 'library/lighthouse-thumb.webp',
     });
