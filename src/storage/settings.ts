@@ -1,7 +1,7 @@
 import type { PaletteMode } from '../types';
 
 export type PlaceSound = 'click' | 'snap' | 'pop' | 'tick' | 'blip';
-export const PLACE_SOUNDS: readonly PlaceSound[] = ['click', 'snap', 'pop', 'tick', 'blip'];
+export const PLACE_SOUNDS: readonly PlaceSound[] = ['snap', 'click', 'pop', 'tick', 'blip'];
 
 export interface Settings {
   sound: boolean;
@@ -13,7 +13,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   sound: true,
-  placeSound: 'click',
+  placeSound: 'snap',
   haptics: true,
   paletteMode: 'lego',
   maxColors: 32,

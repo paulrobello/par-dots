@@ -92,9 +92,10 @@ export class OverviewRenderer {
   }
 
   resize(): void {
+    // Layout size, not the bounding rect: a CSS transform (zoom transition) must not leak in.
     const rect = this.canvas.getBoundingClientRect();
-    this.cssW = Math.max(0, rect.width || this.canvas.clientWidth);
-    this.cssH = Math.max(0, rect.height || this.canvas.clientHeight);
+    this.cssW = Math.max(0, this.canvas.clientWidth || rect.width);
+    this.cssH = Math.max(0, this.canvas.clientHeight || rect.height);
     this.dpr = devicePixelRatioSafe();
     const w = Math.round(this.cssW * this.dpr);
     const h = Math.round(this.cssH * this.dpr);

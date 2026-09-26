@@ -333,7 +333,7 @@ describe('audio + haptics', () => {
       playPlaceSound(kind);
       expect(oscs.length + sources.length).toBeGreaterThan(before);
     }
-    expect(DEFAULT_SETTINGS.placeSound).toBe('click');
+    expect(DEFAULT_SETTINGS.placeSound).toBe('snap');
   });
 
   it('is silent when sound is disabled', () => {
