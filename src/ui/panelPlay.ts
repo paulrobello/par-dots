@@ -15,6 +15,7 @@ import { loadSave, persist, setTransitionHint } from './state';
 
 const MAX_ZOOM = 4;
 const SOUND_GAP_MS = 45;
+const TOUCH_HOLD_MS = 70;
 
 export function mountPanelPlay(
   { root, navigate }: ScreenContext,
@@ -345,12 +346,14 @@ export function mountPanelPlay(
     });
     undoBtn.addEventListener('click', () => {
       if (session.undo()) {
+        board.clearHighlight();
         saveNow();
         afterChange();
       }
     });
     redoBtn.addEventListener('click', () => {
       if (session.redo()) {
+        board.clearHighlight();
         saveNow();
         afterChange();
       }
@@ -390,6 +393,7 @@ export function mountPanelPlay(
       lastCell = cell;
     };
     const endStroke = (): void => {
+      cancelPending();
       if (strokePointer === null) return;
       strokePointer = null;
       lastCell = null;
@@ -397,6 +401,25 @@ export function mountPanelPlay(
       session.endStroke();
       saveNow();
       afterChange();
+    };
+
+    // A first touch is held briefly before painting, so the first finger of a pinch
+    // never places or removes a dot.
+    let pending: { id: number; x: number; y: number; timer: ReturnType<typeof setTimeout> } | null =
+      null;
+    const cancelPending = (): void => {
+      if (pending) clearTimeout(pending.timer);
+      pending = null;
+    };
+    const startStroke = (id: number, x: number, y: number): void => {
+      cancelPending();
+      if (lockedAtOpen || finished || (!removeMode && selected < 0)) return;
+      board.clearHighlight();
+      strokePointer = id;
+      session.beginStroke(removeMode ? 'remove' : 'paint', removeMode ? undefined : selected);
+      strokeTo(x, y);
+      syncTray(true);
+      updateHud();
     };
 
     const onDown = (e: PointerEvent): void => {
@@ -407,17 +430,21 @@ export function mountPanelPlay(
         // Synthetic pointers may not be capturable.
       }
       if (pointers.size >= 2) {
+        cancelPending();
         endStroke();
         pinch = pinchState();
         return;
       }
       if (lockedAtOpen || finished) return;
-      if (!removeMode && selected < 0) return;
-      strokePointer = e.pointerId;
-      session.beginStroke(removeMode ? 'remove' : 'paint', removeMode ? undefined : selected);
-      strokeTo(e.clientX, e.clientY);
-      syncTray(true);
-      updateHud();
+      if (e.pointerType !== 'touch') {
+        startStroke(e.pointerId, e.clientX, e.clientY);
+        return;
+      }
+      const id = e.pointerId;
+      const x = e.clientX;
+      const y = e.clientY;
+      cancelPending();
+      pending = { id, x, y, timer: setTimeout(() => startStroke(id, x, y), TOUCH_HOLD_MS) };
     };
     const onMove = (e: PointerEvent): void => {
       if (!pointers.has(e.pointerId)) return;
@@ -432,6 +459,12 @@ export function mountPanelPlay(
         pinch = next;
         return;
       }
+      if (pending && e.pointerId === pending.id) {
+        const a = board.hitTest(pending.x, pending.y);
+        const b = board.hitTest(e.clientX, e.clientY);
+        if (a && b && a.x === b.x && a.y === b.y) return;
+        startStroke(pending.id, pending.x, pending.y);
+      }
       if (e.pointerId !== strokePointer) return;
       const events = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : [];
       if (events.length > 0) for (const ce of events) strokeTo(ce.clientX, ce.clientY);
@@ -440,8 +473,11 @@ export function mountPanelPlay(
       updateHud();
     };
     const onUp = (e: PointerEvent): void => {
+      const wasPending = pending && pending.id === e.pointerId && e.type === 'pointerup';
+      if (wasPending && pending) startStroke(pending.id, pending.x, pending.y);
       pointers.delete(e.pointerId);
       if (e.pointerId === strokePointer) endStroke();
+      else if (pending && pending.id === e.pointerId) cancelPending();
       pinch = pointers.size >= 2 ? pinchState() : null;
     };
     const onWheel = (e: WheelEvent): void => {
