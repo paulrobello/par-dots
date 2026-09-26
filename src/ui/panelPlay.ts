@@ -1,6 +1,7 @@
 import { haptic, play } from '../audio/sfx';
 import { PanelSession, panelCount, panelOrigin, pictureComplete } from '../game';
 import { BoardRenderer } from '../render/boardRenderer';
+import { luminance } from '../render/color';
 import { zoomViewportAt } from '../render/layout';
 import { renderMosaicToCanvas } from '../render/mosaicImage';
 import { devicePixelRatioSafe, prefersReducedMotion } from '../render/motion';
@@ -239,9 +240,9 @@ export function mountPanelPlay(
           'aria-checked': 'false',
           'aria-label': labels[c],
           title: labels[c],
-          style: `--c:${save.palette[c].hex}`,
+          style: `--c:${save.palette[c].hex};--count-ink:${luminance(save.palette[c].hex) > 0.45 ? '#1b1b1b' : '#fff'}`,
         },
-        h('span', { class: 'css-dot' }),
+        h('span', { class: 'css-dot' }, h('span', { class: 'tray-count' })),
         h('span', { class: 'tray-label' }, labels[c]),
       );
       b.addEventListener('click', () => select(c));
@@ -277,6 +278,21 @@ export function mountPanelPlay(
         else tray.append(el);
       }
       trayOrder = next;
+      const remaining = new Map<number, number>();
+      for (let y = 0; y < PANEL_SIZE; y++) {
+        for (let x = 0; x < PANEL_SIZE; x++) {
+          const cell = session.cellAt(x, y);
+          if (cell.placed !== cell.target) {
+            remaining.set(cell.target, (remaining.get(cell.target) ?? 0) + 1);
+          }
+        }
+      }
+      for (const [c, el] of trayEls) {
+        const n = remaining.get(c) ?? 0;
+        const count = el.querySelector('.tray-count');
+        if (count && count.textContent !== String(n)) count.textContent = String(n);
+        el.setAttribute('aria-label', `${labels[c]}, ${n} left`);
+      }
       const sel = nextSelection(next, prev, selected);
       if (sel !== selected || !next.includes(selected)) selectRaw(sel);
       else markSelected();
