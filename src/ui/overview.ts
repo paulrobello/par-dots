@@ -24,7 +24,8 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
     role: 'img',
     'aria-label': 'Picture overview',
   });
-  const stage = h('div', { class: 'overview-stage' }, canvas);
+  const hoverBox = h('div', { class: 'panel-hover', 'aria-hidden': 'true' });
+  const stage = h('div', { class: 'overview-stage' }, canvas, hoverBox);
   const title = h('h1', { class: 'title' }, '');
   const stats = h('div', { class: 'stats', 'aria-live': 'polite' });
   const ghostBtn = h(
@@ -187,6 +188,28 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
       if (p !== null && p !== undefined) openPanel(save, p);
     });
 
+    // Hover highlight: a box over the hovered panel, mirrored on its number button.
+    let hovered: number | null = null;
+    const setHover = (index: number | null): void => {
+      if (index === hovered) return;
+      hovered = index;
+      const rect = index === null ? null : (renderer?.panelRect(index) ?? null);
+      hoverBox.classList.toggle('on', rect !== null);
+      if (rect) {
+        hoverBox.style.transform = `translate(${rect.x}px, ${rect.y}px)`;
+        hoverBox.style.width = `${rect.w}px`;
+        hoverBox.style.height = `${rect.h}px`;
+      }
+      panelList.querySelectorAll('.panel-btn').forEach((b, i) => {
+        b.classList.toggle('hover', i === index);
+      });
+    };
+    canvas.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      setHover(renderer?.hitTestPanel(e.clientX, e.clientY) ?? null);
+    });
+    canvas.addEventListener('pointerleave', () => setHover(null));
+
     // Keyboard / screen reader access to panels.
     panelList.classList.remove('visually-hidden');
     panelList.className = 'panel-buttons';
@@ -198,7 +221,13 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
             type: 'button',
             class: 'panel-btn',
             'aria-label': `Open panel ${i + 1} of ${panelCount(save)}`,
-            on: { click: () => openPanel(save, i) },
+            on: {
+              click: () => openPanel(save, i),
+              pointerenter: () => setHover(i),
+              pointerleave: () => setHover(null),
+              focus: () => setHover(i),
+              blur: () => setHover(null),
+            },
           },
           String(i + 1),
         ),
