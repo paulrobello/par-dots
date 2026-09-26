@@ -701,6 +701,11 @@ p {
   border-radius: 8px;
 }
 
+.play-side {
+  align-items: center;
+  gap: 8px;
+}
+
 .board-wrap {
   position: relative;
   flex: 1 1 auto;

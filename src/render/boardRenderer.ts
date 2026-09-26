@@ -25,7 +25,7 @@ export interface Cell {
   y: number;
 }
 
-export type CellGetter = (x: number, y: number) => { placed: number };
+export type CellGetter = (x: number, y: number) => { placed: number; target?: number };
 
 export interface BoardRendererOptions {
   plateColor?: string;
@@ -62,6 +62,7 @@ export class BoardRenderer {
   private hintTimer: ReturnType<typeof setTimeout> | null = null;
   private raf = 0;
   private destroyed = false;
+  private overlay = false;
 
   constructor(canvas: HTMLCanvasElement, opts: BoardRendererOptions = {}) {
     this.canvas = canvas;
@@ -87,6 +88,17 @@ export class BoardRenderer {
   /** Viewport in canvas CSS px (see file header). Does not redraw; call draw(). */
   setViewport(scale: number, offsetX: number, offsetY: number): void {
     this.vp = { scale: scale > 0 ? scale : 1, offsetX, offsetY };
+  }
+
+  /** Show the target colors as faint dots on empty studs (reference overlay). Redraws on change. */
+  setOverlay(on: boolean): void {
+    if (this.overlay === on) return;
+    this.overlay = on;
+    this.draw();
+  }
+
+  get overlayEnabled(): boolean {
+    return this.overlay;
   }
 
   getViewport(): Viewport {
@@ -234,7 +246,8 @@ export class BoardRenderer {
     ctx.rect(r.x, r.y, r.w, r.h);
     ctx.clip();
     ctx.drawImage(this.sprites.stud(s), r.x, r.y, r.w, r.h);
-    const idx = this.getCell ? this.getCell(x, y).placed : EMPTY;
+    const cell = this.getCell ? this.getCell(x, y) : undefined;
+    const idx = cell ? cell.placed : EMPTY;
     const color = idx !== EMPTY ? this.palette[idx] : undefined;
     const k = key(x, y);
     if (color) {
@@ -244,6 +257,13 @@ export class BoardRenderer {
       const w = r.w * sc;
       const h = r.h * sc;
       ctx.drawImage(this.sprites.dot(color.hex, s), r.x + (r.w - w) / 2, r.y + (r.h - h) / 2, w, h);
+    } else if (this.overlay && cell?.target !== undefined) {
+      const t = this.palette[cell.target];
+      if (t) {
+        ctx.globalAlpha = 0.35;
+        ctx.drawImage(this.sprites.dot(t.hex, s), r.x, r.y, r.w, r.h);
+        ctx.globalAlpha = 1;
+      }
     }
     if (this.hints.has(k)) {
       ctx.globalAlpha = prefersReducedMotion() ? 1 : pulseAlpha(now() - this.hintStart);

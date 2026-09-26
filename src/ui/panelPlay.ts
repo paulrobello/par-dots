@@ -101,6 +101,17 @@ export function mountPanelPlay(
       { type: 'button', class: 'ref-thumb', 'aria-label': 'Reference image. Tap to enlarge.' },
       refCanvas,
     );
+    const overlayBtn = h(
+      'button',
+      {
+        type: 'button',
+        class: 'chip overlay-toggle',
+        'aria-pressed': 'false',
+        'aria-label': 'Show reference on the board',
+      },
+      icon('eye'),
+      h('span', {}, 'Overlay'),
+    );
     const boardCanvas = h('canvas', {
       class: 'board-canvas',
       role: 'application',
@@ -157,7 +168,12 @@ export function mountPanelPlay(
         timeEl,
         iconButton('gear', 'Settings', () => openSettingsSheet()),
       ),
-      h('div', { class: 'play-body' }, h('div', { class: 'play-side' }, refBtn), boardWrap),
+      h(
+        'div',
+        { class: 'play-body' },
+        h('div', { class: 'play-side' }, refBtn, overlayBtn),
+        boardWrap,
+      ),
       lockedAtOpen
         ? h('div', { class: 'locked-note' }, icon('check'), 'Panel complete')
         : h('div', { class: 'play-controls' }, toolbar, trayWrap),
@@ -182,6 +198,19 @@ export function mountPanelPlay(
       board.resize();
     });
     ro.observe(boardWrap);
+
+    // Reference overlay: toggled by the button, and shown while a two-finger pinch is down.
+    let overlayOn = false;
+    let pinchDown = false;
+    const syncOverlay = (): void => {
+      board.setOverlay(overlayOn || pinchDown);
+      overlayBtn.setAttribute('aria-pressed', String(overlayOn));
+      overlayBtn.classList.toggle('on', overlayOn);
+    };
+    overlayBtn.addEventListener('click', () => {
+      overlayOn = !overlayOn;
+      syncOverlay();
+    });
 
     // ---- HUD ----------------------------------------------------------------
     const updateHud = (): void => {
@@ -461,6 +490,8 @@ export function mountPanelPlay(
           endStroke();
         }
         pinch = pinchState();
+        pinchDown = true;
+        syncOverlay();
         return;
       }
       if (lockedAtOpen || finished) return;
@@ -512,6 +543,10 @@ export function mountPanelPlay(
       if (e.pointerId === strokePointer) endStroke();
       else if (pending && pending.id === e.pointerId) cancelPending();
       pinch = pointers.size >= 2 ? pinchState() : null;
+      if (pinchDown && pointers.size < 2) {
+        pinchDown = false;
+        syncOverlay();
+      }
     };
     const onWheel = (e: WheelEvent): void => {
       e.preventDefault();
