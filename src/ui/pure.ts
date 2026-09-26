@@ -163,6 +163,31 @@ export function nameFromFile(filename: string): string {
   return cleaned.length > 0 ? cleaned.slice(0, 60) : 'My Picture';
 }
 
+/** Parse a user-typed image link; only http(s) URLs are accepted. */
+export function parseImageUrl(raw: string): URL | null {
+  const text = raw.trim();
+  if (!text) return null;
+  try {
+    const url = new URL(/^[a-z][a-z0-9+.-]*:/i.test(text) ? text : `https://${text}`);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Picture name from the last path segment of an image URL. */
+export function nameFromUrl(url: URL): string {
+  const seg = url.pathname.split('/').filter(Boolean).pop() ?? '';
+  let decoded = seg;
+  try {
+    decoded = decodeURIComponent(seg);
+  } catch {
+    // keep the raw segment
+  }
+  const name = nameFromFile(decoded);
+  return name === 'My Picture' ? url.hostname.replace(/^www\./, '') : name;
+}
+
 /** Next color to select after `current` leaves the tray: the following one, else the previous. */
 export function nextSelection(tray: number[], previousTray: number[], current: number): number {
   if (tray.length === 0) return -1;

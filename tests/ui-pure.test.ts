@@ -8,8 +8,10 @@ import {
   fitWithin,
   formatDuration,
   nameFromFile,
+  nameFromUrl,
   nextSelection,
   paletteLabels,
+  parseImageUrl,
   parseRoute,
   routeHash,
 } from '../src/ui/pure';
@@ -123,5 +125,23 @@ describe('defaultCrop', () => {
       cx: 200,
       cy: 450,
     });
+  });
+});
+
+describe('image URL input', () => {
+  it('accepts http(s) links and adds https to bare hosts', () => {
+    expect(parseImageUrl(' https://a.com/x.jpg ')?.href).toBe('https://a.com/x.jpg');
+    expect(parseImageUrl('a.com/x.png')?.href).toBe('https://a.com/x.png');
+    expect(parseImageUrl('http://a.com/y')?.protocol).toBe('http:');
+  });
+  it('rejects empty and non-http schemes', () => {
+    expect(parseImageUrl('')).toBeNull();
+    expect(parseImageUrl('javascript:alert(1)')).toBeNull();
+    expect(parseImageUrl('data:image/png;base64,AAAA')).toBeNull();
+    expect(parseImageUrl('file:///etc/passwd')).toBeNull();
+  });
+  it('names from the file segment, else the host', () => {
+    expect(nameFromUrl(new URL('https://x.org/pics/red_barn%20photo.jpg'))).toBe('red barn photo');
+    expect(nameFromUrl(new URL('https://www.example.com/'))).toBe('example.com');
   });
 });

@@ -1,6 +1,6 @@
 import type { Aspect, LibraryEntry } from '../types';
 import { h, icon, iconButton, toast } from './dom';
-import { nameFromFile } from './pure';
+import { nameFromFile, nameFromUrl, parseImageUrl } from './pure';
 import type { Cleanup, ScreenContext } from './screen';
 import { decodeImage, loadLibrary, setPendingSource } from './state';
 
@@ -56,6 +56,70 @@ export function mountSource({ root, navigate }: ScreenContext): Cleanup {
     }
   };
 
+  const useBlob = async (blob: Blob, name: string, readingMsg: string): Promise<void> => {
+    setBusy(readingMsg);
+    try {
+      const image = await decodeImage(blob);
+      if (!alive) return;
+      setPendingSource({
+        kind: 'upload',
+        name,
+        aspect: guessAspect(image.width, image.height),
+        image,
+        blob,
+      });
+      navigate('#/setup');
+    } catch {
+      setBusy(null);
+      toast('This image format is not supported on this device.', 3500);
+    }
+  };
+
+  const urlInput = h('input', {
+    type: 'url',
+    class: 'url-input',
+    placeholder: 'https://example.com/photo.jpg',
+    inputmode: 'url',
+    autocomplete: 'off',
+    'aria-label': 'Image URL',
+  });
+  const urlForm = h(
+    'form',
+    { class: 'url-form' },
+    urlInput,
+    h('button', { type: 'submit', class: 'chip' }, 'Open'),
+  );
+  urlForm.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    if (busy) return;
+    const parsed = parseImageUrl(urlInput.value);
+    if (!parsed) {
+      toast('Enter a full http(s) link to an image.', 3000);
+      return;
+    }
+    setBusy('Downloading image…');
+    let blob: Blob;
+    try {
+      const res = await fetch(parsed.href, { mode: 'cors', credentials: 'omit' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      blob = await res.blob();
+    } catch {
+      setBusy(null);
+      toast(
+        'Could not download that image. The site may block other apps from loading it; try saving it and uploading instead.',
+        4500,
+      );
+      return;
+    }
+    if (!alive) return;
+    if (blob.size > MAX_UPLOAD_BYTES) {
+      setBusy(null);
+      toast('That image is larger than 20 MB. Please pick a smaller one.', 3500);
+      return;
+    }
+    await useBlob(blob, nameFromUrl(parsed), 'Reading image…');
+  });
+
   fileInput.addEventListener('change', async () => {
     const file = fileInput.files?.[0];
     fileInput.value = '';
@@ -64,22 +128,7 @@ export function mountSource({ root, navigate }: ScreenContext): Cleanup {
       toast('That image is larger than 20 MB. Please pick a smaller one.', 3500);
       return;
     }
-    setBusy('Reading photo…');
-    try {
-      const image = await decodeImage(file);
-      if (!alive) return;
-      setPendingSource({
-        kind: 'upload',
-        name: nameFromFile(file.name),
-        aspect: guessAspect(image.width, image.height),
-        image,
-        blob: file,
-      });
-      navigate('#/setup');
-    } catch {
-      setBusy(null);
-      toast('This image format is not supported on this device.', 3500);
-    }
+    await useBlob(file, nameFromFile(file.name), 'Reading photo…');
   });
 
   root.append(
@@ -103,6 +152,7 @@ export function mountSource({ root, navigate }: ScreenContext): Cleanup {
           h('span', {}, h('strong', {}, 'Upload a photo'), h('small', {}, 'Stays on your device')),
         ),
         fileInput,
+        urlForm,
         status,
         h('h2', { class: 'section-title' }, 'Or pick one'),
         grid,
