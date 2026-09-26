@@ -35,7 +35,7 @@ const ASPECTS: Array<{ value: Aspect; label: string }> = [
 export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
   const src = getPendingSource();
   if (!src) {
-    navigate('#/new', { replace: true });
+    queueMicrotask(() => navigate('#/new', { replace: true }));
     return () => undefined;
   }
   const img = src.image;

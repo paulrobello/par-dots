@@ -592,7 +592,8 @@ p {
 
 .preview-box canvas {
   max-width: 100%;
-  height: auto;
+  max-height: 60dvh;
+  object-fit: contain;
   border-radius: 6px;
 }
 
@@ -625,7 +626,7 @@ p {
 .overview-stage {
   position: relative;
   flex: 1 1 auto;
-  min-height: 300px;
+  min-height: min(300px, 62dvh);
   overflow: hidden;
 }
 
