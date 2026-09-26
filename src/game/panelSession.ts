@@ -125,6 +125,14 @@ export class PanelSession {
     this.redoStack = [];
   }
 
+  /** Abandon the open stroke: revert its changes without recording an undoable move. */
+  cancelStroke(): void {
+    const s = this.stroke;
+    this.stroke = null;
+    if (!s) return;
+    for (let k = s.changes.length - 1; k >= 0; k--) this.applyChange(s.changes[k], true, 'undo');
+  }
+
   get strokeActive(): boolean {
     return this.stroke !== null;
   }

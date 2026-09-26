@@ -16,6 +16,10 @@ import { loadSave, persist, setTransitionHint } from './state';
 const MAX_ZOOM = 4;
 const SOUND_GAP_MS = 45;
 const TOUCH_HOLD_MS = 70;
+/** Touch drift (CSS px) tolerated while a first touch is held, before it counts as a drag. */
+const TOUCH_SLOP_PX = 10;
+/** A second finger this soon after the first turns the touch into a pinch and discards its stroke. */
+const PINCH_GRACE_MS = 300;
 
 export function mountPanelPlay(
   { root, navigate }: ScreenContext,
@@ -362,6 +366,7 @@ export function mountPanelPlay(
     // ---- pointer input ------------------------------------------------------
     const pointers = new Map<number, { x: number; y: number }>();
     let strokePointer: number | null = null;
+    let strokeTouchDownAt: number | null = null;
     let lastCell: { x: number; y: number } | null = null;
     let pinch: { dist: number; mx: number; my: number } | null = null;
 
@@ -396,6 +401,7 @@ export function mountPanelPlay(
       cancelPending();
       if (strokePointer === null) return;
       strokePointer = null;
+      strokeTouchDownAt = null;
       lastCell = null;
       if (!session.strokeActive) return;
       session.endStroke();
@@ -405,17 +411,23 @@ export function mountPanelPlay(
 
     // A first touch is held briefly before painting, so the first finger of a pinch
     // never places or removes a dot.
-    let pending: { id: number; x: number; y: number; timer: ReturnType<typeof setTimeout> } | null =
-      null;
+    let pending: {
+      id: number;
+      x: number;
+      y: number;
+      downAt: number;
+      timer: ReturnType<typeof setTimeout>;
+    } | null = null;
     const cancelPending = (): void => {
       if (pending) clearTimeout(pending.timer);
       pending = null;
     };
-    const startStroke = (id: number, x: number, y: number): void => {
+    const startStroke = (id: number, x: number, y: number, touchDownAt: number | null): void => {
       cancelPending();
       if (lockedAtOpen || finished || (!removeMode && selected < 0)) return;
       board.clearHighlight();
       strokePointer = id;
+      strokeTouchDownAt = touchDownAt;
       session.beginStroke(removeMode ? 'remove' : 'paint', removeMode ? undefined : selected);
       strokeTo(x, y);
       syncTray(true);
@@ -431,20 +443,41 @@ export function mountPanelPlay(
       }
       if (pointers.size >= 2) {
         cancelPending();
-        endStroke();
+        if (
+          strokePointer !== null &&
+          strokeTouchDownAt !== null &&
+          performance.now() - strokeTouchDownAt < PINCH_GRACE_MS
+        ) {
+          session.cancelStroke();
+          strokePointer = null;
+          strokeTouchDownAt = null;
+          lastCell = null;
+          completing = session.isComplete();
+          syncTray(false);
+          updateHud();
+        } else {
+          endStroke();
+        }
         pinch = pinchState();
         return;
       }
       if (lockedAtOpen || finished) return;
       if (e.pointerType !== 'touch') {
-        startStroke(e.pointerId, e.clientX, e.clientY);
+        startStroke(e.pointerId, e.clientX, e.clientY, null);
         return;
       }
       const id = e.pointerId;
       const x = e.clientX;
       const y = e.clientY;
+      const downAt = performance.now();
       cancelPending();
-      pending = { id, x, y, timer: setTimeout(() => startStroke(id, x, y), TOUCH_HOLD_MS) };
+      pending = {
+        id,
+        x,
+        y,
+        downAt,
+        timer: setTimeout(() => startStroke(id, x, y, downAt), TOUCH_HOLD_MS),
+      };
     };
     const onMove = (e: PointerEvent): void => {
       if (!pointers.has(e.pointerId)) return;
@@ -460,10 +493,8 @@ export function mountPanelPlay(
         return;
       }
       if (pending && e.pointerId === pending.id) {
-        const a = board.hitTest(pending.x, pending.y);
-        const b = board.hitTest(e.clientX, e.clientY);
-        if (a && b && a.x === b.x && a.y === b.y) return;
-        startStroke(pending.id, pending.x, pending.y);
+        if (Math.hypot(e.clientX - pending.x, e.clientY - pending.y) < TOUCH_SLOP_PX) return;
+        startStroke(pending.id, pending.x, pending.y, pending.downAt);
       }
       if (e.pointerId !== strokePointer) return;
       const events = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : [];
@@ -474,7 +505,7 @@ export function mountPanelPlay(
     };
     const onUp = (e: PointerEvent): void => {
       const wasPending = pending && pending.id === e.pointerId && e.type === 'pointerup';
-      if (wasPending && pending) startStroke(pending.id, pending.x, pending.y);
+      if (wasPending && pending) startStroke(pending.id, pending.x, pending.y, pending.downAt);
       pointers.delete(e.pointerId);
       if (e.pointerId === strokePointer) endStroke();
       else if (pending && pending.id === e.pointerId) cancelPending();

@@ -160,6 +160,27 @@ describe('PanelSession painting', () => {
 });
 
 describe('PanelSession undo/redo', () => {
+  it('cancelStroke reverts the open stroke without recording a move', () => {
+    const save = makeSave();
+    const s = new PanelSession(save, 0);
+    const trayBefore = s.trayColors();
+    const events: PanelEvent[] = [];
+    s.onChange((e) => events.push(e));
+    s.beginStroke('paint', 0);
+    s.applyAt(0, 0);
+    s.applyAt(1, 0);
+    s.cancelStroke();
+    expect(s.strokeActive).toBe(false);
+    expect(s.cellAt(0, 0).placed).toBe(EMPTY);
+    expect(s.cellAt(1, 0).placed).toBe(EMPTY);
+    expect(s.canUndo).toBe(false);
+    expect(s.canRedo).toBe(false);
+    expect(s.trayColors()).toEqual(trayBefore);
+    expect(s.progress().correct).toBe(0);
+    expect(events.filter((e) => e.type === 'removed')).toHaveLength(2);
+    s.cancelStroke();
+  });
+
   it('treats one stroke as one move', () => {
     const save = makeSave();
     const s = new PanelSession(save, 0);
