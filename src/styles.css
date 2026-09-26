@@ -81,6 +81,10 @@ p {
   margin: 0;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .visually-hidden {
   position: absolute !important;
   width: 1px;
@@ -268,7 +272,6 @@ p {
 /* ---------- CSS dots ---------- */
 
 .css-dot {
-  --c: #c91a09;
   display: inline-block;
   width: 1em;
   height: 1em;
@@ -276,9 +279,13 @@ p {
   background:
     radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.9) 0 6%, transparent 7%),
     radial-gradient(ellipse at 34% 30%, rgba(255, 255, 255, 0.55), transparent 42%),
-    radial-gradient(circle at 40% 38%, var(--c) 55%, color-mix(in srgb, var(--c) 72%, #000) 92%);
+    radial-gradient(
+      circle at 40% 38%,
+      var(--c, #c91a09) 55%,
+      color-mix(in srgb, var(--c, #c91a09) 72%, #000) 92%
+    );
   box-shadow:
-    0 0.06em 0 color-mix(in srgb, var(--c) 60%, #000),
+    0 0.06em 0 color-mix(in srgb, var(--c, #c91a09) 60%, #000),
     0 0.12em 0.18em rgba(0, 0, 0, 0.45);
 }
 
