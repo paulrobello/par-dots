@@ -1,13 +1,18 @@
 import type { PaletteMode } from '../types';
 
+export type PlaceSound = 'click' | 'snap' | 'pop' | 'tick' | 'blip';
+export const PLACE_SOUNDS: readonly PlaceSound[] = ['click', 'snap', 'pop', 'tick', 'blip'];
+
 export interface Settings {
   sound: boolean;
+  placeSound: PlaceSound;
   haptics: boolean;
   paletteMode: PaletteMode;
 }
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   sound: true,
+  placeSound: 'click',
   haptics: true,
   paletteMode: 'lego',
 });
@@ -22,6 +27,8 @@ function sanitize(raw: unknown): Settings {
   if (raw && typeof raw === 'object') {
     const r = raw as Record<string, unknown>;
     if (typeof r.sound === 'boolean') s.sound = r.sound;
+    if (PLACE_SOUNDS.includes(r.placeSound as PlaceSound))
+      s.placeSound = r.placeSound as PlaceSound;
     if (typeof r.haptics === 'boolean') s.haptics = r.haptics;
     if (r.paletteMode === 'lego' || r.paletteMode === 'free') s.paletteMode = r.paletteMode;
   }

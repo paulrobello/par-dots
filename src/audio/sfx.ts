@@ -1,4 +1,4 @@
-import { getSettings } from '../storage/settings';
+import { getSettings, type PlaceSound } from '../storage/settings';
 
 export type SoundName = 'place' | 'remove' | 'colorDone' | 'panelComplete' | 'pictureComplete';
 export type HapticName = 'place' | 'remove' | 'colorDone' | 'panelComplete' | 'pictureComplete';
@@ -125,8 +125,75 @@ function schedule(ac: AudioContext, notes: Note[]): void {
   }
 }
 
+/** A short decaying noise burst, band-passed: the body of a plastic click. */
+function noiseBurst(
+  ac: AudioContext,
+  at: number,
+  dur: number,
+  freq: number,
+  q: number,
+  gain: number,
+): void {
+  const len = Math.max(1, Math.floor(ac.sampleRate * dur));
+  const buf = ac.createBuffer(1, len, ac.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / len;
+    data[i] = (Math.random() * 2 - 1) * (1 - t) ** 4;
+  }
+  const src = ac.createBufferSource();
+  src.buffer = buf;
+  const bp = ac.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = freq;
+  bp.Q.value = q;
+  const amp = ac.createGain();
+  amp.gain.value = gain;
+  src.connect(bp);
+  bp.connect(amp);
+  amp.connect(ac.destination);
+  src.start(at);
+}
+
+/** Place-sound variants; `click` is a crisp, very short brick-snap. */
+const PLACE_VOICES: Record<PlaceSound, (ac: AudioContext) => void> = {
+  click: (ac) => {
+    const t = ac.currentTime + 0.003;
+    noiseBurst(ac, t, 0.018, 3200, 1.4, 0.9);
+    schedule(ac, [{ freq: 220, toFreq: 120, start: 0, dur: 0.03, type: 'sine', gain: 0.35 }]);
+  },
+  snap: (ac) => {
+    const t = ac.currentTime + 0.003;
+    noiseBurst(ac, t, 0.012, 5200, 2.5, 0.8);
+    noiseBurst(ac, t + 0.018, 0.02, 2400, 1.2, 0.5);
+  },
+  pop: (ac) => {
+    schedule(ac, [{ freq: 900, toFreq: 260, start: 0, dur: 0.05, type: 'sine', gain: 0.4 }]);
+  },
+  tick: (ac) => {
+    noiseBurst(ac, ac.currentTime + 0.003, 0.008, 6000, 3, 0.7);
+  },
+  blip: (ac) => schedule(ac, SOUNDS.place),
+};
+
+/** Plays one place-sound variant (used for the settings preview). */
+export function playPlaceSound(kind: PlaceSound): void {
+  if (!getSettings().sound) return;
+  const ac = ctx ?? unlockAudio();
+  if (!ac || ac.state === 'closed') return;
+  try {
+    PLACE_VOICES[kind](ac);
+  } catch {
+    // Audio failures must never break gameplay.
+  }
+}
+
 /** Plays a synthesized sound if sound is enabled and audio has been unlocked. */
 export function play(name: SoundName): void {
+  if (name === 'place') {
+    playPlaceSound(getSettings().placeSound);
+    return;
+  }
   if (!getSettings().sound) return;
   const ac = ctx ?? unlockAudio();
   if (!ac || ac.state === 'closed') return;

@@ -30,6 +30,9 @@ body {
   margin: 0;
   height: 100%;
   overflow-x: hidden;
+  /* Block browser pinch/double-tap page zoom; the board handles its own zoom. */
+  touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -983,6 +986,16 @@ p {
   padding: 8px 12px;
   border-radius: 14px;
   background: rgba(0, 0, 0, 0.25);
+}
+
+.setting-row.column {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.setting-row.column .segmented button {
+  padding: 0 4px;
+  font-size: 0.85rem;
 }
 
 .setting-row span {

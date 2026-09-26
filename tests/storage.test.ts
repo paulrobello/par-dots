@@ -5,6 +5,7 @@ import {
   haptic,
   initAudio,
   play,
+  playPlaceSound,
   resetAudioForTests,
   unlockAudio,
 } from '../src/audio/sfx';
@@ -19,7 +20,13 @@ import {
   StorageFullError,
 } from '../src/storage/db';
 import { newId } from '../src/storage/id';
-import { DEFAULT_SETTINGS, getSettings, SETTINGS_KEY, setSettings } from '../src/storage/settings';
+import {
+  DEFAULT_SETTINGS,
+  getSettings,
+  PLACE_SOUNDS,
+  SETTINGS_KEY,
+  setSettings,
+} from '../src/storage/settings';
 import { EMPTY, type PictureSave } from '../src/types';
 
 class MemoryStorage {
@@ -171,7 +178,7 @@ describe('settings', () => {
   it('persists partial updates', () => {
     setSettings({ sound: false });
     setSettings({ paletteMode: 'free' });
-    expect(getSettings()).toEqual({ sound: false, haptics: true, paletteMode: 'free' });
+    expect(getSettings()).toEqual({ ...DEFAULT_SETTINGS, sound: false, paletteMode: 'free' });
     expect(JSON.parse(storage.getItem(SETTINGS_KEY) ?? '{}').sound).toBe(false);
   });
 
@@ -215,7 +222,17 @@ class FakeOsc extends FakeNode {
 class FakeGain extends FakeNode {
   gain = new FakeParam();
 }
+class FakeSource extends FakeNode {
+  buffer: unknown = null;
+  start = vi.fn();
+}
+class FakeFilter extends FakeNode {
+  type = 'bandpass';
+  frequency = { value: 0 };
+  Q = { value: 0 };
+}
 const oscs: FakeOsc[] = [];
+const sources: FakeSource[] = [];
 let ctxCount = 0;
 class FakeAudioContext {
   state: AudioContextState = 'suspended';
@@ -235,6 +252,19 @@ class FakeAudioContext {
   createGain(): FakeGain {
     return new FakeGain();
   }
+  sampleRate = 48000;
+  createBuffer(_ch: number, len: number): { getChannelData: () => Float32Array } {
+    const data = new Float32Array(len);
+    return { getChannelData: () => data };
+  }
+  createBufferSource(): FakeSource {
+    const src = new FakeSource();
+    sources.push(src);
+    return src;
+  }
+  createBiquadFilter(): FakeFilter {
+    return new FakeFilter();
+  }
 }
 
 describe('audio + haptics', () => {
@@ -242,6 +272,7 @@ describe('audio + haptics', () => {
   beforeEach(() => {
     resetAudioForTests();
     oscs.length = 0;
+    sources.length = 0;
     ctxCount = 0;
     vibrate = vi.fn();
     vi.stubGlobal('localStorage', new MemoryStorage());
@@ -288,11 +319,21 @@ describe('audio + haptics', () => {
       'panelComplete',
       'pictureComplete',
     ] as const) {
-      const before = oscs.length;
+      const before = oscs.length + sources.length;
       play(name);
-      expect(oscs.length).toBeGreaterThan(before);
+      expect(oscs.length + sources.length).toBeGreaterThan(before);
     }
     expect(oscs[0].start).toHaveBeenCalled();
+  });
+
+  it('plays every place-sound variant and uses the setting', () => {
+    unlockAudio();
+    for (const kind of PLACE_SOUNDS) {
+      const before = oscs.length + sources.length;
+      playPlaceSound(kind);
+      expect(oscs.length + sources.length).toBeGreaterThan(before);
+    }
+    expect(DEFAULT_SETTINGS.placeSound).toBe('click');
   });
 
   it('is silent when sound is disabled', () => {

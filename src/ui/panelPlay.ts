@@ -9,6 +9,7 @@ import { StorageFullError } from '../storage/db';
 import { PANEL_SIZE, type PictureSave } from '../types';
 import { celebrate } from './celebrate';
 import { h, icon, iconButton, openSheet, toast } from './dom';
+import { maybePromptInstall } from './install';
 import { cellLine, formatDuration, nextSelection, paletteLabels, routeHash } from './pure';
 import type { Cleanup, ScreenContext } from './screen';
 import { openSettingsSheet } from './settingsSheet';
@@ -632,6 +633,7 @@ export function mountPanelPlay(
     document.addEventListener('keydown', onKey);
 
     if (!lockedAtOpen) syncTray(false);
+    maybePromptInstall();
     updateHud();
 
     return () => {

@@ -1,6 +1,7 @@
 import { registerSW } from 'virtual:pwa-register';
 import { initAudio } from './audio/sfx';
 import { mountGallery } from './ui/gallery';
+import { initInstall } from './ui/install';
 import { mountOverview } from './ui/overview';
 import { mountPanelPlay } from './ui/panelPlay';
 import { parseRoute } from './ui/pure';
@@ -59,5 +60,18 @@ function render(): void {
 
 window.addEventListener('hashchange', render);
 initAudio();
+initInstall();
+
+// iOS Safari ignores user-scalable=no; cancel its pinch gestures to lock page zoom.
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) {
+  document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+}
+document.addEventListener(
+  'wheel',
+  (e) => {
+    if (e.ctrlKey && !(e.target instanceof HTMLCanvasElement)) e.preventDefault();
+  },
+  { passive: false },
+);
 registerSW({ immediate: true });
 render();
