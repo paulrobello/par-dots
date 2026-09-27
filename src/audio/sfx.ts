@@ -1,3 +1,9 @@
+/**
+ * Synthesized sound effects (Web Audio oscillators and noise; no audio files ship) and
+ * `navigator.vibrate` haptics. Both honor the current settings and fail silently, so audio
+ * problems never break gameplay. The AudioContext is unlocked by the first user gesture.
+ */
+
 import { getSettings, type PlaceSound } from '../storage/settings';
 
 export type SoundName =

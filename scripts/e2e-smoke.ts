@@ -215,7 +215,7 @@ async function main(): Promise<void> {
   await shot(page, '16-finale');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('dialog').getByRole('button', { name: 'Export PNG' }).click(),
+    page.getByRole('dialog').getByRole('button', { name: 'Download PNG' }).click(),
   ]);
   console.log('exported', download.suggestedFilename());
   await page.keyboard.press('Escape');

@@ -1,17 +1,25 @@
+/**
+ * Gallery screen (`#/`): the New Picture button and a card per save with progress, time,
+ * and Continue, Download PNG, Restart and Delete actions.
+ */
+
 import { overallProgress, pictureComplete } from '../game';
 import { renderMosaicToCanvas } from '../render/mosaicImage';
-import { deleteSave, listSaves } from '../storage/db';
-import { EMPTY, type PictureSave } from '../types';
+import type { PictureSave } from '../types';
 import { asThumb, confirmDialog, h, icon, toast } from './dom';
 import { exportPng } from './exportImage';
-import { formatDuration, routeHash } from './pure';
+import { formatDuration, formatPercent, routeHash, userMessage } from './pure';
+import { listSaves, removeSave, restartSave } from './saves';
 import type { Cleanup, ScreenContext } from './screen';
-import { forgetSave, persist } from './state';
 
 function totalMs(save: PictureSave): number {
   return save.panelElapsedMs.reduce((a, b) => a + b, 0);
 }
 
+/**
+ * Mounts the gallery screen (route `#/`) into ctx.root. The returned Cleanup marks the screen
+ * dead so a save list still loading is not rendered; the router removes the DOM.
+ */
 export function mountGallery({ root, navigate }: ScreenContext): Cleanup {
   let alive = true;
   const list = h('div', { class: 'save-grid', 'aria-live': 'polite' });
@@ -43,7 +51,7 @@ export function mountGallery({ root, navigate }: ScreenContext): Cleanup {
     try {
       saves = await listSaves();
     } catch (err) {
-      list.replaceChildren(h('p', { class: 'empty' }, `Could not load saves: ${String(err)}`));
+      list.replaceChildren(h('p', { class: 'empty' }, `Could not load saves: ${userMessage(err)}`));
       return;
     }
     if (!alive) return;
@@ -80,13 +88,11 @@ export function mountGallery({ root, navigate }: ScreenContext): Cleanup {
         'Restart',
       );
       if (!ok) return;
-      save.placed.fill(EMPTY);
-      save.panelElapsedMs = save.panelElapsedMs.map(() => 0);
-      delete save.completedAt;
       try {
-        await persist(save);
+        await restartSave(save);
       } catch (err) {
-        toast(String(err));
+        console.error(err);
+        toast(`Could not restart: ${userMessage(err)}`);
       }
       void render();
     };
@@ -98,10 +104,10 @@ export function mountGallery({ root, navigate }: ScreenContext): Cleanup {
       );
       if (!ok) return;
       try {
-        await deleteSave(save.id);
-        forgetSave(save.id);
+        await removeSave(save.id);
       } catch (err) {
-        toast(String(err));
+        console.error(err);
+        toast(`Could not delete: ${userMessage(err)}`);
       }
       void render();
     };
@@ -137,7 +143,7 @@ export function mountGallery({ root, navigate }: ScreenContext): Cleanup {
         h(
           'p',
           { class: 'muted small' },
-          `${done ? 'Complete' : `${Math.floor(prog.percent)}%`} · ${formatDuration(totalMs(save))}`,
+          `${done ? 'Complete' : formatPercent(prog.percent)} · ${formatDuration(totalMs(save))}`,
         ),
       ),
       h(

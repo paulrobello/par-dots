@@ -1,3 +1,8 @@
+/**
+ * Progress over a whole PictureSave: correct studs per panel and per picture, and
+ * completion checks. A stud is correct when its placed dot matches its target color.
+ */
+
 import { EMPTY, PANEL_SIZE, type PictureSave } from '../types';
 import { panelCount, panelOrigin } from './geometry';
 

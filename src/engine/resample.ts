@@ -1,3 +1,8 @@
+/**
+ * Crop-and-resample to stud resolution with exact area averaging, so each stud is the
+ * coverage-weighted mean of the source pixels under it.
+ */
+
 import type { CropRect } from '../types';
 
 export interface ImageLike {

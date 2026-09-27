@@ -1,8 +1,13 @@
+/**
+ * Full-screen confetti celebration for panel and picture completion. Registers as an
+ * overlay, so routing away ends it early.
+ */
+
 import { prefersReducedMotion } from '../render/motion';
 import type { PaletteColor } from '../types';
-import { h } from './dom';
+import { h, registerOverlay } from './dom';
 
-/** Burst of CSS dot confetti over the screen. Resolves after the animation (short under reduced motion). */
+/** Burst of CSS dot confetti over the screen. Resolves after the animation (short under reduced motion), or early when overlays are closed. */
 export function celebrate(palette: PaletteColor[], title: string, ms = 1600): Promise<void> {
   const reduced = prefersReducedMotion();
   const layer = h('div', { class: 'celebrate', role: 'status', 'aria-live': 'assertive' });
@@ -21,16 +26,25 @@ export function celebrate(palette: PaletteColor[], title: string, ms = 1600): Pr
     }
   }
   document.body.append(layer);
-  return new Promise((resolve) =>
-    setTimeout(
+  return new Promise((resolve) => {
+    let fadeTimer: ReturnType<typeof setTimeout> | undefined;
+    let done = false;
+    const finish = (): void => {
+      if (done) return;
+      done = true;
+      clearTimeout(showTimer);
+      clearTimeout(fadeTimer);
+      unregister();
+      layer.remove();
+      resolve();
+    };
+    const unregister = registerOverlay(finish);
+    const showTimer = setTimeout(
       () => {
         layer.classList.add('fade');
-        setTimeout(() => {
-          layer.remove();
-          resolve();
-        }, 250);
+        fadeTimer = setTimeout(finish, 250);
       },
       reduced ? 900 : ms,
-    ),
-  );
+    );
+  });
 }

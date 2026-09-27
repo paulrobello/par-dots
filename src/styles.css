@@ -888,6 +888,7 @@ p {
   color: var(--ink);
 }
 
+/* The dot is removed after TRAY_LEAVE_MS (src/ui/playView.ts); keep that longer than the .tray-dot transition. */
 .tray-dot.leaving {
   opacity: 0;
   transform: scale(0.3) translateY(-20px);

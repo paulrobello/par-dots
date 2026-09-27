@@ -2,12 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { quantizeInWorker } from '../src/engine/client';
 import { deltaE, hexToRgb, rgbToHex, rgbToLab } from '../src/engine/color';
 import { LEGO_COLORS } from '../src/engine/legoPalette';
-import { panelColors, panelCount, panelIndexOf, panelOrigin, studDims } from '../src/engine/panels';
 import { buildMosaic, MIN_DELTA_E } from '../src/engine/quantize';
 import { cropAndResample } from '../src/engine/resample';
-import { type Aspect, MAX_COLORS, PANEL_SIZE } from '../src/types';
-
-const ASPECTS: Aspect[] = ['1:1', '3:4', '4:3'];
+import { MAX_COLORS, MIN_COLORS } from '../src/types';
 
 /** Deterministic noisy gradient image with many distinct colors. */
 function noisyImage(w: number, h: number, seed = 1): Uint8ClampedArray {
@@ -185,66 +182,6 @@ describe('cropAndResample', () => {
   });
 });
 
-describe('panels', () => {
-  it('counts panels and stud dims per aspect', () => {
-    expect(panelCount('1:1')).toBe(9);
-    expect(panelCount('3:4')).toBe(12);
-    expect(panelCount('4:3')).toBe(12);
-    expect(studDims('1:1')).toEqual({ width: 48, height: 48 });
-    expect(studDims('3:4')).toEqual({ width: 48, height: 64 });
-    expect(studDims('4:3')).toEqual({ width: 64, height: 48 });
-  });
-
-  for (const aspect of ASPECTS) {
-    it(`${aspect}: origin and index are inverse and tile the picture`, () => {
-      const { width, height } = studDims(aspect);
-      const counts = new Array(panelCount(aspect)).fill(0);
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          const p = panelIndexOf(aspect, x, y);
-          counts[p]++;
-          const o = panelOrigin(aspect, p);
-          expect(x - o.x).toBeGreaterThanOrEqual(0);
-          expect(x - o.x).toBeLessThan(PANEL_SIZE);
-          expect(y - o.y).toBeGreaterThanOrEqual(0);
-          expect(y - o.y).toBeLessThan(PANEL_SIZE);
-        }
-      }
-      for (const c of counts) expect(c).toBe(PANEL_SIZE * PANEL_SIZE);
-      for (let p = 0; p < panelCount(aspect); p++) {
-        const o = panelOrigin(aspect, p);
-        expect(panelIndexOf(aspect, o.x, o.y)).toBe(p);
-      }
-      expect(panelIndexOf(aspect, -1, 0)).toBe(-1);
-      expect(panelIndexOf(aspect, width, 0)).toBe(-1);
-      expect(panelIndexOf(aspect, 0, height)).toBe(-1);
-      expect(() => panelOrigin(aspect, panelCount(aspect))).toThrow(RangeError);
-    });
-  }
-
-  it('panels are numbered row-major', () => {
-    expect(panelOrigin('4:3', 5)).toEqual({ x: 16, y: 16 });
-    expect(panelOrigin('3:4', 11)).toEqual({ x: 32, y: 48 });
-  });
-
-  it('panelColors lists distinct indices in a panel', () => {
-    const { width, height } = studDims('4:3');
-    const target = new Uint8Array(width * height);
-    // Panel 1 (x 16..31, y 0..15) gets colors 3 and 7; everything else 0.
-    for (let y = 0; y < 16; y++)
-      for (let x = 16; x < 32; x++) target[y * width + x] = (x + y) % 2 ? 3 : 7;
-    const mosaic = {
-      width,
-      height,
-      palette: new Array(8).fill({ hex: '#000000', name: 'x' }),
-      target,
-    };
-    expect(panelColors(mosaic, '4:3', 1)).toEqual([3, 7]);
-    expect(panelColors(mosaic, '4:3', 0)).toEqual([0]);
-    expect(panelColors(mosaic, '4:3', 11)).toEqual([0]);
-  });
-});
-
 describe('buildMosaic maxColors', () => {
   const noise = (w: number, hgt: number): Uint8ClampedArray => {
     const px = new Uint8ClampedArray(w * hgt * 4);
@@ -264,8 +201,8 @@ describe('buildMosaic maxColors', () => {
       }
     }
   });
-  it('clamps out-of-range limits to 2..32', () => {
-    expect(buildMosaic(noise(48, 48), 48, 48, 'free', 1).palette.length).toBeLessThanOrEqual(2);
+  it('clamps out-of-range limits to MIN_COLORS..MAX_COLORS', () => {
+    expect(buildMosaic(noise(48, 48), 48, 48, 'free', 1).palette.length).toBe(MIN_COLORS);
     expect(buildMosaic(noise(48, 48), 48, 48, 'free', 99).palette.length).toBeLessThanOrEqual(32);
   });
 });
@@ -291,4 +228,35 @@ describe('buildMosaic contrast', () => {
           expect(deltaE(pal[i], pal[j])).toBeGreaterThanOrEqual(MIN_DELTA_E);
     }
   });
+});
+
+/** FNV-1a 32-bit hash of a string, as 8 hex digits. */
+function fnv1a(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+
+describe('buildMosaic golden output', () => {
+  // Recorded from the pre-refactor quantizer; any change in selection or RNG order breaks these.
+  const GOLDEN: Record<string, string> = {
+    'lego:4': '1188e071',
+    'lego:12': '64945795',
+    'lego:32': '27a1ba08',
+    'free:4': '893d16b4',
+    'free:12': 'b2470c4e',
+    'free:32': 'b69d3a8a',
+  };
+  for (const mode of ['lego', 'free'] as const) {
+    for (const max of [4, 12, 32]) {
+      it(`${mode} with ${max} colors is unchanged`, () => {
+        const m = buildMosaic(noisyImage(64, 48, 11), 64, 48, mode, max);
+        const hash = fnv1a(JSON.stringify({ palette: m.palette, target: Array.from(m.target) }));
+        expect(hash).toBe(GOLDEN[`${mode}:${max}`]);
+      });
+    }
+  }
 });

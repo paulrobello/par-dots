@@ -1,7 +1,5 @@
 /** Pure layout / coordinate math shared by renderers and hit tests. DOM-free. */
 
-import { PANEL_SIZE } from '../types';
-
 /** Fitted grid inside a CSS-pixel area, before any viewport transform. */
 export interface GridLayout {
   /** CSS px per cell at scale 1. */
@@ -123,17 +121,6 @@ export function quantizeSpritePx(px: number): number {
   return Math.round(24 * 1.1 ** k);
 }
 
-/** Row-major panel index at stud (x, y) for a picture `width` studs wide. */
-export function panelIndexAt(width: number, x: number, y: number): number {
-  const cols = Math.max(1, Math.floor(width / PANEL_SIZE));
-  return Math.floor(y / PANEL_SIZE) * cols + Math.floor(x / PANEL_SIZE);
-}
-
-/** Panel grid dimensions for a picture of width x height studs. */
-export function panelGrid(width: number, height: number): { cols: number; rows: number } {
-  return { cols: Math.ceil(width / PANEL_SIZE), rows: Math.ceil(height / PANEL_SIZE) };
-}
-
 /** Linear 0..1 easing helpers for animations. */
 export function easeOutBack(t: number): number {
   const c1 = 1.70158;
@@ -151,31 +138,4 @@ export function pressScale(t: number): number {
 /** Hint pulse alpha in [0.35, 1] for elapsed ms, 2 pulses per second. */
 export function pulseAlpha(elapsedMs: number): number {
   return 0.675 + 0.325 * Math.cos((elapsedMs / 500) * Math.PI * 2);
-}
-
-/**
- * Per-panel fraction of studs whose placed value equals the target (0..1), row-major
- * panel order. `placed` may be shorter than target; missing entries count as empty.
- */
-export function panelCompletion(
-  width: number,
-  height: number,
-  target: ArrayLike<number>,
-  placed: ArrayLike<number>,
-): number[] {
-  const { cols, rows } = panelGrid(width, height);
-  const correct = new Array<number>(cols * rows).fill(0);
-  const total = new Array<number>(cols * rows).fill(0);
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const i = y * width + x;
-      const p = panelIndexAt(width, x, y);
-      total[p] = (total[p] ?? 0) + 1;
-      if (i < placed.length && placed[i] === target[i]) correct[p] = (correct[p] ?? 0) + 1;
-    }
-  }
-  return correct.map((c, i) => {
-    const t = total[i] ?? 0;
-    return t > 0 ? c / t : 0;
-  });
 }

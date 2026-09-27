@@ -1,24 +1,39 @@
-import type { PaletteMode } from '../types';
+/**
+ * Player settings in localStorage under SETTINGS_KEY, sanitized on every read and write and
+ * cached in memory. When storage is unavailable, settings still hold for the session.
+ */
 
+import { MAX_COLORS, MIN_COLORS, type PaletteMode } from '../types';
+
+/** Synthesized place-sound variants (see audio/sfx.ts). */
 export type PlaceSound = 'click' | 'snap' | 'pop' | 'tick' | 'blip';
+/** Place sounds in settings-sheet order; also the allowlist sanitize() accepts. */
 export const PLACE_SOUNDS: readonly PlaceSound[] = ['snap', 'click', 'pop', 'tick', 'blip'];
 
+/** Stored settings. Invalid or missing fields fall back to DEFAULT_SETTINGS. */
 export interface Settings {
+  /** Play sounds. Default true. */
   sound: boolean;
+  /** Sound played when a dot is placed. Default 'snap'. */
   placeSound: PlaceSound;
+  /** Vibrate where supported. Default true. */
   haptics: boolean;
+  /** Palette mode preselected on the setup screen. Default 'lego'. */
   paletteMode: PaletteMode;
+  /** Setup-screen max colors: an integer clamped to MIN_COLORS..MAX_COLORS. Default MAX_COLORS. */
   maxColors: number;
 }
 
+/** Settings used for any field that is missing or invalid. Frozen. */
 export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   sound: true,
   placeSound: 'snap',
   haptics: true,
   paletteMode: 'lego',
-  maxColors: 32,
+  maxColors: MAX_COLORS,
 });
 
+/** localStorage key holding the settings JSON. */
 export const SETTINGS_KEY = 'par-dots:settings';
 
 // Used when localStorage is unavailable, so settings still hold for the session.
@@ -33,15 +48,28 @@ function sanitize(raw: unknown): Settings {
       s.placeSound = r.placeSound as PlaceSound;
     if (typeof r.haptics === 'boolean') s.haptics = r.haptics;
     if (typeof r.maxColors === 'number' && Number.isInteger(r.maxColors)) {
-      s.maxColors = Math.max(2, Math.min(32, r.maxColors));
+      s.maxColors = Math.max(MIN_COLORS, Math.min(MAX_COLORS, r.maxColors));
     }
     if (r.paletteMode === 'lego' || r.paletteMode === 'free') s.paletteMode = r.paletteMode;
   }
   return s;
 }
 
-/** Current settings, falling back to defaults when storage is unavailable or corrupt. */
-export function getSettings(): Settings {
+// Last known settings; sfx reads them on every placed dot, so avoid re-parsing localStorage.
+let cached: Settings | null = null;
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === SETTINGS_KEY || e.key === null) cached = null;
+  });
+}
+
+/** Drops the in-memory settings cache (tests stub localStorage directly). */
+export function resetSettingsCache(): void {
+  cached = null;
+}
+
+function readSettings(): Settings {
   try {
     const store = globalThis.localStorage;
     if (store) {
@@ -55,10 +83,17 @@ export function getSettings(): Settings {
   return memory ? { ...memory } : { ...DEFAULT_SETTINGS };
 }
 
+/** Current settings (a copy), falling back to defaults when storage is unavailable or corrupt. */
+export function getSettings(): Settings {
+  cached ??= readSettings();
+  return { ...cached };
+}
+
 /** Merges `patch` into the stored settings and returns the result. */
 export function setSettings(patch: Partial<Settings>): Settings {
   const next = sanitize({ ...getSettings(), ...patch });
   memory = next;
+  cached = next;
   try {
     globalThis.localStorage?.setItem(SETTINGS_KEY, JSON.stringify(next));
   } catch {

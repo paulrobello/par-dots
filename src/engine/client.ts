@@ -1,3 +1,9 @@
+/**
+ * Main-thread client for the quantize worker. Correlates requests by id, and finishes a job
+ * with buildMosaic on the main thread when workers are unavailable, the worker crashes, or a
+ * job outlives QUANTIZE_TIMEOUT_MS.
+ */
+
 import type { Mosaic, PaletteMode } from '../types';
 import { buildMosaic } from './quantize';
 import type { QuantizeRequest, QuantizeResponse } from './worker';
@@ -6,7 +12,11 @@ interface Pending {
   req: QuantizeRequest;
   resolve: (m: Mosaic) => void;
   reject: (e: Error) => void;
+  timer?: ReturnType<typeof setTimeout>;
 }
+
+/** A job the worker has not answered by then is finished on the main thread instead. */
+export const QUANTIZE_TIMEOUT_MS = 20_000;
 
 let worker: Worker | null = null;
 let workerBroken = false;
@@ -38,6 +48,7 @@ function getWorker(): Worker | null {
     const p = pending.get(ev.data.id);
     if (!p) return;
     pending.delete(ev.data.id);
+    clearTimeout(p.timer);
     if ('mosaic' in ev.data) p.resolve(ev.data.mosaic);
     else p.reject(new Error(ev.data.error));
   };
@@ -48,7 +59,10 @@ function getWorker(): Worker | null {
     worker = null;
     const jobs = [...pending.values()];
     pending.clear();
-    for (const p of jobs) runOnMainThread(p);
+    for (const p of jobs) {
+      clearTimeout(p.timer);
+      runOnMainThread(p);
+    }
   };
   return worker;
 }
@@ -74,5 +88,9 @@ export function quantizeInWorker(
     }
     pending.set(req.id, p);
     wk.postMessage(req);
+    // A single slow job is not a crash, so the worker stays in use for later jobs.
+    p.timer = setTimeout(() => {
+      if (pending.delete(req.id)) runOnMainThread(p);
+    }, QUANTIZE_TIMEOUT_MS);
   });
 }

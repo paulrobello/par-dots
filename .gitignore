@@ -6,3 +6,6 @@ public/library/
 test-results/
 playwright-report/
 .claude/
+coverage/
+.preview.pid
+.preview.log

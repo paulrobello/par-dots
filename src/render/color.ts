@@ -1,5 +1,7 @@
 /** Pure color math for sprite shading. DOM-free so it runs under Vitest's node environment. */
 
+import { srgbToLinear } from '../engine/color';
+
 export interface Rgb {
   r: number;
   g: number;
@@ -8,8 +10,11 @@ export interface Rgb {
 
 const clamp255 = (v: number): number => Math.max(0, Math.min(255, Math.round(v)));
 
-/** Parse "#rrggbb" or "#rgb" (case-insensitive). Invalid input yields mid gray. */
-export function hexToRgb(hex: string): Rgb {
+/**
+ * Parse "#rrggbb" or "#rgb" (case-insensitive).
+ * Accepts #rgb/#rrggbb and falls back to mid-gray; use engine/color.hexToRgb for strict parsing.
+ */
+export function parseHexLenient(hex: string): Rgb {
   let h = hex.trim().replace(/^#/, '');
   if (h.length === 3) {
     h = h
@@ -22,7 +27,7 @@ export function hexToRgb(hex: string): Rgb {
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 }
 
-export function rgbToHex({ r, g, b }: Rgb): string {
+export function rgbObjToHex({ r, g, b }: Rgb): string {
   return `#${[r, g, b].map((v) => clamp255(v).toString(16).padStart(2, '0')).join('')}`;
 }
 
@@ -41,27 +46,23 @@ export function mixRgb(a: Rgb, b: Rgb, t: number): Rgb {
  * amount is clamped to [-1, 1].
  */
 export function shade(hex: string, amount: number): string {
-  const c = hexToRgb(hex);
+  const c = parseHexLenient(hex);
   const a = Math.max(-1, Math.min(1, amount));
   const target: Rgb = a >= 0 ? { r: 255, g: 255, b: 255 } : { r: 0, g: 0, b: 0 };
-  return rgbToHex(mixRgb(c, target, Math.abs(a)));
+  return rgbObjToHex(mixRgb(c, target, Math.abs(a)));
 }
 
 /** CSS rgba() string for a hex color at the given alpha. */
 export function rgba(hex: string, alpha: number): string {
-  const { r, g, b } = hexToRgb(hex);
+  const { r, g, b } = parseHexLenient(hex);
   const a = Math.max(0, Math.min(1, alpha));
   return `rgba(${r},${g},${b},${a})`;
 }
 
 /** WCAG relative luminance in [0,1]. */
 export function luminance(hex: string): number {
-  const { r, g, b } = hexToRgb(hex);
-  const lin = (v: number): number => {
-    const s = v / 255;
-    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-  };
-  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  const { r, g, b } = parseHexLenient(hex);
+  return 0.2126 * srgbToLinear(r) + 0.7152 * srgbToLinear(g) + 0.0722 * srgbToLinear(b);
 }
 
 /**

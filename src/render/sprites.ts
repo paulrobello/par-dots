@@ -8,7 +8,6 @@ import { plasticTones, rgba, shade } from './color';
 import { quantizeSpritePx } from './layout';
 
 export const PLATE_GREEN = '#237841';
-export const PLATE_GRAY = '#A0A5A9';
 
 export type SpriteCanvas = HTMLCanvasElement | OffscreenCanvas;
 export type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
@@ -232,7 +231,7 @@ export interface SpriteCacheOptions {
  * Sizes are quantized (quantizeSpritePx) so continuous zooming reuses a bounded set.
  */
 export class SpriteCache {
-  private plate: string;
+  private readonly plate: string;
   private readonly max: number;
   private readonly map = new Map<string, SpriteCanvas>();
 
@@ -243,11 +242,6 @@ export class SpriteCache {
 
   get plateColor(): string {
     return this.plate;
-  }
-
-  /** Change the baseplate color; cached studs for the old color age out via LRU. */
-  setPlateColor(hex: string): void {
-    this.plate = hex;
   }
 
   /** Opaque baseplate cell with a stud, sizePx x sizePx device px (quantized). */
@@ -267,10 +261,6 @@ export class SpriteCache {
   wrongOutline(sizePx: number): SpriteCanvas {
     const s = quantizeSpritePx(sizePx);
     return this.get(`w|${s}`, s, (ctx) => drawWrongOutline(ctx, 0, 0, s));
-  }
-
-  get size(): number {
-    return this.map.size;
   }
 
   clear(): void {

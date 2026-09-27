@@ -17,7 +17,12 @@ export function parseRoute(hash: string): Route {
   if (parts[0] === 'new' && parts.length === 1) return { name: 'new' };
   if (parts[0] === 'setup' && parts.length === 1) return { name: 'setup' };
   if (parts[0] === 'play' && parts.length >= 2) {
-    const id = decodeURIComponent(parts[1]);
+    let id: string;
+    try {
+      id = decodeURIComponent(parts[1]);
+    } catch {
+      return { name: 'gallery' };
+    }
     if (parts.length === 2) return { name: 'overview', id };
     if (parts.length === 3 && /^\d+$/.test(parts[2])) {
       return { name: 'panel', id, panel: Number.parseInt(parts[2], 10) };
@@ -146,6 +151,35 @@ export function fitWithin(w: number, h: number, maxEdge: number): { w: number; h
   return { w: Math.max(1, Math.round(w * k)), h: Math.max(1, Math.round(h * k)) };
 }
 
+/** Fraction of the stage a zoomed panel fills, leaving a margin around it. */
+const PANEL_ZOOM_FILL = 0.92;
+
+/** Scale and translation that center `rect` (stage pixels) in the stage, nearly filling it. */
+export function panelZoomTransform(
+  rect: { x: number; y: number; w: number; h: number },
+  stageW: number,
+  stageH: number,
+): { s: number; tx: number; ty: number } {
+  const s = Math.min(stageW / rect.w, stageH / rect.h) * PANEL_ZOOM_FILL;
+  return {
+    s,
+    tx: stageW / 2 - (rect.x + rect.w / 2) * s,
+    ty: stageH / 2 - (rect.y + rect.h / 2) * s,
+  };
+}
+
+/** Whole-number percent label, floored so "100%" appears only when complete. */
+export function formatPercent(p: number): string {
+  return `${Math.floor(p)}%`;
+}
+
+/** Short user-facing text for an unknown error. */
+export function userMessage(err: unknown, fallback = 'Something went wrong.'): string {
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === 'string' && err) return err;
+  return fallback;
+}
+
 /** "m:ss" under an hour, "h:mm:ss" above. */
 export function formatDuration(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
@@ -163,13 +197,13 @@ export function nameFromFile(filename: string): string {
   return cleaned.length > 0 ? cleaned.slice(0, 60) : 'My Picture';
 }
 
-/** Parse a user-typed image link; only http(s) URLs are accepted. */
+/** Parse a user-typed image link; only https URLs are accepted. */
 export function parseImageUrl(raw: string): URL | null {
   const text = raw.trim();
   if (!text) return null;
   try {
     const url = new URL(/^[a-z][a-z0-9+.-]*:/i.test(text) ? text : `https://${text}`);
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url : null;
+    return url.protocol === 'https:' ? url : null;
   } catch {
     return null;
   }
@@ -201,4 +235,19 @@ export function nextSelection(tray: number[], previousTray: number[], current: n
     if (tray.includes(previousTray[i])) return previousTray[i];
   }
   return tray[0];
+}
+
+/**
+ * Whether a waiting service-worker update may reload the page now: always when the page is
+ * hidden, otherwise only on the gallery or overview with no overlay open (no stroke or setup
+ * state to lose).
+ */
+export function shouldApplyUpdate(
+  route: Route['name'],
+  overlayOpen: boolean,
+  hidden: boolean,
+): boolean {
+  if (hidden) return true;
+  if (overlayOpen) return false;
+  return route === 'gallery' || route === 'overview';
 }

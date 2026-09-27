@@ -1,3 +1,8 @@
+/**
+ * PNG download of a picture as built: renders the placed dots in the dot style and saves
+ * `<name>-dots.png`.
+ */
+
 import { renderMosaicToCanvas } from '../render/mosaicImage';
 import type { PictureSave } from '../types';
 import { downloadBlob, toast } from './dom';

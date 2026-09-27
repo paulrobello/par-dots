@@ -1,13 +1,21 @@
+/**
+ * App entry point: mounts one screen per hash route (unmounting the last and closing open
+ * overlays), wires audio and install prompts, locks page zoom, and applies service-worker
+ * updates only where no in-progress work can be lost.
+ */
+
 import { registerSW } from 'virtual:pwa-register';
 import { initAudio } from './audio/sfx';
+import { closeAllOverlays, isOverlayOpen } from './ui/dom';
 import { mountGallery } from './ui/gallery';
 import { initInstall } from './ui/install';
 import { mountOverview } from './ui/overview';
 import { mountPanelPlay } from './ui/panelPlay';
-import { parseRoute } from './ui/pure';
+import { parseRoute, shouldApplyUpdate } from './ui/pure';
 import type { Cleanup, Navigate, ScreenContext } from './ui/screen';
 import { mountSetup } from './ui/setup';
 import { mountSource } from './ui/source';
+import { watchForUpdates } from './ui/swUpdate';
 
 const app = document.getElementById('app');
 if (!app) throw new Error('#app missing');
@@ -31,9 +39,7 @@ const navigate: Navigate = (hash, opts = {}) => {
 function render(): void {
   cleanup?.();
   cleanup = null;
-  document.querySelectorAll('.backdrop, .celebrate').forEach((el) => {
-    el.remove();
-  });
+  closeAllOverlays();
   appRoot.replaceChildren();
   const route = parseRoute(location.hash);
   const ctx: ScreenContext = { root: appRoot, navigate };
@@ -56,6 +62,28 @@ function render(): void {
       break;
   }
   window.scrollTo(0, 0);
+  maybeApplyUpdate();
+}
+
+/** Set once a new service worker is waiting; calling it activates the worker. */
+let applyUpdate: (() => Promise<void>) | null = null;
+/** Set once a new worker controls this page (activated here or by another tab); needs a reload. */
+let needReload = false;
+
+/** Activate or reload into a new deploy only where no in-progress work can be lost. */
+function maybeApplyUpdate(): void {
+  if (!applyUpdate && !needReload) return;
+  const hidden = document.visibilityState === 'hidden';
+  if (!shouldApplyUpdate(parseRoute(location.hash).name, isOverlayOpen(), hidden)) return;
+  if (needReload) {
+    needReload = false;
+    applyUpdate = null;
+    location.reload();
+    return;
+  }
+  const apply = applyUpdate;
+  applyUpdate = null;
+  void apply?.();
 }
 
 window.addEventListener('hashchange', render);
@@ -73,5 +101,23 @@ document.addEventListener(
   },
   { passive: false },
 );
-registerSW({ immediate: true });
+const updateSW = registerSW({
+  immediate: true,
+  onNeedRefresh: () => {
+    applyUpdate = () => updateSW(true);
+    maybeApplyUpdate();
+  },
+  // Without this the plugin reloads every open tab as soon as any tab activates the update.
+  onNeedReload: () => {
+    needReload = true;
+    maybeApplyUpdate();
+  },
+  onRegisteredSW: (_url, reg) => {
+    if (reg) watchForUpdates(reg, document);
+  },
+});
+// Delayed so the panel screen's own hide-time IndexedDB save completes before the reload.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') setTimeout(maybeApplyUpdate, 1000);
+});
 render();

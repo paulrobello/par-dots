@@ -1,3 +1,8 @@
+/**
+ * The LEGO solid color table that 'lego' palette mode chooses from. Names and hex values
+ * come from Rebrickable (see the table's source note).
+ */
+
 import type { PaletteColor } from '../types';
 
 /**

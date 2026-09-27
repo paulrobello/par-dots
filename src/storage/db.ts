@@ -1,5 +1,11 @@
+/**
+ * IndexedDB persistence: database `par-dots` (DB_VERSION 1) with store `saves` (PictureSave
+ * records, keyPath `id`) and store `images` (uploaded image blobs keyed by sourceImageId).
+ * Every write maps a quota error to StorageFullError. ui/ reaches this module through ui/saves.ts.
+ */
+
 import type { PictureSave } from '../types';
-import { newId } from './id';
+import { migrateSave } from './migrate';
 
 const DB_NAME = 'par-dots';
 const DB_VERSION = 1;
@@ -96,21 +102,37 @@ async function tx<T>(
   });
 }
 
-/** All saves, most recently updated first. */
+/** All valid saves, most recently updated first; records that fail validation are skipped with a warning. */
 export async function listSaves(): Promise<PictureSave[]> {
-  const all = await tx<PictureSave[]>([SAVES], 'readonly', (t) => t.objectStore(SAVES).getAll());
-  return all.sort((a, b) => b.updatedAt - a.updatedAt);
+  const all = await tx<unknown[]>([SAVES], 'readonly', (t) => t.objectStore(SAVES).getAll());
+  const saves: PictureSave[] = [];
+  for (const raw of all) {
+    const save = migrateSave(raw);
+    if (save) saves.push(save);
+    else console.warn('Skipping invalid save', (raw as { id?: unknown } | null)?.id);
+  }
+  return saves.sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
-export function getSave(id: string): Promise<PictureSave | undefined> {
-  return tx<PictureSave | undefined>([SAVES], 'readonly', (t) => t.objectStore(SAVES).get(id));
+/** A save by id, migrated and validated; undefined when missing or invalid. */
+export async function getSave(id: string): Promise<PictureSave | undefined> {
+  const raw = await tx<unknown>([SAVES], 'readonly', (t) => t.objectStore(SAVES).get(id));
+  return raw === undefined ? undefined : migrateSave(raw);
 }
 
+/**
+ * Inserts or replaces a save as-is (callers set updatedAt).
+ *
+ * @throws {StorageFullError} When the storage quota is exhausted.
+ */
 export async function putSave(save: PictureSave): Promise<void> {
   await tx([SAVES], 'readwrite', (t) => t.objectStore(SAVES).put(save));
 }
 
-/** Deletes a save and, when it references an uploaded (non-library) image, that image too. */
+/**
+ * Deletes a save and, when it references an uploaded (non-library) image, that image too.
+ * Deleting a missing id is a no-op.
+ */
 export async function deleteSave(id: string): Promise<void> {
   await tx([SAVES, IMAGES], 'readwrite', (t) => {
     const saves = t.objectStore(SAVES);
@@ -126,13 +148,23 @@ export async function deleteSave(id: string): Promise<void> {
   });
 }
 
-/** Stores an uploaded image and returns its new id. */
-export async function putImage(blob: Blob): Promise<string> {
-  const id = newId();
-  await tx([IMAGES], 'readwrite', (t) => t.objectStore(IMAGES).put(blob, id));
-  return id;
+/**
+ * Stores an uploaded image under `save.sourceImageId` and the save in one transaction;
+ * neither persists if either write fails.
+ *
+ * @throws {StorageFullError} When the storage quota is exhausted.
+ */
+export async function putSaveWithImage(save: PictureSave, blob: Blob): Promise<void> {
+  await tx([SAVES, IMAGES], 'readwrite', (t) => {
+    t.objectStore(IMAGES).put(blob, save.sourceImageId);
+    return t.objectStore(SAVES).put(save);
+  });
 }
 
+/**
+ * An uploaded image blob by id, or undefined when absent. Only uploads live in this store:
+ * a "library:<slug>" id never matches, because bundled pictures are served from `library/`.
+ */
 export function getImage(id: string): Promise<Blob | undefined> {
   return tx<Blob | undefined>([IMAGES], 'readonly', (t) => t.objectStore(IMAGES).get(id));
 }

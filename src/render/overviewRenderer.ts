@@ -2,35 +2,31 @@
  * Full-picture overview: every stud of the width x height mosaic, placed dots, panel borders,
  * per-panel completion badges, and an optional faint target "ghost".
  * Panels are indexed row-major: index = row * (width / 16) + col.
+ *
+ * OverviewRenderer owns its canvas's backing store and device pixel ratio and a sprite cache.
+ * It has no animation loop and nothing to release. Call order: construct (sizes the canvas),
+ * setData, then resize on layout changes and draw after setGhost.
  */
 
+import { aspectOf, panelFractions, panelGridOf, panelIndexOf } from '../game/geometry';
 import { EMPTY, type Mosaic, PANEL_SIZE } from '../types';
-import { roundRect } from './boardRenderer';
-import {
-  fitGrid,
-  type GridLayout,
-  IDENTITY_VIEWPORT,
-  panelCompletion,
-  panelGrid,
-  panelIndexAt,
-  screenToCell,
-} from './layout';
-import { clientToCanvas, devicePixelRatioSafe } from './motion';
-import { PLATE_GREEN, SpriteCache } from './sprites';
+import { clearCanvas, drawPlate, resizeBacking } from './canvas';
+import { fitGrid, type GridLayout, IDENTITY_VIEWPORT, screenToCell } from './layout';
+import { clientToCanvas } from './motion';
+import { SpriteCache } from './sprites';
 
+/** Construction options for OverviewRenderer. */
 export interface OverviewRendererOptions {
-  plateColor?: string;
-  /** Fill outside the plate; null leaves it transparent. */
-  background?: string | null;
   /** Show a percentage badge on started-but-unfinished panels. Default true. */
   showPercent?: boolean;
 }
 
+/** Draws the whole picture; see the file header for ownership and call order. */
 export class OverviewRenderer {
+  /** The canvas this renderer draws into. */
   readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
   private readonly sprites: SpriteCache;
-  private readonly background: string | null;
   private readonly showPercent: boolean;
   private mosaic: Mosaic | null = null;
   private placed: Uint8Array | null = null;
@@ -40,46 +36,41 @@ export class OverviewRenderer {
   private cssH = 0;
   private dpr = 1;
 
+  /** Takes the canvas's 2D context and sizes it. Throws when no 2D context is available. */
   constructor(canvas: HTMLCanvasElement, opts: OverviewRendererOptions = {}) {
     this.canvas = canvas;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('2D canvas context unavailable');
     this.ctx = ctx;
-    this.sprites = new SpriteCache({ plateColor: opts.plateColor ?? PLATE_GREEN, maxEntries: 96 });
-    this.background = opts.background === undefined ? null : opts.background;
+    this.sprites = new SpriteCache({ maxEntries: 96 });
     this.showPercent = opts.showPercent ?? true;
     this.resize();
   }
 
-  /** Picture and its placed state (EMPTY or palette index per stud, row-major). */
+  /**
+   * Picture and its placed state (EMPTY or palette index per stud, row-major). Recomputes the
+   * layout but does not redraw; call draw() or resize().
+   */
   setData(mosaic: Mosaic, placed: Uint8Array): void {
     this.mosaic = mosaic;
     this.placed = placed;
     this.relayout();
   }
 
-  /** Toggle the faint target-color ghost on empty studs. */
+  /** Toggle the faint target-color ghost on empty studs. Does not redraw; call draw(). */
   setGhost(on: boolean): void {
     this.ghost = on;
   }
 
+  /** Whether the ghost is on. */
   get ghostEnabled(): boolean {
     return this.ghost;
-  }
-
-  setPlateColor(hex: string): void {
-    this.sprites.setPlateColor(hex);
-  }
-
-  /** Fitted layout in canvas CSS px (one cell = one stud). */
-  getLayout(): GridLayout {
-    return { ...this.layout };
   }
 
   /** Canvas-CSS-px rectangle of a panel, e.g. as the origin of a zoom transition. */
   panelRect(index: number): { x: number; y: number; w: number; h: number } | null {
     if (!this.mosaic) return null;
-    const { cols, rows } = panelGrid(this.mosaic.width, this.mosaic.height);
+    const { cols, rows } = panelGridOf(aspectOf(this.mosaic.width, this.mosaic.height));
     if (!Number.isInteger(index) || index < 0 || index >= cols * rows) return null;
     const L = this.layout;
     const s = L.cell * PANEL_SIZE;
@@ -91,16 +82,9 @@ export class OverviewRenderer {
     };
   }
 
+  /** Re-read the canvas CSS size and DPR, resize the backing store, relayout, and redraw. */
   resize(): void {
-    // Layout size, not the bounding rect: a CSS transform (zoom transition) must not leak in.
-    const rect = this.canvas.getBoundingClientRect();
-    this.cssW = Math.max(0, this.canvas.clientWidth || rect.width);
-    this.cssH = Math.max(0, this.canvas.clientHeight || rect.height);
-    this.dpr = devicePixelRatioSafe();
-    const w = Math.round(this.cssW * this.dpr);
-    const h = Math.round(this.cssH * this.dpr);
-    if (this.canvas.width !== w) this.canvas.width = w;
-    if (this.canvas.height !== h) this.canvas.height = h;
+    ({ cssW: this.cssW, cssH: this.cssH, dpr: this.dpr } = resizeBacking(this.canvas));
     this.relayout();
     this.draw();
   }
@@ -111,17 +95,14 @@ export class OverviewRenderer {
     const p = clientToCanvas(this.canvas, this.cssW, this.cssH, clientX, clientY);
     const cell = screenToCell(this.layout, IDENTITY_VIEWPORT, p.x, p.y);
     if (!cell) return null;
-    return panelIndexAt(this.mosaic.width, cell.x, cell.y);
+    const idx = panelIndexOf(aspectOf(this.mosaic.width, this.mosaic.height), cell.x, cell.y);
+    return idx < 0 ? null : idx;
   }
 
+  /** Full redraw: plate, studs, placed dots or ghost, panel seams and completion badges. */
   draw(): void {
     const ctx = this.ctx;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    if (this.background) {
-      ctx.fillStyle = this.background;
-      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    }
+    clearCanvas(ctx);
     const m = this.mosaic;
     const L = this.layout;
     if (!m || L.cell <= 0) return;
@@ -130,21 +111,18 @@ export class OverviewRenderer {
 
     // Plate with drop shadow.
     const pad = L.cell * 0.4;
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.35)';
-    ctx.shadowBlur = 10 * d;
-    ctx.shadowOffsetY = 3 * d;
-    ctx.fillStyle = this.sprites.plateColor;
-    roundRect(
+    drawPlate(
       ctx,
-      (L.originX - pad) * d,
-      (L.originY - pad) * d,
-      (L.cell * m.width + 2 * pad) * d,
-      (L.cell * m.height + 2 * pad) * d,
+      {
+        x: (L.originX - pad) * d,
+        y: (L.originY - pad) * d,
+        w: (L.cell * m.width + 2 * pad) * d,
+        h: (L.cell * m.height + 2 * pad) * d,
+      },
       6 * d,
+      this.sprites.plateColor,
+      { blur: 10 * d, offsetY: 3 * d, color: 'rgba(0,0,0,0.35)' },
     );
-    ctx.fill();
-    ctx.restore();
 
     const edgesX = new Array<number>(m.width + 1);
     for (let x = 0; x <= m.width; x++) edgesX[x] = Math.round((L.originX + x * L.cell) * d);
@@ -182,8 +160,9 @@ export class OverviewRenderer {
   private drawPanelChrome(m: Mosaic, edgesX: number[], edgesY: number[]): void {
     const ctx = this.ctx;
     const d = this.dpr;
-    const { cols, rows } = panelGrid(m.width, m.height);
-    const completion = this.placed ? panelCompletion(m.width, m.height, m.target, this.placed) : [];
+    const aspect = aspectOf(m.width, m.height);
+    const { cols, rows } = panelGridOf(aspect);
+    const completion = this.placed ? panelFractions(aspect, m.width, m.target, this.placed) : [];
 
     // Panel seams: dark groove with a light edge.
     ctx.save();

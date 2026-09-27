@@ -7,13 +7,17 @@ import {
   defaultCrop,
   fitWithin,
   formatDuration,
+  formatPercent,
   nameFromFile,
   nameFromUrl,
   nextSelection,
   paletteLabels,
+  panelZoomTransform,
   parseImageUrl,
   parseRoute,
   routeHash,
+  shouldApplyUpdate,
+  userMessage,
 } from '../src/ui/pure';
 
 describe('router', () => {
@@ -32,6 +36,8 @@ describe('router', () => {
     expect(parseRoute('#/play')).toEqual({ name: 'gallery' });
     expect(parseRoute('#/play/abc/x')).toEqual({ name: 'gallery' });
     expect(parseRoute('#/play/abc/1/2')).toEqual({ name: 'gallery' });
+    expect(parseRoute('#/play/%E0')).toEqual({ name: 'gallery' });
+    expect(parseRoute('#/play/%E0/2')).toEqual({ name: 'gallery' });
   });
 
   it('round-trips through routeHash', () => {
@@ -129,10 +135,10 @@ describe('defaultCrop', () => {
 });
 
 describe('image URL input', () => {
-  it('accepts http(s) links and adds https to bare hosts', () => {
+  it('accepts https links and adds https to bare hosts', () => {
     expect(parseImageUrl(' https://a.com/x.jpg ')?.href).toBe('https://a.com/x.jpg');
     expect(parseImageUrl('a.com/x.png')?.href).toBe('https://a.com/x.png');
-    expect(parseImageUrl('http://a.com/y')?.protocol).toBe('http:');
+    expect(parseImageUrl('http://a.com/y')).toBeNull();
   });
   it('rejects empty and non-http schemes', () => {
     expect(parseImageUrl('')).toBeNull();
@@ -143,5 +149,56 @@ describe('image URL input', () => {
   it('names from the file segment, else the host', () => {
     expect(nameFromUrl(new URL('https://x.org/pics/red_barn%20photo.jpg'))).toBe('red barn photo');
     expect(nameFromUrl(new URL('https://www.example.com/'))).toBe('example.com');
+  });
+});
+
+describe('shouldApplyUpdate', () => {
+  it('applies on the gallery and overview with no overlay open', () => {
+    expect(shouldApplyUpdate('gallery', false, false)).toBe(true);
+    expect(shouldApplyUpdate('overview', false, false)).toBe(true);
+  });
+  it('waits on panel, setup and source screens', () => {
+    expect(shouldApplyUpdate('panel', false, false)).toBe(false);
+    expect(shouldApplyUpdate('setup', false, false)).toBe(false);
+    expect(shouldApplyUpdate('new', false, false)).toBe(false);
+  });
+  it('waits while an overlay is open', () => {
+    expect(shouldApplyUpdate('gallery', true, false)).toBe(false);
+    expect(shouldApplyUpdate('overview', true, false)).toBe(false);
+  });
+  it('applies whenever the page is hidden', () => {
+    expect(shouldApplyUpdate('panel', false, true)).toBe(true);
+    expect(shouldApplyUpdate('setup', true, true)).toBe(true);
+  });
+});
+
+describe('userMessage', () => {
+  it('uses an Error message', () => {
+    expect(userMessage(new Error('x'))).toBe('x');
+  });
+  it('uses a non-empty string', () => {
+    expect(userMessage('boom')).toBe('boom');
+  });
+  it('falls back for anything else', () => {
+    expect(userMessage(42)).toBe('Something went wrong.');
+    expect(userMessage(new Error(''), 'fb')).toBe('fb');
+    expect(userMessage(undefined, 'fb')).toBe('fb');
+  });
+});
+
+describe('formatPercent', () => {
+  it('floors so 100% only shows when complete', () => {
+    expect(formatPercent(99.96)).toBe('99%');
+    expect(formatPercent(100)).toBe('100%');
+    expect(formatPercent(0)).toBe('0%');
+  });
+});
+
+describe('panelZoomTransform', () => {
+  it('centers a panel rect and scales it to 92% of the limiting stage side', () => {
+    const { s, tx, ty } = panelZoomTransform({ x: 100, y: 50, w: 100, h: 50 }, 400, 300);
+    expect(s).toBeCloseTo(3.68);
+    expect(tx).toBeCloseTo(200 - 150 * 3.68);
+    expect(ty).toBeCloseTo(150 - 75 * 3.68);
   });
 });

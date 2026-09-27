@@ -1,3 +1,8 @@
+/**
+ * Color math for quantization: hex/RGB parsing, sRGB to CIE L*a*b* (D65), and CIE76 color
+ * difference. DOM-free and shared with render/color.ts.
+ */
+
 export type RGB = [number, number, number];
 export type Lab = [number, number, number];
 
@@ -18,7 +23,8 @@ export function rgbToHex(r: number, g: number, b: number): string {
   return `#${c(r)}${c(g)}${c(b)}`;
 }
 
-function srgbToLinear(v: number): number {
+/** sRGB channel (0-255) to linear light in [0,1]. */
+export function srgbToLinear(v: number): number {
   const c = v / 255;
   return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
 }

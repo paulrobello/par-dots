@@ -1,11 +1,22 @@
+/**
+ * PanelSession: the game rules for one 16x16 panel (strokes, tray colors, undo/redo,
+ * completion) as an event-emitting state machine over a PictureSave. DOM-free.
+ */
+
 import { EMPTY, PANEL_SIZE, type PictureSave } from '../types';
 import { panelOrigin } from './geometry';
 
+/** What a stroke does to the studs it crosses. */
 export type StrokeMode = 'paint' | 'remove';
 
 /** What caused a board change: a live stroke, or history navigation. */
 export type ChangeCause = 'stroke' | 'undo' | 'redo';
 
+/**
+ * Board change events. `placed`/`removed` fire per stud; `colorDone` when the last stud of a
+ * target color becomes correct, `colorReturned` when one of them stops being correct, and
+ * `complete` when every stud is correct.
+ */
 export type PanelEvent =
   | {
       type: 'placed';
@@ -20,6 +31,7 @@ export type PanelEvent =
   | { type: 'colorReturned'; colorIndex: number }
   | { type: 'complete' };
 
+/** Callback registered with PanelSession.onChange. */
 export type PanelListener = (event: PanelEvent) => void;
 
 interface CellChange {
@@ -29,6 +41,7 @@ interface CellChange {
   after: number;
 }
 
+/** Undoable moves kept per panel; older moves are dropped. */
 export const MAX_HISTORY = 10;
 
 /**
@@ -36,18 +49,23 @@ export const MAX_HISTORY = 10;
  * A completed panel is locked: strokes and history navigation do nothing.
  */
 export class PanelSession {
+  /** The picture being played; `placed` is mutated in place. */
   readonly save: PictureSave;
+  /** Row-major panel number within the picture. */
   readonly panelIndex: number;
   private readonly ox: number;
   private readonly oy: number;
   /** Per palette index: studs of that target color in this panel not yet correct. */
   private readonly remaining: number[];
   private remainingTotal = 0;
+  /** Studs in this panel with no dot placed. */
+  private empty = 0;
   private undoStack: CellChange[][] = [];
   private redoStack: CellChange[][] = [];
   private stroke: { mode: StrokeMode; color: number; changes: CellChange[] } | null = null;
   private readonly listeners = new Set<PanelListener>();
 
+  /** Counts the panel's empty and not-yet-correct studs. Throws RangeError for a bad index. */
   constructor(save: PictureSave, panelIndex: number) {
     this.save = save;
     this.panelIndex = panelIndex;
@@ -59,6 +77,7 @@ export class PanelSession {
       for (let x = 0; x < PANEL_SIZE; x++) {
         const i = this.idx(x, y);
         const t = save.target[i];
+        if (save.placed[i] === EMPTY) this.empty++;
         if (save.placed[i] !== t) {
           this.remaining[t]++;
           this.remainingTotal++;
@@ -67,6 +86,7 @@ export class PanelSession {
     }
   }
 
+  /** Subscribe to board events. Returns a function that unsubscribes. */
   onChange(cb: PanelListener): () => void {
     this.listeners.add(cb);
     return () => {
@@ -125,7 +145,10 @@ export class PanelSession {
     this.redoStack = [];
   }
 
-  /** Abandon the open stroke: revert its changes without recording an undoable move. */
+  /**
+   * Abandon the open stroke: revert its changes (emitting their events with cause 'undo')
+   * without recording an undoable move.
+   */
   cancelStroke(): void {
     const s = this.stroke;
     this.stroke = null;
@@ -133,18 +156,25 @@ export class PanelSession {
     for (let k = s.changes.length - 1; k >= 0; k--) this.applyChange(s.changes[k], true, 'undo');
   }
 
+  /** True between beginStroke and endStroke/cancelStroke. */
   get strokeActive(): boolean {
     return this.stroke !== null;
   }
 
+  /** A move can be undone: no open stroke, panel not complete, and history not empty. */
   get canUndo(): boolean {
     return this.stroke === null && !this.isComplete() && this.undoStack.length > 0;
   }
 
+  /** A move can be redone: no stroke is open, the panel is not complete, and a move was undone. */
   get canRedo(): boolean {
     return this.stroke === null && !this.isComplete() && this.redoStack.length > 0;
   }
 
+  /**
+   * Revert the last move, emitting its events with cause 'undo'. Returns true when something
+   * changed, false when there was nothing to undo.
+   */
   undo(): boolean {
     const move = this.canUndo ? this.undoStack.pop() : undefined;
     if (!move) return false;
@@ -153,6 +183,10 @@ export class PanelSession {
     return true;
   }
 
+  /**
+   * Reapply the last undone move, emitting its events with cause 'redo'. Returns true when
+   * something changed, false when there was nothing to redo.
+   */
   redo(): boolean {
     const move = this.canRedo ? this.redoStack.pop() : undefined;
     if (!move) return false;
@@ -168,6 +202,16 @@ export class PanelSession {
     return out;
   }
 
+  /** Studs of target color `c` in this panel not yet correctly placed. */
+  remainingFor(c: number): number {
+    return this.remaining[c] ?? 0;
+  }
+
+  /** Studs in this panel with no dot placed. */
+  emptyCount(): number {
+    return this.empty;
+  }
+
   /** Panel-local coordinates of dots whose color differs from the target. */
   wrongCells(): Array<{ x: number; y: number }> {
     const out: Array<{ x: number; y: number }> = [];
@@ -181,14 +225,20 @@ export class PanelSession {
     return out;
   }
 
-  progress(): { correct: number; total: 256 } {
-    return { correct: PANEL_SIZE * PANEL_SIZE - this.remainingTotal, total: 256 };
+  /** Correct studs and total studs (256) in this panel. */
+  progress(): { correct: number; total: number } {
+    return {
+      correct: PANEL_SIZE * PANEL_SIZE - this.remainingTotal,
+      total: PANEL_SIZE * PANEL_SIZE,
+    };
   }
 
+  /** Every stud holds its target color. A complete panel ignores strokes and history. */
   isComplete(): boolean {
     return this.remainingTotal === 0;
   }
 
+  /** Target and placed value of a panel-local stud. Throws RangeError outside the panel. */
   cellAt(x: number, y: number): { target: number; placed: number } {
     if (!this.inBounds(x, y)) throw new RangeError(`cell (${x}, ${y}) out of panel`);
     const i = this.idx(x, y);
@@ -218,6 +268,8 @@ export class PanelSession {
     const wasCorrect = from === t;
     const nowCorrect = to === t;
     this.save.placed[i] = to;
+    if (from === EMPTY) this.empty--;
+    if (to === EMPTY) this.empty++;
     if (to === EMPTY) {
       this.emit({ type: 'removed', x: c.x, y: c.y, colorIndex: from, cause });
     } else {

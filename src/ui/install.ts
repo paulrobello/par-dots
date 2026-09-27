@@ -1,3 +1,8 @@
+/**
+ * PWA install flow: captures the browser's install prompt where supported, falls back to
+ * Add to Home Screen steps, and nudges mobile players once on their first panel.
+ */
+
 import { h, openSheet, toast } from './dom';
 
 const DISMISSED_KEY = 'par-dots:install-prompt-dismissed';

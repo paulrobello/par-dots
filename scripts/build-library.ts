@@ -1,3 +1,9 @@
+/**
+ * Builds the bundled picture library: converts `images/*.jpg` into full-size and thumbnail
+ * WebP files in `public/library/` and writes `manifest.json` with each picture's default
+ * aspect and crop. Run by `bun run build` and `make library`.
+ */
+
 import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

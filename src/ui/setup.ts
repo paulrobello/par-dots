@@ -1,18 +1,26 @@
+/**
+ * Setup screen (`#/setup`): crop editor, aspect, palette mode and max colors, a debounced
+ * worker-computed mosaic preview, and Start, which creates the save. Needs a pending source
+ * from the source screen; without one it redirects to `#/new`.
+ */
+
 import { quantizeInWorker } from '../engine/client';
-import { panelCount as aspectPanelCount, studDims } from '../engine/panels';
 import { cropAndResample } from '../engine/resample';
+import { panelCountOf, studDims } from '../game';
 import { renderMosaicToCanvas } from '../render/mosaicImage';
 import { devicePixelRatioSafe } from '../render/motion';
-import { putImage, StorageFullError } from '../storage/db';
 import { newId } from '../storage/id';
 import { getSettings, setSettings } from '../storage/settings';
 import {
   type Aspect,
   EMPTY,
   LAYOUT,
+  MAX_COLORS,
+  MIN_COLORS,
   type Mosaic,
   type PaletteMode,
   type PictureSave,
+  SAVE_SCHEMA_VERSION,
 } from '../types';
 import { h, icon, iconButton, toast } from './dom';
 import {
@@ -22,9 +30,11 @@ import {
   cropRectFor,
   defaultCrop,
   routeHash,
+  userMessage,
 } from './pure';
+import { createSave } from './saves';
 import type { Cleanup, ScreenContext } from './screen';
-import { cacheSave, getPendingSource, persist, setPendingSource } from './state';
+import { getPendingSource, setPendingSource } from './state';
 
 const ASPECTS: Array<{ value: Aspect; label: string }> = [
   { value: '1:1', label: 'Square' },
@@ -32,6 +42,10 @@ const ASPECTS: Array<{ value: Aspect; label: string }> = [
   { value: '4:3', label: 'Landscape' },
 ];
 
+/**
+ * Mounts the setup screen (route `#/setup`) for the pending source. The returned Cleanup stops
+ * the crop-stage ResizeObserver, cancels a pending preview, and ignores in-flight previews.
+ */
 export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
   const src = getPendingSource();
   if (!src) {
@@ -58,7 +72,14 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
   const srcCanvas = document.createElement('canvas');
   srcCanvas.width = img.width;
   srcCanvas.height = img.height;
-  srcCanvas.getContext('2d')?.putImageData(img, 0, 0);
+  const sctx = srcCanvas.getContext('2d');
+  if (!sctx) {
+    // Mounted synchronously by the router, which does not catch throws.
+    toast('This device could not prepare the picture. Please try again.', 4000);
+    queueMicrotask(() => navigate('#/new', { replace: true }));
+    return () => undefined;
+  }
+  sctx.putImageData(img, 0, 0);
 
   const stage = h('canvas', {
     class: 'crop-canvas',
@@ -130,8 +151,8 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
   const colorsValue = h('output', { class: 'colors-value' }, String(maxColors));
   const colorsInput = h('input', {
     type: 'range',
-    min: '4',
-    max: '32',
+    min: String(MIN_COLORS),
+    max: String(MAX_COLORS),
     step: '1',
     value: String(maxColors),
     class: 'colors-range',
@@ -304,11 +325,11 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
       canvas.setAttribute('role', 'img');
       canvas.setAttribute('aria-label', 'Mosaic preview');
       preview.replaceChildren(canvas);
-      previewNote.textContent = `${m.width}×${m.height} studs · ${aspectPanelCount(aspect)} panels · ${m.palette.length} colors`;
+      previewNote.textContent = `${m.width}×${m.height} studs · ${panelCountOf(aspect)} panels · ${m.palette.length} colors`;
       startBtn.disabled = false;
     }).catch((err: unknown) => {
       if (!alive || my !== token) return;
-      previewNote.textContent = `Preview failed: ${String(err)}`;
+      previewNote.textContent = `Preview failed: ${userMessage(err)}`;
     });
   };
   const schedulePreview = (): void => {
@@ -331,15 +352,14 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
     startBtn.disabled = true;
     try {
       const m = await p;
-      const sourceImageId =
-        src.kind === 'library' ? `library:${src.slug}` : src.blob ? await putImage(src.blob) : '';
       const nowMs = Date.now();
       const save: PictureSave = {
+        schemaVersion: SAVE_SCHEMA_VERSION,
         id: newId(),
         createdAt: nowMs,
         updatedAt: nowMs,
         name: src.name,
-        sourceImageId,
+        sourceImageId: src.kind === 'library' ? `library:${src.slug}` : '',
         aspect,
         paletteMode: mode,
         palette: m.palette,
@@ -347,19 +367,16 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
         height: m.height,
         target: m.target,
         placed: new Uint8Array(m.width * m.height).fill(EMPTY),
-        panelElapsedMs: new Array<number>(aspectPanelCount(aspect)).fill(0),
+        panelElapsedMs: new Array<number>(panelCountOf(aspect)).fill(0),
       };
-      await persist(save);
-      cacheSave(save);
+      await createSave(save, src.kind === 'upload' ? src.blob : undefined);
       setPendingSource(null);
       navigate(routeHash({ name: 'overview', id: save.id }), { replace: true });
     } catch (err) {
       starting = false;
       startBtn.disabled = false;
-      toast(
-        err instanceof StorageFullError ? err.message : `Could not start: ${String(err)}`,
-        4000,
-      );
+      console.error(err);
+      toast(`Could not start: ${userMessage(err)}`, 4000);
     }
   });
 

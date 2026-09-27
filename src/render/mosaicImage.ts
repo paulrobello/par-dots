@@ -3,12 +3,12 @@
 import type { Mosaic } from '../types';
 import { drawDot, drawStud, PLATE_GREEN } from './sprites';
 
-export type MosaicStyle = 'dots' | 'flat';
+export type MosaicStyle = 'dots';
 
 export interface MosaicImageOptions {
   /** Render only this stud region (e.g. one 16x16 panel for the reference image). */
   region?: { x: number; y: number; w: number; h: number };
-  /** Baseplate color behind dots in 'dots' style. Default LEGO green. */
+  /** Baseplate color behind the dots. Default LEGO green. */
   plateColor?: string;
   /** Per-stud palette index override (e.g. placed state); EMPTY/out-of-range shows a bare stud. */
   cells?: ArrayLike<number>;
@@ -26,12 +26,12 @@ export function mosaicImageSize(
 
 /**
  * Render the mosaic target (or `opts.cells`) at cellPx device pixels per stud.
- * 'dots' draws glossy round tiles on a baseplate; 'flat' fills solid squares (pixel-art look).
+ * 'dots' draws glossy round tiles on a baseplate.
  */
 export function renderMosaicToCanvas(
   mosaic: Mosaic,
   cellPx: number,
-  style: MosaicStyle,
+  _style: MosaicStyle,
   opts: MosaicImageOptions = {},
 ): HTMLCanvasElement {
   const region = opts.region ?? { x: 0, y: 0, w: mosaic.width, h: mosaic.height };
@@ -65,11 +65,6 @@ export function renderMosaicToCanvas(
       const color = idx === undefined ? undefined : mosaic.palette[idx];
       const px = rx * c;
       const py = ry * c;
-      if (style === 'flat') {
-        ctx.fillStyle = color ? color.hex : plate;
-        ctx.fillRect(px, py, c, c);
-        continue;
-      }
       if (!stud) stud = sprite((g) => drawStud(g, 0, 0, c, plate));
       ctx.drawImage(stud, px, py);
       if (color) {

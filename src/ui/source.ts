@@ -1,10 +1,45 @@
+/**
+ * New Picture screen (`#/new`): bundled library, photo upload and https image links.
+ * Uploads and links are capped at 20 MB (links also time out after 30 s) and decoded with
+ * the 40 MP guard before handing off to setup.
+ */
+
 import type { Aspect, LibraryEntry } from '../types';
 import { h, icon, iconButton, toast } from './dom';
-import { nameFromFile, nameFromUrl, parseImageUrl } from './pure';
+import { decodeImage, ImageTooLargeError } from './image';
+import { loadLibrary } from './library';
+import { nameFromFile, nameFromUrl, parseImageUrl, userMessage } from './pure';
 import type { Cleanup, ScreenContext } from './screen';
-import { decodeImage, loadLibrary, setPendingSource } from './state';
+import { setPendingSource } from './state';
 
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+const URL_FETCH_TIMEOUT_MS = 30_000;
+
+class TooLargeError extends Error {}
+
+/** Read a response body, aborting as soon as it passes max bytes. */
+async function readCapped(res: Response, max: number, ctrl: AbortController): Promise<Blob> {
+  const type = res.headers.get('content-type') ?? '';
+  if (!res.body) {
+    const blob = await res.blob();
+    if (blob.size > max) throw new TooLargeError();
+    return blob;
+  }
+  const reader = res.body.getReader();
+  const chunks: BlobPart[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) {
+      ctrl.abort();
+      throw new TooLargeError();
+    }
+    chunks.push(value);
+  }
+  return new Blob(chunks, { type });
+}
 
 /** Nearest supported aspect for an image's dimensions. */
 function guessAspect(w: number, hgt: number): Aspect {
@@ -14,6 +49,10 @@ function guessAspect(w: number, hgt: number): Aspect {
   return '1:1';
 }
 
+/**
+ * Mounts the New Picture screen (route `#/new`). The returned Cleanup marks the screen dead so
+ * an in-flight library load, download or decode does not navigate to setup afterward.
+ */
 export function mountSource({ root, navigate }: ScreenContext): Cleanup {
   let alive = true;
   let busy = false;
@@ -51,8 +90,9 @@ export function mountSource({ root, navigate }: ScreenContext): Cleanup {
       });
       navigate('#/setup');
     } catch (err) {
+      console.warn('Library image failed', err);
       setBusy(null);
-      toast(`Could not open picture: ${String(err)}`, 3000);
+      toast(`Could not open picture: ${userMessage(err)}`, 3000);
     }
   };
 
@@ -69,9 +109,15 @@ export function mountSource({ root, navigate }: ScreenContext): Cleanup {
         blob,
       });
       navigate('#/setup');
-    } catch {
+    } catch (err) {
+      console.warn('Image decode failed', err);
       setBusy(null);
-      toast('This image format is not supported on this device.', 3500);
+      toast(
+        err instanceof ImageTooLargeError
+          ? userMessage(err)
+          : 'This image format is not supported on this device.',
+        3500,
+      );
     }
   };
 
@@ -94,29 +140,40 @@ export function mountSource({ root, navigate }: ScreenContext): Cleanup {
     if (busy) return;
     const parsed = parseImageUrl(urlInput.value);
     if (!parsed) {
-      toast('Enter a full http(s) link to an image.', 3000);
+      toast('Enter a full https link to an image.', 3000);
       return;
     }
     setBusy('Downloading image…');
     let blob: Blob;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), URL_FETCH_TIMEOUT_MS);
     try {
-      const res = await fetch(parsed.href, { mode: 'cors', credentials: 'omit' });
+      const res = await fetch(parsed.href, {
+        mode: 'cors',
+        credentials: 'omit',
+        referrerPolicy: 'no-referrer',
+        signal: ctrl.signal,
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      blob = await res.blob();
-    } catch {
+      const declared = Number(res.headers.get('content-length'));
+      if (declared > MAX_UPLOAD_BYTES) throw new TooLargeError();
+      blob = await readCapped(res, MAX_UPLOAD_BYTES, ctrl);
+    } catch (err) {
+      console.warn('URL import failed', err);
       setBusy(null);
-      toast(
-        'Could not download that image. The site may block other apps from loading it; try saving it and uploading instead.',
-        4500,
-      );
+      if (err instanceof TooLargeError) {
+        toast('That image is larger than 20 MB. Please pick a smaller one.', 3500);
+      } else {
+        toast(
+          'Could not download that image. The site may block other apps from loading it; try saving it and uploading instead.',
+          4500,
+        );
+      }
       return;
+    } finally {
+      clearTimeout(timer);
     }
     if (!alive) return;
-    if (blob.size > MAX_UPLOAD_BYTES) {
-      setBusy(null);
-      toast('That image is larger than 20 MB. Please pick a smaller one.', 3500);
-      return;
-    }
     await useBlob(blob, nameFromUrl(parsed), 'Reading image…');
   });
 
@@ -181,8 +238,11 @@ export function mountSource({ root, navigate }: ScreenContext): Cleanup {
       );
     })
     .catch((err: unknown) => {
+      console.warn('Library failed to load', err);
       if (alive)
-        grid.replaceChildren(h('p', { class: 'empty' }, `Library unavailable: ${String(err)}`));
+        grid.replaceChildren(
+          h('p', { class: 'empty' }, `Library unavailable: ${userMessage(err)}`),
+        );
     });
 
   return () => {

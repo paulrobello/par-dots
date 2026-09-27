@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  hexToRgb,
   luminance,
   mixRgb,
+  parseHexLenient,
   plasticTones,
   rgba,
-  rgbToHex,
+  rgbObjToHex,
   shade,
 } from '../src/render/color';
 import {
@@ -13,9 +13,6 @@ import {
   cellToScreen,
   fitGrid,
   IDENTITY_VIEWPORT,
-  panelCompletion,
-  panelGrid,
-  panelIndexAt,
   pressScale,
   pulseAlpha,
   quantizeSpritePx,
@@ -24,15 +21,15 @@ import {
   zoomViewportAt,
 } from '../src/render/layout';
 import { mosaicImageSize } from '../src/render/mosaicImage';
-import { EMPTY, LAYOUT, PANEL_SIZE } from '../src/types';
+import { PANEL_SIZE } from '../src/types';
 
 describe('color math', () => {
   it('parses and formats hex', () => {
-    expect(hexToRgb('#237841')).toEqual({ r: 0x23, g: 0x78, b: 0x41 });
-    expect(hexToRgb('#fff')).toEqual({ r: 255, g: 255, b: 255 });
-    expect(hexToRgb('nope')).toEqual({ r: 128, g: 128, b: 128 });
-    expect(rgbToHex({ r: 35, g: 120, b: 65 })).toBe('#237841');
-    expect(rgbToHex({ r: -5, g: 300, b: 12.6 })).toBe('#00ff0d');
+    expect(parseHexLenient('#237841')).toEqual({ r: 0x23, g: 0x78, b: 0x41 });
+    expect(parseHexLenient('#fff')).toEqual({ r: 255, g: 255, b: 255 });
+    expect(parseHexLenient('nope')).toEqual({ r: 128, g: 128, b: 128 });
+    expect(rgbObjToHex({ r: 35, g: 120, b: 65 })).toBe('#237841');
+    expect(rgbObjToHex({ r: -5, g: 300, b: 12.6 })).toBe('#00ff0d');
   });
 
   it('shades toward white and black', () => {
@@ -129,53 +126,6 @@ describe('sprite size quantization', () => {
     for (let px = 5; px < 400; px += 7) {
       expect(Math.abs(quantizeSpritePx(px) - px) / px).toBeLessThan(0.1);
     }
-  });
-});
-
-describe('panels', () => {
-  it('indexes panels row-major for every layout', () => {
-    for (const { cols, rows } of Object.values(LAYOUT)) {
-      const w = cols * PANEL_SIZE;
-      const h = rows * PANEL_SIZE;
-      expect(panelGrid(w, h)).toEqual({ cols, rows });
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          expect(panelIndexAt(w, c * 16, r * 16)).toBe(r * cols + c);
-          expect(panelIndexAt(w, c * 16 + 15, r * 16 + 15)).toBe(r * cols + c);
-        }
-      }
-    }
-  });
-
-  it('hit-tests overview panels via the layout transform', () => {
-    for (const { cols, rows } of Object.values(LAYOUT)) {
-      const w = cols * 16;
-      const h = rows * 16;
-      const L = fitGrid(360, 480, w, h, 0.6);
-      for (let p = 0; p < cols * rows; p++) {
-        const sx = L.originX + ((p % cols) * 16 + 8) * L.cell;
-        const sy = L.originY + (Math.floor(p / cols) * 16 + 8) * L.cell;
-        const cell = screenToCell(L, IDENTITY_VIEWPORT, sx, sy);
-        expect(cell).not.toBeNull();
-        if (cell) expect(panelIndexAt(w, cell.x, cell.y)).toBe(p);
-      }
-      expect(screenToCell(L, IDENTITY_VIEWPORT, L.originX - 1, L.originY)).toBeNull();
-    }
-  });
-
-  it('computes per-panel completion', () => {
-    const w = 48;
-    const h = 48;
-    const target = new Uint8Array(w * h).fill(2);
-    const placed = new Uint8Array(w * h).fill(EMPTY);
-    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) placed[y * w + x] = 2;
-    placed[16] = 2; // one correct stud in panel 1
-    placed[17] = 3; // a wrong stud does not count
-    const c = panelCompletion(w, h, target, placed);
-    expect(c).toHaveLength(9);
-    expect(c[0]).toBe(1);
-    expect(c[1]).toBeCloseTo(1 / 256);
-    expect(c[8]).toBe(0);
   });
 });
 

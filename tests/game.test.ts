@@ -1,17 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import {
+  aspectOf,
   MAX_HISTORY,
   overallProgress,
   type PanelEvent,
   PanelSession,
   panelComplete,
   panelCount,
+  panelCountOf,
+  panelFractions,
+  panelGridOf,
+  panelIndexOf,
   panelOrigin,
+  panelOriginOf,
   panelProgress,
   pictureComplete,
+  studDims,
   studIndex,
 } from '../src/game';
-import { type Aspect, EMPTY, LAYOUT, type PictureSave } from '../src/types';
+import { fitGrid, IDENTITY_VIEWPORT, screenToCell } from '../src/render/layout';
+import { type Aspect, EMPTY, LAYOUT, PANEL_SIZE, type PictureSave } from '../src/types';
 
 /** Target color = (x + y) % colors, so every panel uses all colors. */
 function makeSave(aspect: Aspect = '1:1', colors = 3): PictureSave {
@@ -22,6 +30,7 @@ function makeSave(aspect: Aspect = '1:1', colors = 3): PictureSave {
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) target[y * width + x] = (x + y) % colors;
   return {
+    schemaVersion: 1,
     id: 't',
     createdAt: 0,
     updatedAt: 0,
@@ -453,5 +462,176 @@ describe('progress helpers', () => {
       [2, 0],
     ]);
     expect(panelProgress(save, 3).correct).toBe(s.progress().correct);
+  });
+});
+
+describe('aspect-keyed panel geometry', () => {
+  const ASPECTS = Object.keys(LAYOUT) as Aspect[];
+
+  it('counts panels and stud dims per aspect', () => {
+    expect(panelCountOf('1:1')).toBe(9);
+    expect(panelCountOf('3:4')).toBe(12);
+    expect(panelCountOf('4:3')).toBe(12);
+    expect(studDims('1:1')).toEqual({ width: 48, height: 48 });
+    expect(studDims('3:4')).toEqual({ width: 48, height: 64 });
+    expect(studDims('4:3')).toEqual({ width: 64, height: 48 });
+  });
+
+  it('maps stud dims back to their aspect', () => {
+    for (const aspect of ASPECTS) {
+      const { width, height } = studDims(aspect);
+      expect(aspectOf(width, height)).toBe(aspect);
+    }
+    expect(() => aspectOf(50, 48)).toThrow(RangeError);
+  });
+
+  for (const aspect of ASPECTS) {
+    it(`${aspect}: origin and index are inverse and tile the picture`, () => {
+      const { width, height } = studDims(aspect);
+      const counts = new Array(panelCountOf(aspect)).fill(0);
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const p = panelIndexOf(aspect, x, y);
+          counts[p]++;
+          const o = panelOriginOf(aspect, p);
+          expect(x - o.x).toBeGreaterThanOrEqual(0);
+          expect(x - o.x).toBeLessThan(PANEL_SIZE);
+          expect(y - o.y).toBeGreaterThanOrEqual(0);
+          expect(y - o.y).toBeLessThan(PANEL_SIZE);
+        }
+      }
+      for (const c of counts) expect(c).toBe(PANEL_SIZE * PANEL_SIZE);
+      for (let p = 0; p < panelCountOf(aspect); p++) {
+        const o = panelOriginOf(aspect, p);
+        expect(panelIndexOf(aspect, o.x, o.y)).toBe(p);
+      }
+      expect(panelIndexOf(aspect, -1, 0)).toBe(-1);
+      expect(panelIndexOf(aspect, width, 0)).toBe(-1);
+      expect(panelIndexOf(aspect, 0, height)).toBe(-1);
+      expect(() => panelOriginOf(aspect, panelCountOf(aspect))).toThrow(RangeError);
+    });
+  }
+
+  it('panels are numbered row-major', () => {
+    expect(panelOriginOf('4:3', 5)).toEqual({ x: 16, y: 16 });
+    expect(panelOriginOf('3:4', 11)).toEqual({ x: 32, y: 48 });
+  });
+
+  it('indexes panels row-major for every layout', () => {
+    for (const aspect of ASPECTS) {
+      const { cols, rows } = LAYOUT[aspect];
+      expect(panelGridOf(aspect)).toEqual({ cols, rows });
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          expect(panelIndexOf(aspect, c * 16, r * 16)).toBe(r * cols + c);
+          expect(panelIndexOf(aspect, c * 16 + 15, r * 16 + 15)).toBe(r * cols + c);
+        }
+      }
+    }
+  });
+
+  it('hit-tests overview panels via the layout transform', () => {
+    for (const aspect of ASPECTS) {
+      const { cols, rows } = LAYOUT[aspect];
+      const w = cols * 16;
+      const h = rows * 16;
+      const L = fitGrid(360, 480, w, h, 0.6);
+      for (let p = 0; p < cols * rows; p++) {
+        const sx = L.originX + ((p % cols) * 16 + 8) * L.cell;
+        const sy = L.originY + (Math.floor(p / cols) * 16 + 8) * L.cell;
+        const cell = screenToCell(L, IDENTITY_VIEWPORT, sx, sy);
+        expect(cell).not.toBeNull();
+        if (cell) expect(panelIndexOf(aspect, cell.x, cell.y)).toBe(p);
+      }
+      expect(screenToCell(L, IDENTITY_VIEWPORT, L.originX - 1, L.originY)).toBeNull();
+    }
+  });
+
+  it('computes per-panel completion', () => {
+    const w = 48;
+    const h = 48;
+    const target = new Uint8Array(w * h).fill(2);
+    const placed = new Uint8Array(w * h).fill(EMPTY);
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) placed[y * w + x] = 2;
+    placed[16] = 2; // one correct stud in panel 1
+    placed[17] = 3; // a wrong stud does not count
+    const c = panelFractions('1:1', w, target, placed);
+    expect(c).toHaveLength(9);
+    expect(c[0]).toBe(1);
+    expect(c[1]).toBeCloseTo(1 / 256);
+    expect(c[8]).toBe(0);
+  });
+});
+
+describe('PanelSession remainingFor/emptyCount', () => {
+  /** Deterministic LCG so failures reproduce. */
+  function rng(seed: number): () => number {
+    let s = seed >>> 0;
+    return () => {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      return s / 2 ** 32;
+    };
+  }
+
+  function recount(s: PanelSession, colors: number): { remaining: number[]; empty: number } {
+    const remaining = new Array<number>(colors).fill(0);
+    let empty = 0;
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        const cell = s.cellAt(x, y);
+        if (cell.placed === EMPTY) empty++;
+        if (cell.placed !== cell.target) remaining[cell.target]++;
+      }
+    }
+    return { remaining, empty };
+  }
+
+  function expectMatches(s: PanelSession, colors: number): void {
+    const want = recount(s, colors);
+    expect(s.emptyCount()).toBe(want.empty);
+    for (let c = 0; c < colors; c++) expect(s.remainingFor(c)).toBe(want.remaining[c]);
+  }
+
+  it('starts in agreement with a partially filled panel', () => {
+    const save = makeSave('1:1', 4);
+    fillPanel(save, 0, [
+      [0, 0],
+      [3, 5],
+      [15, 15],
+    ]);
+    const wrong = studIndex(save, 0, 1, 0);
+    save.placed[wrong] = (save.target[wrong] + 1) % 4;
+    const s = new PanelSession(save, 0);
+    expectMatches(s, 4);
+    expect(s.emptyCount()).toBe(3);
+    expect(s.remainingFor(99)).toBe(0);
+  });
+
+  it('matches a brute-force recount after random strokes, cancel, undo and redo', () => {
+    const colors = 4;
+    for (const seed of [1, 42, 1234]) {
+      const save = makeSave('4:3', colors);
+      const s = new PanelSession(save, 5);
+      const r = rng(seed);
+      const pick = (n: number): number => Math.floor(r() * n);
+      expectMatches(s, colors);
+      for (let step = 0; step < 400; step++) {
+        const op = pick(10);
+        if (op < 6) {
+          const mode = pick(3) === 0 ? 'remove' : 'paint';
+          s.beginStroke(mode, mode === 'paint' ? pick(colors) : undefined);
+          const n = 1 + pick(12);
+          for (let k = 0; k < n; k++) s.applyAt(pick(16), pick(16));
+          if (pick(5) === 0) s.cancelStroke();
+          else s.endStroke();
+        } else if (op < 8) {
+          s.undo();
+        } else {
+          s.redo();
+        }
+        expectMatches(s, colors);
+        if (s.isComplete()) break;
+      }
+    }
   });
 });

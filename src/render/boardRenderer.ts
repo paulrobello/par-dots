@@ -1,12 +1,18 @@
 /**
  * 16x16 panel board renderer (Canvas 2D, pseudo-3D sprites).
  *
+ * BoardRenderer owns its canvas's backing store and device pixel ratio, a sprite cache, the
+ * viewport (zoom and pan), and a requestAnimationFrame loop that runs only while press or
+ * hint animations are active. Call order: construct (sizes the canvas), setData, resize or
+ * draw, drawCells/pressAnim/highlight during play, destroy on unmount.
+ *
  * Coordinates: cells are panel-local (x, y) in 0..15. The viewport is in canvas CSS px
  * relative to the canvas top-left: screen = offset + scale * fittedPoint, where the fitted
  * layout centers the 16x16 plate in the canvas at scale 1 (see layout.ts).
  */
 
 import { EMPTY, PANEL_SIZE, type PaletteColor } from '../types';
+import { clearCanvas, drawPlate, resizeBacking } from './canvas';
 import {
   cellDeviceRect,
   fitGrid,
@@ -17,31 +23,32 @@ import {
   screenToCell,
   type Viewport,
 } from './layout';
-import { clientToCanvas, devicePixelRatioSafe, now, prefersReducedMotion } from './motion';
-import { PLATE_GREEN, SpriteCache } from './sprites';
+import { clientToCanvas, now, prefersReducedMotion } from './motion';
+import { SpriteCache } from './sprites';
 
+/** A panel-local stud coordinate. */
 export interface Cell {
   x: number;
   y: number;
 }
 
+/** Reads one panel-local stud: its placed value (EMPTY or palette index) and optional target. */
 export type CellGetter = (x: number, y: number) => { placed: number; target?: number };
 
+/** Construction options for BoardRenderer. */
 export interface BoardRendererOptions {
-  plateColor?: string;
-  /** Fill outside the plate; null leaves it transparent (CSS background shows). */
-  background?: string | null;
   /** Plate margin around the studs, in cells. Default 0.25. */
   marginCells?: number;
 }
 
 const PRESS_MS = 180;
 
+/** Draws one panel board; see the file header for ownership and call order. */
 export class BoardRenderer {
+  /** The canvas this renderer draws into. */
   readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
   private readonly sprites: SpriteCache;
-  private readonly background: string | null;
   private readonly margin: number;
   private getCell: CellGetter | null = null;
   private palette: PaletteColor[] = [];
@@ -64,25 +71,24 @@ export class BoardRenderer {
   private destroyed = false;
   private overlay = false;
 
+  /** Takes the canvas's 2D context and sizes it. Throws when no 2D context is available. */
   constructor(canvas: HTMLCanvasElement, opts: BoardRendererOptions = {}) {
     this.canvas = canvas;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('2D canvas context unavailable');
     this.ctx = ctx;
-    this.sprites = new SpriteCache({ plateColor: opts.plateColor ?? PLATE_GREEN });
-    this.background = opts.background === undefined ? null : opts.background;
+    this.sprites = new SpriteCache();
     this.margin = opts.marginCells ?? 0.25;
     this.resize();
   }
 
-  /** Board contents. getCell(x, y) is called for panel-local cells; placed is EMPTY or a palette index. */
+  /**
+   * Board contents. getCell(x, y) is called for panel-local cells; placed is EMPTY or a palette
+   * index. Does not redraw; call draw().
+   */
   setData(getCell: CellGetter, palette: PaletteColor[]): void {
     this.getCell = getCell;
     this.palette = palette;
-  }
-
-  setPlateColor(hex: string): void {
-    this.sprites.setPlateColor(hex);
   }
 
   /** Viewport in canvas CSS px (see file header). Does not redraw; call draw(). */
@@ -97,17 +103,9 @@ export class BoardRenderer {
     this.draw();
   }
 
-  get overlayEnabled(): boolean {
-    return this.overlay;
-  }
-
+  /** A copy of the current viewport. */
   getViewport(): Viewport {
     return { ...this.vp };
-  }
-
-  /** Fitted (scale 1) layout in CSS px, for gesture math. */
-  getLayout(): GridLayout {
-    return { ...this.layoutCache };
   }
 
   /** Canvas size in CSS px. */
@@ -117,15 +115,7 @@ export class BoardRenderer {
 
   /** Re-read the canvas CSS size and DPR, resize the backing store, and redraw. */
   resize(): void {
-    // Layout size, not the bounding rect: a CSS transform (zoom transition) must not leak in.
-    const rect = this.canvas.getBoundingClientRect();
-    this.cssW = Math.max(0, this.canvas.clientWidth || rect.width);
-    this.cssH = Math.max(0, this.canvas.clientHeight || rect.height);
-    this.dpr = devicePixelRatioSafe();
-    const w = Math.round(this.cssW * this.dpr);
-    const h = Math.round(this.cssH * this.dpr);
-    if (this.canvas.width !== w) this.canvas.width = w;
-    if (this.canvas.height !== h) this.canvas.height = h;
+    ({ cssW: this.cssW, cssH: this.cssH, dpr: this.dpr } = resizeBacking(this.canvas));
     this.layoutCache = fitGrid(this.cssW, this.cssH, PANEL_SIZE, PANEL_SIZE, this.margin);
     this.draw();
   }
@@ -133,13 +123,7 @@ export class BoardRenderer {
   /** Full redraw of plate, studs, dots, and active overlays. */
   draw(): void {
     if (this.destroyed) return;
-    const ctx = this.ctx;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    if (this.background) {
-      ctx.fillStyle = this.background;
-      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    }
+    clearCanvas(this.ctx);
     if (this.layoutCache.cell <= 0) return;
     this.drawPlate();
     for (let y = 0; y < PANEL_SIZE; y++) {
@@ -183,6 +167,7 @@ export class BoardRenderer {
     }
   }
 
+  /** Remove any hint outlines and repaint their cells. */
   clearHighlight(): void {
     const old = [...this.hints.keys()];
     this.hints.clear();
@@ -224,15 +209,13 @@ export class BoardRenderer {
     };
     const size = this.vp.scale * (L.cell * PANEL_SIZE + 2 * m);
     const d = this.dpr;
-    const ctx = this.ctx;
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.35)';
-    ctx.shadowBlur = 12 * d;
-    ctx.shadowOffsetY = 4 * d;
-    ctx.fillStyle = this.sprites.plateColor;
-    roundRect(ctx, a.x * d, a.y * d, size * d, size * d, Math.min(size * d * 0.02, 10 * d));
-    ctx.fill();
-    ctx.restore();
+    drawPlate(
+      this.ctx,
+      { x: a.x * d, y: a.y * d, w: size * d, h: size * d },
+      Math.min(size * d * 0.02, 10 * d),
+      this.sprites.plateColor,
+      { blur: 12 * d, offsetY: 4 * d, color: 'rgba(0,0,0,0.35)' },
+    );
   }
 
   private paintCell(x: number, y: number): void {
@@ -313,22 +296,4 @@ function inBoard(x: number, y: number): boolean {
     x < PANEL_SIZE &&
     y < PANEL_SIZE
   );
-}
-
-export function roundRect(
-  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-): void {
-  const rr = Math.max(0, Math.min(r, w / 2, h / 2));
-  ctx.beginPath();
-  ctx.moveTo(x + rr, y);
-  ctx.arcTo(x + w, y, x + w, y + h, rr);
-  ctx.arcTo(x + w, y + h, x, y + h, rr);
-  ctx.arcTo(x, y + h, x, y, rr);
-  ctx.arcTo(x, y, x + w, y, rr);
-  ctx.closePath();
 }

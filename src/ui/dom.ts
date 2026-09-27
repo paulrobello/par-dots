@@ -1,6 +1,7 @@
 /** Minimal DOM helpers shared by screens: element builder, toast, confirm dialog, sheets. */
 
 type AttrValue = string | number | boolean | undefined | null;
+// The index signature has to admit `on`'s listener map; h() rejects an object on any other key.
 type Attrs = { [k: string]: AttrValue | Record<string, EventListener> } & {
   on?: Record<string, EventListener>;
 };
@@ -14,8 +15,8 @@ export function h<K extends keyof HTMLElementTagNameMap>(
 ): HTMLElementTagNameMap[K] {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
-    if (k === 'on' || typeof v === 'object') continue;
-    if (v === undefined || v === null || v === false) continue;
+    if (k === 'on' || v === undefined || v === null || v === false) continue;
+    if (typeof v === 'object') throw new TypeError(`h(): unsupported attribute value for ${k}`);
     if (k === 'class') el.className = String(v);
     else if (v === true) el.setAttribute(k, '');
     else el.setAttribute(k, String(v));
@@ -30,7 +31,7 @@ export function h<K extends keyof HTMLElementTagNameMap>(
 }
 
 /** Inline SVG icon from a small path set (24x24 viewBox, stroke style). */
-const ICONS: Record<string, string> = {
+const ICONS = {
   back: 'M15 5l-7 7 7 7',
   gear: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 13a7.5 7.5 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.6 7.6 0 0 0-1.7-1L15 3.5h-4l-.3 2.5a7.6 7.6 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.5 7.5 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.6 7.6 0 0 0 1.7 1l.3 2.5h4l.3-2.5a7.6 7.6 0 0 0 1.7-1l2.4 1 2-3.4z',
   undo: 'M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3',
@@ -48,23 +49,25 @@ const ICONS: Record<string, string> = {
   play: 'M8 5l11 7-11 7z',
   close: 'M6 6l12 12M18 6L6 18',
   check: 'M5 12.5l4.5 4.5L19 7',
-};
+} as const;
 
-export function icon(name: keyof typeof ICONS | string): SVGSVGElement {
+export type IconName = keyof typeof ICONS;
+
+export function icon(name: IconName): SVGSVGElement {
   const ns = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns, 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('aria-hidden', 'true');
   svg.setAttribute('class', 'icon');
   const path = document.createElementNS(ns, 'path');
-  path.setAttribute('d', ICONS[name] ?? '');
+  path.setAttribute('d', ICONS[name]);
   svg.append(path);
   return svg;
 }
 
 /** Icon button with an accessible label. */
 export function iconButton(
-  name: string,
+  name: IconName,
   label: string,
   onClick: (ev: MouseEvent) => void,
   cls = 'icon-btn',
@@ -88,6 +91,26 @@ export function toast(message: string, ms = 1800): void {
   el.classList.add('show');
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el?.classList.remove('show'), ms);
+}
+
+/** Close functions of every open overlay (sheets, celebrations), so navigation can dismiss them. */
+const openOverlays = new Set<() => void>();
+
+/** Track an open overlay; returns a function that stops tracking it. */
+export function registerOverlay(close: () => void): () => void {
+  openOverlays.add(close);
+  return () => {
+    openOverlays.delete(close);
+  };
+}
+
+/** Close every open overlay, running each one's normal close path. */
+export function closeAllOverlays(): void {
+  for (const c of [...openOverlays]) c();
+}
+
+export function isOverlayOpen(): boolean {
+  return openOverlays.size > 0;
 }
 
 /** Modal sheet from the bottom. Returns a close function. `onClose` runs once on any close. */
@@ -115,11 +138,13 @@ export function openSheet(
   function close(): void {
     if (closed) return;
     closed = true;
+    unregister();
     document.removeEventListener('keydown', onKey);
     backdrop.remove();
     prevFocus?.focus?.();
     onClose?.();
   }
+  const unregister = registerOverlay(close);
   document.addEventListener('keydown', onKey);
   document.body.append(backdrop);
   requestAnimationFrame(() => backdrop.classList.add('open'));

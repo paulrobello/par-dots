@@ -1,3 +1,8 @@
+/**
+ * Settings bottom sheet: sound, place sound (with preview), haptics, and Install app when
+ * the app is not already installed. Changes are stored immediately.
+ */
+
 import { playPlaceSound } from '../audio/sfx';
 import {
   getSettings,

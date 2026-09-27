@@ -15,8 +15,8 @@ import {
   getImage,
   getSave,
   listSaves,
-  putImage,
   putSave,
+  putSaveWithImage,
   StorageFullError,
 } from '../src/storage/db';
 import { newId } from '../src/storage/id';
@@ -24,10 +24,11 @@ import {
   DEFAULT_SETTINGS,
   getSettings,
   PLACE_SOUNDS,
+  resetSettingsCache,
   SETTINGS_KEY,
   setSettings,
 } from '../src/storage/settings';
-import { EMPTY, type PictureSave } from '../src/types';
+import { EMPTY, MAX_COLORS, MIN_COLORS, type PictureSave } from '../src/types';
 
 class MemoryStorage {
   map = new Map<string, string>();
@@ -50,6 +51,7 @@ function makeSave(overrides: Partial<PictureSave> = {}): PictureSave {
   const placed = new Uint8Array(48 * 48).fill(EMPTY);
   placed[3] = 2;
   return {
+    schemaVersion: 1,
     id: newId(),
     createdAt: 1,
     updatedAt: 1,
@@ -57,7 +59,7 @@ function makeSave(overrides: Partial<PictureSave> = {}): PictureSave {
     sourceImageId: 'library:lighthouse',
     aspect: '1:1',
     paletteMode: 'lego',
-    palette: [{ hex: '#ff0000', name: 'Red' }],
+    palette: Array.from({ length: 5 }, (_, i) => ({ hex: '#ff0000', name: `c${i}` })),
     width: 48,
     height: 48,
     target,
@@ -122,20 +124,22 @@ describe('db', () => {
     expect(all[0].name).toBe('two');
   });
 
-  it('stores and retrieves images', async () => {
+  it('stores a save and its image together', async () => {
     const blob = new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' });
-    const id = await putImage(blob);
-    const got = await getImage(id);
+    const save = makeSave({ sourceImageId: 'img-1' });
+    await putSaveWithImage(save, blob);
+    const got = await getImage('img-1');
     expect(got).toBeDefined();
     expect(got?.size).toBe(3);
+    expect((await getSave(save.id))?.sourceImageId).toBe('img-1');
     expect(await getImage('nope')).toBeUndefined();
   });
 
   it('deleteSave removes an uploaded image but keeps library references', async () => {
-    const imgId = await putImage(new Blob([new Uint8Array([9])]));
+    const imgId = 'img-9';
     const uploaded = makeSave({ sourceImageId: imgId });
     const lib = makeSave({ sourceImageId: 'library:lighthouse' });
-    await putSave(uploaded);
+    await putSaveWithImage(uploaded, new Blob([new Uint8Array([9])]));
     await putSave(lib);
 
     await deleteSave(uploaded.id);
@@ -147,6 +151,35 @@ describe('db', () => {
     await expect(deleteSave('missing')).resolves.toBeUndefined();
   });
 
+  it('loads a record without schemaVersion as version 1', async () => {
+    const { schemaVersion: _, ...legacy } = makeSave({ id: 'legacy' });
+    await putSave(legacy as PictureSave);
+    expect((await getSave('legacy'))?.schemaVersion).toBe(1);
+    expect((await listSaves()).map((s) => s.schemaVersion)).toEqual([1]);
+  });
+
+  it('skips records that fail validation or come from a newer build', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await putSave(makeSave({ id: 'ok' }));
+      await putSave(makeSave({ id: 'short', placed: new Uint8Array(10) }));
+      await putSave(makeSave({ id: 'future', schemaVersion: 99 }));
+      await putSave(makeSave({ id: 'badcolor', target: new Uint8Array(48 * 48).fill(7) }));
+      expect((await listSaves()).map((s) => s.id)).toEqual(['ok']);
+      expect(await getSave('short')).toBeUndefined();
+      expect(await getSave('future')).toBeUndefined();
+      expect(await getSave('badcolor')).toBeUndefined();
+      expect(warn).toHaveBeenCalledWith('Skipping invalid save', 'short');
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('pads panelElapsedMs to the panel count', async () => {
+    await putSave(makeSave({ id: 'p', panelElapsedMs: [5] }));
+    expect((await getSave('p'))?.panelElapsedMs).toEqual([5, 0, 0, 0, 0, 0, 0, 0, 0]);
+  });
+
   it('surfaces QuotaExceededError as StorageFullError', async () => {
     const quota = new DOMException('full', 'QuotaExceededError');
     const spy = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(() => {
@@ -156,10 +189,33 @@ describe('db', () => {
       const err = await putSave(makeSave()).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(StorageFullError);
       expect((err as Error).name).toBe('StorageFullError');
-      await expect(putImage(new Blob([]))).rejects.toBeInstanceOf(StorageFullError);
+      await expect(
+        putSaveWithImage(makeSave({ sourceImageId: 'q' }), new Blob([])),
+      ).rejects.toBeInstanceOf(StorageFullError);
     } finally {
       spy.mockRestore();
     }
+  });
+
+  it('putSaveWithImage leaves no image behind when the save write hits the quota', async () => {
+    const realPut = IDBObjectStore.prototype.put;
+    const spy = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (
+      this: IDBObjectStore,
+      ...args: [unknown, IDBValidKey?]
+    ) {
+      if (this.name === 'saves') throw new DOMException('quota', 'QuotaExceededError');
+      return realPut.apply(this, args);
+    });
+    const save = makeSave({ sourceImageId: 'orphan' });
+    try {
+      await expect(putSaveWithImage(save, new Blob([new Uint8Array([1])]))).rejects.toBeInstanceOf(
+        StorageFullError,
+      );
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await getImage('orphan')).toBeUndefined();
+    expect(await getSave(save.id)).toBeUndefined();
   });
 });
 
@@ -168,6 +224,7 @@ describe('settings', () => {
   beforeEach(() => {
     storage = new MemoryStorage();
     vi.stubGlobal('localStorage', storage);
+    resetSettingsCache();
   });
   afterEach(() => vi.unstubAllGlobals());
 
@@ -184,12 +241,23 @@ describe('settings', () => {
 
   it('ignores corrupt or invalid values', () => {
     storage.setItem(SETTINGS_KEY, '{not json');
+    resetSettingsCache();
     expect(getSettings()).toEqual(DEFAULT_SETTINGS);
     storage.setItem(
       SETTINGS_KEY,
       JSON.stringify({ sound: 'no', paletteMode: 'x', haptics: false }),
     );
+    resetSettingsCache();
     expect(getSettings()).toEqual({ ...DEFAULT_SETTINGS, haptics: false });
+  });
+
+  it('clamps maxColors to the slider range', () => {
+    storage.setItem(SETTINGS_KEY, JSON.stringify({ maxColors: 2 }));
+    resetSettingsCache();
+    expect(getSettings().maxColors).toBe(MIN_COLORS);
+    storage.setItem(SETTINGS_KEY, JSON.stringify({ maxColors: 99 }));
+    resetSettingsCache();
+    expect(getSettings().maxColors).toBe(MAX_COLORS);
   });
 
   it('survives a throwing localStorage', () => {
@@ -203,6 +271,16 @@ describe('settings', () => {
     });
     expect(setSettings({ haptics: false }).haptics).toBe(false);
     expect(getSettings().haptics).toBe(false);
+  });
+
+  it('serves reads from memory and returns copies', () => {
+    const spy = vi.spyOn(storage, 'getItem');
+    getSettings();
+    getSettings();
+    expect(spy).toHaveBeenCalledTimes(1);
+    const a = getSettings();
+    a.sound = false;
+    expect(getSettings().sound).toBe(true);
   });
 });
 
@@ -276,6 +354,7 @@ describe('audio + haptics', () => {
     ctxCount = 0;
     vibrate = vi.fn();
     vi.stubGlobal('localStorage', new MemoryStorage());
+    resetSettingsCache();
     vi.stubGlobal('AudioContext', FakeAudioContext);
     vi.stubGlobal('navigator', { vibrate });
   });

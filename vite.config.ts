@@ -1,11 +1,36 @@
 import { VitePWA } from 'vite-plugin-pwa';
 import { defineConfig } from 'vitest/config';
 
+/** Production CSP, injected at build time only: the dev server needs inline scripts and an HMR socket. */
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' blob: data:",
+  "connect-src 'self' https:",
+  "worker-src 'self' blob:",
+  "manifest-src 'self'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'none'",
+].join('; ');
+
 export default defineConfig({
   base: '/',
   plugins: [
+    {
+      name: 'csp-meta',
+      apply: 'build',
+      transformIndexHtml: () => [
+        {
+          tag: 'meta',
+          attrs: { 'http-equiv': 'Content-Security-Policy', content: CSP },
+          injectTo: 'head-prepend',
+        },
+      ],
+    },
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: [
         'favicon.svg',
         'favicon-32.png',
@@ -43,5 +68,16 @@ export default defineConfig({
       },
     }),
   ],
-  test: { environment: 'node', include: ['tests/**/*.test.ts'], passWithNoTests: true },
+  test: {
+    environment: 'node',
+    include: ['tests/**/*.test.ts'],
+    passWithNoTests: true,
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.ts'],
+      reporter: ['text-summary', 'html'],
+      // Floor of the measured baseline (41.69% on 2026-09-26); raise as UI coverage grows.
+      thresholds: { lines: 41 },
+    },
+  },
 });

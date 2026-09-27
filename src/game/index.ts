@@ -1,4 +1,20 @@
-export { panelCount, panelOrigin, studIndex } from './geometry';
+/**
+ * Public API of the game layer: panel geometry, PanelSession, and progress. The one barrel
+ * in src/ (see docs/ARCHITECTURE.md, Conventions).
+ */
+
+export {
+  aspectOf,
+  panelCount,
+  panelCountOf,
+  panelFractions,
+  panelGridOf,
+  panelIndexOf,
+  panelOrigin,
+  panelOriginOf,
+  studDims,
+  studIndex,
+} from './geometry';
 export {
   type ChangeCause,
   MAX_HISTORY,

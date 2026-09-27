@@ -1,4 +1,18 @@
-import { MAX_COLORS, type Mosaic, type PaletteColor, type PaletteMode } from '../types';
+/**
+ * Mosaic quantization: turns stud-resolution RGBA pixels into a palette and a target index
+ * per stud. Deterministic for identical input.
+ *
+ * 1. Collect distinct colors with pixel counts, compositing transparency over white.
+ * 2. Choose candidates. LEGO mode: when the LEGO colors nearest to some pixel color already
+ *    fit the limit, use them; otherwise greedy selection from LEGO_COLORS by weighted Lab
+ *    error, then swap refinement. Free mode: when the distinct colors fit, use them;
+ *    otherwise weighted k-means++ seeding (fixed FREE_SEED) and Lloyd iterations in Lab,
+ *    each centroid colored by its RGB mean and named after the nearest LEGO color.
+ * 3. Merge candidates closer than MIN_DELTA_E, dropping the one covering fewer pixels.
+ * 4. Map pixels to their nearest candidate, keep used candidates only, and sort by L*, then hex.
+ */
+
+import { MAX_COLORS, MIN_COLORS, type Mosaic, type PaletteColor, type PaletteMode } from '../types';
 import { deltaE76Sq, hexToRgb, type Lab, rgbToHex, rgbToLab } from './color';
 import { LEGO_COLORS } from './legoPalette';
 
@@ -48,7 +62,7 @@ function collectColors(pixels: Uint8ClampedArray, count: number): ColorSet {
   return set;
 }
 
-function nearest(lab: Lab, entries: Entry[]): number {
+function nearest(lab: Lab, entries: readonly Entry[]): number {
   let best = 0;
   let bestD = Number.POSITIVE_INFINITY;
   for (let j = 0; j < entries.length; j++) {
@@ -72,36 +86,25 @@ function selectionError(dist: Float64Array[], weight: number[], selected: number
   return total;
 }
 
-/** Choose up to MAX_COLORS LEGO colors minimizing weighted Lab error. */
-function chooseLegoEntries(colors: ColorSet, maxColors: number): Entry[] {
-  const lego: Entry[] = LEGO_COLORS.map((c) => {
-    const [r, g, b] = hexToRgb(c.hex);
-    return { color: c, lab: rgbToLab(r, g, b) };
-  });
-  const n = colors.lab.length;
+/** Every LEGO color with its Lab value, computed once. */
+const LEGO_ENTRIES: readonly Entry[] = LEGO_COLORS.map((c) => {
+  const [r, g, b] = hexToRgb(c.hex);
+  return { color: c, lab: rgbToLab(r, g, b) };
+});
 
-  // Candidates that are the nearest LEGO color for at least one pixel color.
-  const used = new Set<number>();
-  for (let i = 0; i < n; i++) used.add(nearest(colors.lab[i], lego));
-  if (used.size <= maxColors) return [...used].map((j) => lego[j]);
-
-  const dist = lego.map((e) => {
-    const row = new Float64Array(n);
-    for (let i = 0; i < n; i++) row[i] = deltaE76Sq(colors.lab[i], e.lab);
-    return row;
-  });
-
-  // Greedy forward selection.
+/** Greedy forward selection of `limit` candidate rows minimizing weighted error. */
+function greedySelect(dist: Float64Array[], weight: number[], limit: number): number[] {
+  const n = weight.length;
   const selected: number[] = [];
   const cur = new Float64Array(n).fill(Number.POSITIVE_INFINITY);
-  while (selected.length < maxColors) {
+  while (selected.length < limit) {
     let bestJ = -1;
     let bestErr = Number.POSITIVE_INFINITY;
-    for (let j = 0; j < lego.length; j++) {
+    for (let j = 0; j < dist.length; j++) {
       if (selected.includes(j)) continue;
       let err = 0;
       const row = dist[j];
-      for (let i = 0; i < n; i++) err += Math.min(cur[i], row[i]) * colors.weight[i];
+      for (let i = 0; i < n; i++) err += Math.min(cur[i], row[i]) * weight[i];
       if (err < bestErr) {
         bestErr = err;
         bestJ = j;
@@ -111,39 +114,55 @@ function chooseLegoEntries(colors: ColorSet, maxColors: number): Entry[] {
     const row = dist[bestJ];
     for (let i = 0; i < n; i++) if (row[i] < cur[i]) cur[i] = row[i];
   }
+  return selected;
+}
 
-  // Swap refinement: apply the best (selected slot -> unselected color) swap while it helps.
-  // Tracking nearest and second-nearest selected distances scores every slot for a
-  // candidate in one pass over the colors.
-  const w = colors.weight;
+/** For every color: nearest (d1, slot s1) and second-nearest (d2) distance among `selected`. */
+function nearestTwo(
+  dist: Float64Array[],
+  selected: number[],
+  d1: Float64Array,
+  d2: Float64Array,
+  s1: Int32Array,
+): void {
+  for (let i = 0; i < d1.length; i++) {
+    let a = Number.POSITIVE_INFINITY;
+    let b = Number.POSITIVE_INFINITY;
+    let sa = 0;
+    for (let s = 0; s < selected.length; s++) {
+      const d = dist[selected[s]][i];
+      if (d < a) {
+        b = a;
+        a = d;
+        sa = s;
+      } else if (d < b) {
+        b = d;
+      }
+    }
+    d1[i] = a;
+    d2[i] = b;
+    s1[i] = sa;
+  }
+}
+
+/**
+ * Swap refinement: apply the best (selected slot -> unselected candidate) swap while it helps.
+ * Tracking nearest and second-nearest selected distances scores every slot for a candidate
+ * in one pass over the colors. Mutates `selected`.
+ */
+function swapRefine(dist: Float64Array[], w: number[], selected: number[]): void {
+  const n = w.length;
   const d1 = new Float64Array(n);
   const d2 = new Float64Array(n);
   const s1 = new Int32Array(n);
   const gain = new Float64Array(selected.length);
   let err = selectionError(dist, w, selected);
   for (let round = 0; round < SWAP_MAX_ROUNDS; round++) {
-    for (let i = 0; i < n; i++) {
-      let a = Number.POSITIVE_INFINITY;
-      let b = Number.POSITIVE_INFINITY;
-      let sa = 0;
-      for (let s = 0; s < selected.length; s++) {
-        const d = dist[selected[s]][i];
-        if (d < a) {
-          b = a;
-          a = d;
-          sa = s;
-        } else if (d < b) {
-          b = d;
-        }
-      }
-      d1[i] = a;
-      d2[i] = b;
-      s1[i] = sa;
-    }
+    nearestTwo(dist, selected, d1, d2, s1);
     let bestErr = err;
     let bestS = -1;
     let bestJ = -1;
-    for (let j = 0; j < lego.length; j++) {
+    for (let j = 0; j < dist.length; j++) {
       if (selected.includes(j)) continue;
       const row = dist[j];
       let base = 0;
@@ -166,6 +185,25 @@ function chooseLegoEntries(colors: ColorSet, maxColors: number): Entry[] {
     selected[bestS] = bestJ;
     err = bestErr;
   }
+}
+
+/** Choose up to maxColors LEGO colors minimizing weighted Lab error. */
+function chooseLegoEntries(colors: ColorSet, maxColors: number): Entry[] {
+  const lego = LEGO_ENTRIES;
+  const n = colors.lab.length;
+
+  // Candidates that are the nearest LEGO color for at least one pixel color.
+  const used = new Set<number>();
+  for (let i = 0; i < n; i++) used.add(nearest(colors.lab[i], lego));
+  if (used.size <= maxColors) return [...used].map((j) => lego[j]);
+
+  const dist = lego.map((e) => {
+    const row = new Float64Array(n);
+    for (let i = 0; i < n; i++) row[i] = deltaE76Sq(colors.lab[i], e.lab);
+    return row;
+  });
+  const selected = greedySelect(dist, colors.weight, maxColors);
+  swapRefine(dist, colors.weight, selected);
   return selected.map((j) => lego[j]);
 }
 
@@ -182,14 +220,13 @@ function mulberry32(seed: number): () => number {
 }
 
 function legoName(lab: Lab): string {
-  let best = LEGO_COLORS[0].name;
+  let best = LEGO_ENTRIES[0].color.name;
   let bestD = Number.POSITIVE_INFINITY;
-  for (const c of LEGO_COLORS) {
-    const [r, g, b] = hexToRgb(c.hex);
-    const d = deltaE76Sq(lab, rgbToLab(r, g, b));
+  for (const e of LEGO_ENTRIES) {
+    const d = deltaE76Sq(lab, e.lab);
     if (d < bestD) {
       bestD = d;
-      best = c.name;
+      best = e.color.name;
     }
   }
   return best;
@@ -203,16 +240,10 @@ function entryFromPacked(rgb: number): Entry {
   return { color: { hex: rgbToHex(r, g, b), name: legoName(lab) }, lab };
 }
 
-/** Seeded weighted k-means (k-means++ init) in Lab. Centroid colors are RGB means. */
-function chooseFreeEntries(colors: ColorSet, maxColors: number): Entry[] {
+/** Weighted k-means++ seeding: up to k initial centers drawn with `rand`. */
+function kmeansPlusPlusSeed(colors: ColorSet, k: number, rand: () => number): Lab[] {
   const n = colors.lab.length;
-  if (n <= maxColors) return colors.rgb.map(entryFromPacked);
-
-  const k = maxColors;
-  const rand = mulberry32(FREE_SEED);
   const centers: Lab[] = [];
-
-  // k-means++ seeding, weighted by pixel counts.
   const total = colors.weight.reduce((s, w) => s + w, 0);
   let pick = rand() * total;
   let first = 0;
@@ -239,11 +270,22 @@ function chooseFreeEntries(colors: ColorSet, maxColors: number): Entry[] {
       if (d < d2[i]) d2[i] = d;
     }
   }
+  return centers;
+}
 
+/** Per-cluster weighted RGB sums and total weights from the final Lloyd assignment. */
+interface ClusterSums {
+  rgbSum: Float64Array;
+  wSum: Float64Array;
+}
+
+/** Lloyd iterations in Lab, updating `centers` in place until assignments settle. */
+function lloydRefine(colors: ColorSet, centers: Lab[], iterations: number): ClusterSums {
+  const n = colors.lab.length;
   const assign = new Int32Array(n).fill(-1);
   const rgbSum = new Float64Array(centers.length * 3);
   const wSum = new Float64Array(centers.length);
-  for (let iter = 0; iter < KMEANS_MAX_ITER; iter++) {
+  for (let iter = 0; iter < iterations; iter++) {
     let changed = false;
     for (let i = 0; i < n; i++) {
       let best = 0;
@@ -287,20 +329,32 @@ function chooseFreeEntries(colors: ColorSet, maxColors: number): Entry[] {
     }
     if (!changed) break;
   }
+  return { rgbSum, wSum };
+}
 
+/** One entry per non-empty cluster, colored by its RGB mean; duplicate hexes are dropped. */
+function centroidsToEntries({ rgbSum, wSum }: ClusterSums): Entry[] {
+  const channel = (v: number): number => Math.max(0, Math.min(255, Math.round(v)));
   const entries: Entry[] = [];
-  const seen = new Set<string>();
-  for (let c = 0; c < centers.length; c++) {
+  const seen = new Set<number>();
+  for (let c = 0; c < wSum.length; c++) {
     if (wSum[c] <= 0) continue;
-    const r = rgbSum[c * 3] / wSum[c];
-    const g = rgbSum[c * 3 + 1] / wSum[c];
-    const b = rgbSum[c * 3 + 2] / wSum[c];
-    const hex = rgbToHex(r, g, b);
-    if (seen.has(hex)) continue;
-    seen.add(hex);
-    entries.push(entryFromPacked(Number.parseInt(hex.slice(1), 16)));
+    const packed =
+      (channel(rgbSum[c * 3] / wSum[c]) << 16) |
+      (channel(rgbSum[c * 3 + 1] / wSum[c]) << 8) |
+      channel(rgbSum[c * 3 + 2] / wSum[c]);
+    if (seen.has(packed)) continue;
+    seen.add(packed);
+    entries.push(entryFromPacked(packed));
   }
   return entries;
+}
+
+/** Seeded weighted k-means (k-means++ init) in Lab. Centroid colors are RGB means. */
+function chooseFreeEntries(colors: ColorSet, maxColors: number): Entry[] {
+  if (colors.lab.length <= maxColors) return colors.rgb.map(entryFromPacked);
+  const centers = kmeansPlusPlusSeed(colors, maxColors, mulberry32(FREE_SEED));
+  return centroidsToEntries(lloydRefine(colors, centers, KMEANS_MAX_ITER));
 }
 
 /**
@@ -346,7 +400,7 @@ export function buildMosaic(
   maxColors: number = MAX_COLORS,
 ): Mosaic {
   const count = width * height;
-  const limit = Math.max(2, Math.min(MAX_COLORS, Math.round(maxColors)));
+  const limit = Math.max(MIN_COLORS, Math.min(MAX_COLORS, Math.round(maxColors)));
   if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0) {
     throw new RangeError(`Invalid mosaic size ${width}x${height}`);
   }
