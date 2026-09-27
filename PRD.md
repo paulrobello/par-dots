@@ -148,7 +148,7 @@ Interaction:
 
 - A place sound on place (five variants: Snap, Click, Pop, Tick, Blip), a softer sound on remove, a chime on color completed, an error buzz on full-but-wrong, and fanfares on panel and picture complete. All sounds are synthesized with the Web Audio API; no audio files ship.
 - Haptics via `navigator.vibrate` where supported (iOS Safari lacks it; degrade silently).
-- The settings sheet (gear button on the play screen) offers Sound on/off, Place sound (tap to preview), Haptics on/off, Effects volume, Music on/off, Music volume, Music track (Happy, Calm, Energy), Background color, and Install app when not already installed.
+- The settings sheet (gear button at the top right of every screen) offers Sound on/off, Place sound (tap to preview), Haptics on/off, Effects volume, Music on/off, Music volume, Music track (Happy, Calm, Energy), Background color, and Install app when not already installed.
 - On the first panel played in a mobile browser, the app offers once to install itself.
 
 Settings are stored in localStorage under `par-dots:settings`:

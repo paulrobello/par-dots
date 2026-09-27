@@ -23,9 +23,17 @@ import {
   setSettings,
 } from '../storage/settings';
 import { applyBackground, BACKGROUND_COLORS } from './background';
-import { h, openSheet } from './dom';
+import { h, iconButton, openSheet } from './dom';
 import { canOfferInstall, installApp } from './install';
 import { formatBytes } from './pure';
+
+/** The gear button that opens the settings sheet, for any screen's top bar. */
+export function settingsButton(onOpen?: () => void, onClose?: () => void): HTMLButtonElement {
+  return iconButton('gear', 'Settings', () => {
+    onOpen?.();
+    openSettingsSheet(onClose);
+  });
+}
 
 /** Sound, haptics, music and appearance settings in a bottom sheet. */
 export function openSettingsSheet(onClose?: () => void): void {

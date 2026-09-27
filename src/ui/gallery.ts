@@ -19,6 +19,7 @@ import {
   restoreBackup,
 } from './saves';
 import type { Cleanup, ScreenContext } from './screen';
+import { settingsButton } from './settingsSheet';
 
 function totalMs(save: PictureSave): number {
   return save.panelElapsedMs.reduce((a, b) => a + b, 0);
@@ -99,6 +100,7 @@ export function mountGallery({ root, navigate }: ScreenContext): Cleanup {
       h(
         'header',
         { class: 'hero' },
+        h('div', { class: 'hero-settings' }, settingsButton()),
         h('div', { class: 'logo', 'aria-hidden': 'true' }, dotLogo()),
         h('h1', {}, 'par-dots'),
         h('p', { class: 'tagline' }, 'Rebuild any picture, one dot at a time.'),

@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A tray color's count is now the dots of it left in hand, so a wrong dot uses one up. A color at 0 can no longer be placed; it stays in the tray, dimmed, while any of its dots are misplaced.
 - A finished picture's overview shows one green frame instead of a check mark on every panel.
 - Glass buttons, chips and panels are darker for contrast.
+- The Settings gear is on every screen (gallery, New Picture, setup, overview and panel), not only the panel screen.
+- View picture uses the same dark chip style as Ghost, Parts and Guide.
 
 ### Added
 

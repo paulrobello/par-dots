@@ -10,6 +10,7 @@ import { decodeImage, ImageTooLargeError } from './image';
 import { loadLibrary } from './library';
 import { nameFromFile, nameFromUrl, parseImageUrl, userMessage } from './pure';
 import type { Cleanup, ScreenContext } from './screen';
+import { settingsButton } from './settingsSheet';
 import { setPendingSource } from './state';
 
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
@@ -198,6 +199,7 @@ export function mountSource({ root, navigate }: ScreenContext): Cleanup {
         iconButton('back', 'Back to gallery', () => navigate('#/')),
         h('h1', { class: 'title' }, 'New Picture'),
         h('span', { class: 'spacer' }),
+        settingsButton(),
       ),
       h(
         'div',

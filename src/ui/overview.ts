@@ -17,6 +17,7 @@ import { openGuideSheet, openPartsSheet } from './partsSheet';
 import { formatDuration, formatPercent, panelZoomTransform, routeHash, userMessage } from './pure';
 import { loadSave } from './saves';
 import type { Cleanup, ScreenContext } from './screen';
+import { settingsButton } from './settingsSheet';
 import { takeTransitionHint } from './state';
 
 const ZOOM_MS = 320;
@@ -59,7 +60,7 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
   );
   const viewBtn = h(
     'button',
-    { type: 'button', class: 'btn', hidden: true },
+    { type: 'button', class: 'chip', hidden: true },
     icon('eye'),
     'View picture',
   );
@@ -75,6 +76,7 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
         iconButton('back', 'Back to gallery', () => navigate('#/')),
         title,
         h('span', { class: 'spacer' }),
+        settingsButton(),
       ),
       stats,
       stage,

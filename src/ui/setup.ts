@@ -34,6 +34,7 @@ import {
 } from './pure';
 import { createSave } from './saves';
 import type { Cleanup, ScreenContext } from './screen';
+import { settingsButton } from './settingsSheet';
 import { getPendingSource, setPendingSource } from './state';
 
 const ASPECTS: Array<{ value: Aspect; label: string }> = [
@@ -197,6 +198,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
         iconButton('back', 'Back to picture choice', () => navigate('#/new')),
         h('h1', { class: 'title' }, src.name),
         h('span', { class: 'spacer' }),
+        settingsButton(),
       ),
       h(
         'div',
