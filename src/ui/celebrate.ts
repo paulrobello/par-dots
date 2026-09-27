@@ -1,11 +1,35 @@
 /**
- * Full-screen confetti celebration for panel and picture completion. Registers as an
- * overlay, so routing away ends it early.
+ * Panel completion badge and full-picture confetti. Both register as overlays so
+ * routing away ends them early.
  */
 
 import { prefersReducedMotion } from '../render/motion';
 import type { PaletteColor } from '../types';
-import { h, registerOverlay } from './dom';
+import { h, icon, registerOverlay } from './dom';
+
+/** Show a short completion badge over the board after its light sweep settles. */
+export function celebratePanel(container: HTMLElement): Promise<void> {
+  const badge = h(
+    'div',
+    { class: 'panel-complete-badge', role: 'status', 'aria-live': 'polite' },
+    icon('check'),
+    'Panel complete',
+  );
+  container.append(badge);
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (): void => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      unregister();
+      badge.remove();
+      resolve();
+    };
+    const unregister = registerOverlay(finish);
+    const timer = setTimeout(finish, 800);
+  });
+}
 
 /** Burst of CSS dot confetti over the screen. Resolves after the animation (short under reduced motion), or early when overlays are closed. */
 export function celebrate(palette: PaletteColor[], title: string, ms = 1600): Promise<void> {

@@ -13,6 +13,7 @@ import {
   cellToScreen,
   fitGrid,
   IDENTITY_VIEWPORT,
+  pressHighlightAlpha,
   pressScale,
   pulseAlpha,
   quantizeSpritePx,
@@ -131,11 +132,19 @@ describe('sprite size quantization', () => {
 
 describe('animation curves', () => {
   it('press pop starts small, overshoots, settles at 1', () => {
-    expect(pressScale(0)).toBeCloseTo(0.72);
+    expect(pressScale(0)).toBeCloseTo(0.94);
+    expect(pressScale(0.25)).toBeGreaterThan(0.94);
     expect(pressScale(1)).toBe(1);
     expect(pressScale(2)).toBe(1);
     const peak = Math.max(...[0.5, 0.6, 0.7, 0.8].map(pressScale));
     expect(peak).toBeGreaterThan(1);
+  });
+
+  it('placement glint is brief and fades to zero', () => {
+    expect(pressHighlightAlpha(0)).toBeCloseTo(0.24);
+    expect(pressHighlightAlpha(0.2)).toBeGreaterThan(0);
+    expect(pressHighlightAlpha(0.5)).toBe(0);
+    expect(pressHighlightAlpha(2)).toBe(0);
   });
 
   it('hint pulse stays within a visible range', () => {

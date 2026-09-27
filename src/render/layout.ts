@@ -129,10 +129,23 @@ export function easeOutBack(t: number): number {
   return 1 + c3 * u * u * u + c1 * u * u;
 }
 
-/** Placement pop scale for normalized time t in [0,1]: starts small, overshoots, settles at 1. */
+/** Placement pop scale for normalized time t in [0,1]: compresses, overshoots, settles at 1. */
 export function pressScale(t: number): number {
   if (t >= 1) return 1;
-  return 0.72 + 0.28 * easeOutBack(t);
+  const u = Math.max(0, t);
+  if (u <= 0) return 0.94;
+  if (u < 0.55) {
+    const p = u / 0.55;
+    return 0.94 + 0.08 * (1 - (1 - p) ** 3);
+  }
+  const p = (u - 0.55) / 0.45;
+  const smooth = p * p * (3 - 2 * p);
+  return 1.02 - 0.02 * smooth;
+}
+
+/** Brief upper-left placement glint, fading before the dot settles. */
+export function pressHighlightAlpha(t: number): number {
+  return 0.24 * (1 - Math.max(0, Math.min(1, t * 2.4)));
 }
 
 /** Hint pulse alpha in [0.35, 1] for elapsed ms, 2 pulses per second. */

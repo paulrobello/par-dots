@@ -2,8 +2,8 @@
  * 16x16 panel board renderer (Canvas 2D, pseudo-3D sprites).
  *
  * BoardRenderer owns its canvas's backing store and device pixel ratio, a sprite cache, the
- * viewport (zoom and pan), and a requestAnimationFrame loop that runs only while press or
- * hint animations are active. Call order: construct (sizes the canvas), setData, resize or
+ * viewport (zoom and pan), and a requestAnimationFrame loop that runs only while placement,
+ * hint, reference-fade, or completion effects are active. Call order: construct, setData, resize or
  * draw, drawCells/pressAnim/highlight during play, destroy on unmount.
  *
  * Coordinates: cells are panel-local (x, y) in 0..15. The viewport is in canvas CSS px
@@ -19,6 +19,7 @@ import {
   fitGrid,
   type GridLayout,
   IDENTITY_VIEWPORT,
+  pressHighlightAlpha,
   pressScale,
   pulseAlpha,
   screenToCell,
@@ -43,6 +44,8 @@ export interface BoardRendererOptions {
 }
 
 const PRESS_MS = 180;
+const OVERLAY_MS = 160;
+const COMPLETE_MS = 600;
 const SYMBOL_FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
 
 /** Draws one panel board; see the file header for ownership and call order. */
@@ -73,6 +76,14 @@ export class BoardRenderer {
   private raf = 0;
   private destroyed = false;
   private overlay = false;
+  private overlayMix = 0;
+  private overlayFrom = 0;
+  private overlayTo = 0;
+  private overlayStart = 0;
+  private completionStart: number | null = null;
+  private completionDone = false;
+  private completionPromise: Promise<void> | null = null;
+  private completionResolve: (() => void) | null = null;
 
   /** Takes the canvas's 2D context and sizes it. Throws when no 2D context is available. */
   constructor(canvas: HTMLCanvasElement, opts: BoardRendererOptions = {}) {
@@ -100,14 +111,18 @@ export class BoardRenderer {
     this.vp = { scale: scale > 0 ? scale : 1, offsetX, offsetY };
   }
 
-  /**
-   * Show the target colors as faint dots, each carrying its palette symbol, on empty studs
-   * (reference overlay). Redraws on change.
-   */
+  /** Show or hide the target reference overlay with a short reversible fade. */
   setOverlay(on: boolean): void {
     if (this.overlay === on) return;
+    const t = now();
+    this.updateOverlay(t);
     this.overlay = on;
+    this.overlayFrom = this.overlayMix;
+    this.overlayTo = on ? 1 : 0;
+    this.overlayStart = t;
+    if (prefersReducedMotion()) this.overlayMix = this.overlayTo;
     this.draw();
+    if (!prefersReducedMotion()) this.ensureLoop();
   }
 
   /** A copy of the current viewport. */
@@ -195,6 +210,24 @@ export class BoardRenderer {
     this.ensureLoop();
   }
 
+  /** Sweep a soft highlight across placed dots once, resolving after the sweep. */
+  completeAnim(): Promise<void> {
+    if (this.destroyed || this.completionDone) return Promise.resolve();
+    if (this.completionPromise) return this.completionPromise;
+    if (prefersReducedMotion()) {
+      this.completionDone = true;
+      this.draw();
+      return Promise.resolve();
+    }
+    this.completionStart = now();
+    this.completionPromise = new Promise<void>((resolve) => {
+      this.completionResolve = resolve;
+    });
+    this.draw();
+    this.ensureLoop();
+    return this.completionPromise;
+  }
+
   /** Stop animations and release resources. */
   destroy(): void {
     this.destroyed = true;
@@ -204,6 +237,10 @@ export class BoardRenderer {
     this.hintTimer = null;
     this.presses.clear();
     this.hints.clear();
+    this.completionStart = null;
+    this.completionDone = true;
+    this.completionResolve?.();
+    this.completionResolve = null;
     this.sprites.clear();
   }
 
@@ -244,16 +281,36 @@ export class BoardRenderer {
     if (color) {
       let sc = 1;
       const pressT = this.presses.get(k);
-      if (pressT !== undefined) sc = pressScale((now() - pressT) / PRESS_MS);
+      let pressProgress = 1;
+      if (pressT !== undefined) {
+        pressProgress = (now() - pressT) / PRESS_MS;
+        sc = pressScale(pressProgress);
+      }
       const w = r.w * sc;
       const h = r.h * sc;
       ctx.drawImage(this.sprites.dot(color.hex, s), r.x + (r.w - w) / 2, r.y + (r.h - h) / 2, w, h);
-    } else if (this.overlay && cell?.target !== undefined) {
+      const glint = pressHighlightAlpha(pressProgress);
+      if (glint > 0) {
+        ctx.globalAlpha = glint;
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = Math.max(0.8, s * 0.035);
+        ctx.beginPath();
+        ctx.arc(
+          r.x + r.w * 0.43,
+          r.y + r.h * 0.43,
+          Math.min(w, h) * 0.28,
+          Math.PI * 1.05,
+          Math.PI * 1.6,
+        );
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    } else if (this.overlayMix > 0 && cell?.target !== undefined) {
       const t = this.palette[cell.target];
       if (t) {
-        ctx.globalAlpha = 0.35;
+        ctx.globalAlpha = 0.35 * this.overlayMix;
         ctx.drawImage(this.sprites.dot(t.hex, s), r.x, r.y, r.w, r.h);
-        ctx.globalAlpha = 1;
+        ctx.globalAlpha = this.overlayMix;
         const sym = this.symbols[cell.target];
         if (sym) {
           ctx.font = `bold ${Math.round(s * (sym.length > 1 ? 0.34 : 0.44))}px ${SYMBOL_FONT}`;
@@ -262,6 +319,21 @@ export class BoardRenderer {
           ctx.fillStyle = luminance(t.hex) > 0.45 ? '#1b1b1b' : '#fff';
           ctx.fillText(sym, r.x + r.w / 2, r.y + r.h / 2);
         }
+      }
+    }
+    if (color && this.completionStart !== null) {
+      const progress = Math.max(0, Math.min(1, (now() - this.completionStart) / COMPLETE_MS));
+      const distance = progress * 1.2 - (x + 0.5) / PANEL_SIZE;
+      const alpha = Math.max(0, Math.min(1, 1 - Math.abs(distance) / 0.18)) * 0.24;
+      if (alpha > 0) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(r.x + r.w / 2, r.y + r.h / 2, Math.min(r.w, r.h) * 0.43, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(r.x, r.y, r.w, r.h);
+        ctx.restore();
       }
     }
     if (this.hints.has(k)) {
@@ -284,6 +356,20 @@ export class BoardRenderer {
     this.raf = 0;
     if (this.destroyed) return;
     const t = now();
+    const wasOverlayActive = this.overlayMix !== this.overlayTo;
+    this.updateOverlay(t);
+    let completionActive = false;
+    let completionFinished = false;
+    if (this.completionStart !== null) {
+      completionActive = t - this.completionStart < COMPLETE_MS;
+      if (!completionActive) {
+        completionFinished = true;
+        this.completionStart = null;
+        this.completionDone = true;
+        this.completionResolve?.();
+        this.completionResolve = null;
+      }
+    }
     const dirty: number[] = [];
     for (const [k, start] of this.presses) {
       if (t - start >= PRESS_MS) this.presses.delete(k);
@@ -293,9 +379,28 @@ export class BoardRenderer {
       if (t >= end) this.hints.delete(k);
       dirty.push(k);
     }
-    this.repaintKeys(dirty);
-    if (this.presses.size > 0 || this.hints.size > 0) this.ensureLoop();
+    if (
+      wasOverlayActive ||
+      this.overlayMix !== this.overlayTo ||
+      completionActive ||
+      completionFinished
+    )
+      this.draw();
+    else this.repaintKeys(dirty);
+    if (
+      this.presses.size > 0 ||
+      this.hints.size > 0 ||
+      this.overlayMix !== this.overlayTo ||
+      completionActive
+    )
+      this.ensureLoop();
   };
+
+  private updateOverlay(t: number): void {
+    if (this.overlayMix === this.overlayTo) return;
+    const progress = Math.max(0, Math.min(1, (t - this.overlayStart) / OVERLAY_MS));
+    this.overlayMix = this.overlayFrom + (this.overlayTo - this.overlayFrom) * progress;
+  }
 }
 
 function key(x: number, y: number): number {

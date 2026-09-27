@@ -113,14 +113,14 @@ Layout (portrait phone, top to bottom):
 - A panel that was already complete when opened shows "Panel complete" instead of the toolbar and tray.
 
 Interaction:
-- **Select color:** tap a dot in the tray (selected state is clearly raised/outlined). Selecting a color exits Remove and Move modes. When the selected color leaves the tray, the next color (else the previous one) is selected.
+- **Select color:** tap a dot in the tray. The outline glides to the selected color and its dot lifts slightly; changed remaining counts receive a brief emphasis. Selecting a color exits Remove and Move modes. When the selected color leaves the tray, the next color (else the previous one) is selected.
 - **Paint:** tap a stud, or drag across studs, to place the selected color. Occupied studs are ignored (a dot must be removed first). Incorrect colors may be placed.
 - **Remove tool:** toggle on; tap or drag across studs to remove dots. Works on correct and incorrect dots.
 - **Move tool:** toggle on; one finger (or the mouse) pans the zoomed board instead of painting. Remove and Move are mutually exclusive. A completed panel always pans.
 - **Hint:** outlines/flashes every incorrectly placed dot in the current panel for 3 s and toasts the count. Unlimited. If none are wrong, show a brief "No mistakes" toast.
 - **Full but wrong:** when every stud holds a dot but some are wrong, the app plays an error buzz and haptic once on entering that state, and the Hint button pulses until tapped.
 - **Dot supply:** a color at 0 cannot be placed. If it is still in the tray at 0, at least one of its dots is on a wrong stud, and the dot is dimmed until one is removed.
-- **Tray depletion:** when every stud whose target is color C holds a correct C dot, C is removed from the tray (animated). If the player later removes one of those correct dots, C returns to the tray.
+- **Tray depletion:** when every stud whose target is color C holds a correct C dot, its count briefly becomes a checkmark before the color shrinks away and its neighbors slide together. If the player removes or undoes one of those dots during the animation, the color returns without a duplicate or stale removal. A color at zero with misplaced dots does not receive a completion checkmark.
 - **Gesture disambiguation:** one finger paints or removes; two fingers pan/zoom; the mouse wheel zooms. A touch is held 70 ms (or until it drifts 10 px) before it paints, so the first finger of a pinch never paints; a second finger within 300 ms cancels the stroke. A drag must not scroll the page, and page zoom is locked.
 - **Keyboard:** Cmd/Ctrl+Z undoes, Shift+Cmd/Ctrl+Z redoes, and Escape returns to the Overview when no sheet or dialog is open.
 
@@ -132,17 +132,17 @@ Interaction:
 - History is kept in memory for the open panel only and is not persisted across reloads or panel switches.
 
 ### 5.7 Completion
-- **Panel complete:** all 256 studs correct → celebration animation + sound/haptic, then animated return to Overview with the panel marked done. The panel remains viewable but is locked.
+- **Panel complete:** all 256 studs correct → one soft light sweep across the placed dots, followed by a short completion badge and sound/haptic. A sheet offers the next unfinished panel or the Overview. The final panel returns to Overview for the picture finale. Completed panels remain viewable but are locked.
 - **Picture complete:** after the last panel, a finale animation, final stats (panels, dots, total time), and **Download PNG** that renders the finished mosaic in the dot style.
 - **PNG download** is available from the finale, from the Overview of a completed picture, and from the gallery card of a completed picture. The file is named `<picture-name>-dots.png`.
 
 ## 6. Visual Design (2D with 3D look)
 
-- **Baseplate:** colored plastic plate with a stud on every cell; each stud has a top highlight, rim, and drop shadow (radial gradients) to read as raised.
+- **Baseplate:** colored plastic plate with a stud on every cell; each stud has a top highlight, rim, and drop shadow (radial gradients) to read as raised. The surrounding background retains the stud texture at lower contrast so the playable board stands out.
 - **Dots:** round 1×1 tiles, slightly larger than the stud, with a glossy specular highlight, subtle edge darkening, and a soft shadow. Colors come from the palette.
 - **Tray dots:** same sprite, larger; selected dot raised with scale and a ring.
 - **Rendering:** one sprite per palette color pre-rendered to offscreen canvases at device pixel ratio, blitted per cell. Redraw only dirty cells during strokes.
-- **Motion:** placement "press" micro-animation, tray removal animation, panel zoom in/out, celebration. Respect `prefers-reduced-motion`.
+- **Motion:** a brief placement compression and settle with an upper-edge highlight, tray selection and count feedback, completed-color checkmarks and collapse, panel zoom in/out, and panel completion sweep and badge. Reference colors and symbols fade in and out over 160 ms without moving the board. Confetti is reserved for the full-picture finale. Effects respect `prefers-reduced-motion` and stop when the screen is left.
 
 ## 7. Audio, Haptics, Settings, Stats
 

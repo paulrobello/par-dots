@@ -40,4 +40,8 @@ fi
 
 bun run scripts/e2e-smoke.ts "$URL"
 status=$?
+if [ "$status" -eq 0 ]; then
+  bun run scripts/e2e-polish.ts "$URL"
+  status=$?
+fi
 exit "$status"

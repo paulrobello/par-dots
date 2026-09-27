@@ -12,7 +12,7 @@ import { nextUnfinishedPanel, PanelSession, panelCount, pictureComplete } from '
 import { BoardRenderer } from '../render/boardRenderer';
 import type { PictureSave } from '../types';
 import { bindBoardInput, type StrokeIntent } from './boardInput';
-import { celebrate } from './celebrate';
+import { celebratePanel } from './celebrate';
 import { h, isOverlayOpen, openSheet, toast } from './dom';
 import { maybePromptInstall } from './install';
 import { createPanelTimer } from './panelTimer';
@@ -162,8 +162,11 @@ export function mountPanelPlay(
       const p = session.progress();
       view.pctEl.textContent = formatPercent((p.correct / p.total) * 100);
       view.timeEl.textContent = formatDuration(elapsed());
-      undoBtn.disabled = !session.canUndo;
-      redoBtn.disabled = !session.canRedo;
+      undoBtn.disabled = finished || !session.canUndo;
+      redoBtn.disabled = finished || !session.canRedo;
+      removeBtn.disabled = finished;
+      moveBtn.disabled = finished;
+      hintBtn.disabled = finished;
       removeBtn.setAttribute('aria-pressed', String(removeMode));
       removeBtn.classList.toggle('on', removeMode);
       moveBtn.setAttribute('aria-pressed', String(panMode));
@@ -203,13 +206,16 @@ export function mountPanelPlay(
     const finishIfComplete = async (): Promise<void> => {
       if (!session.isComplete() || finished || lockedAtOpen) return;
       finished = true;
+      updateHud();
       recordTime(timer.stop());
       board.clearHighlight();
       if (pictureComplete(save)) save.completedAt ??= Date.now();
       saveNow();
       play('panelComplete');
       haptic('panelComplete');
-      await celebrate(save.palette, 'Panel complete!');
+      await board.completeAnim();
+      if (!alive) return;
+      await celebratePanel(view.boardWrap);
       if (!alive) return;
       const next = nextUnfinishedPanel(save, panel);
       if (next === null) {
@@ -270,6 +276,7 @@ export function mountPanelPlay(
       }
     });
     const history = (step: () => boolean): void => {
+      if (finished) return;
       if (!step()) return;
       board.clearHighlight();
       saveNow();
@@ -367,6 +374,7 @@ export function mountPanelPlay(
       if (!lockedAtOpen) saveNow();
       clearInterval(tick);
       feedback.dispose();
+      trayView.dispose();
       ro.disconnect();
       board.destroy();
       document.removeEventListener('visibilitychange', onVisibility);

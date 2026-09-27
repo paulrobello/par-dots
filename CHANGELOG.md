@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Softer background studs, tactile dot placement with a brief highlight, smooth tray selection and count feedback, and reversible reference-overlay fades.
+- Completed tray colors briefly show a checkmark before collapsing. Undo and redo safely restore colors even while they are leaving.
+- Panel completion uses a light sweep and local badge. Confetti is reserved for completing the whole picture, with reduced-motion alternatives throughout.
 - A tray color's count is now the dots of it left in hand, so a wrong dot uses one up. A color at 0 can no longer be placed; it stays in the tray, dimmed, while any of its dots are misplaced.
 - A finished picture's overview shows one green frame instead of a check mark on every panel.
 - Glass buttons, chips and panels are darker for contrast.

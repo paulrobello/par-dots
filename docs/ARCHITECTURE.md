@@ -135,9 +135,11 @@ Any other hash, including one with a malformed percent-escape, falls back to the
 | `src/ui/panelTimer.ts` | Visible-time accounting per panel |
 | `src/ui/trayModel.ts` | Tray diffing and remaining counts |
 | `src/ui/playFeedback.ts` | Sounds, haptics and cell redraws driven by `PanelSession` events, including the full-but-wrong buzz |
-| `src/render/boardRenderer.ts` | Drawing the 16x16 board, hit testing, press and hint animations |
+| `src/render/boardRenderer.ts` | Drawing the 16x16 board, hit testing, placement highlights, reversible reference fades, hints, and the completion sweep |
 
 Game rules stay in `game/`: `ui/` never decides whether a dot is correct, it asks `PanelSession`.
+
+Visual effects do not delay game-state updates. The renderer runs its animation loop only while an effect is active and resolves a pending completion sweep when destroyed. Panel play waits for that sweep before showing the board-local badge in `celebrate.ts`; full-screen confetti is used only by the picture finale. The tray owns transient selection, count, and completed-color feedback and disposes its animation resources on unmount. Reduced motion skips movement while retaining the resulting state and completion message.
 
 ## Persistence
 

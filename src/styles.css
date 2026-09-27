@@ -42,13 +42,13 @@ body {
   font-family: var(--font);
   color: var(--ink);
   background-color: var(--bg-a);
-  /* Neutral gray baseplate: a stud on every 28px cell (highlight, body, shadow). */
+  /* Keep the surrounding studs quieter than the playable board in every theme. */
   background-image:
-    radial-gradient(circle at 42% 38%, rgba(255, 255, 255, 0.14) 0 3px, transparent 4px),
+    radial-gradient(circle at 42% 38%, rgba(255, 255, 255, 0.045) 0 3px, transparent 4px),
     radial-gradient(
       circle at 50% 50%,
-      var(--bg-stud-hi) 0 8px,
-      rgba(0, 0, 0, 0.3) 9px,
+      color-mix(in srgb, var(--bg-stud-hi) 22%, transparent) 0 8px,
+      rgba(0, 0, 0, 0.12) 9px,
       transparent 11px
     ),
     radial-gradient(ellipse 120% 90% at 30% 0%, rgba(255, 255, 255, 0.1), transparent 60%),
@@ -873,7 +873,9 @@ p {
   transition:
     transform 0.15s ease,
     opacity 0.25s ease,
-    width 0.25s ease;
+    width 0.25s ease,
+    box-shadow 0.16s ease,
+    background-color 0.16s ease;
 }
 
 .tray-dot .css-dot {
@@ -893,6 +895,21 @@ p {
   font-variant-numeric: tabular-nums;
   color: var(--count-ink, #fff);
  
+}
+
+.tray-count.changed {
+  animation: tray-count-change 0.28s ease;
+}
+
+@keyframes tray-count-change {
+  0% {
+    opacity: 0.45;
+    transform: translateY(-3px) scale(1.12);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .tray-dot .css-dot {
@@ -922,7 +939,7 @@ p {
 }
 
 /* No dots of this color left in hand: at least one is on a wrong stud. */
-.tray-dot.empty .css-dot {
+.tray-dot.empty:not(.completing) .css-dot {
   opacity: 0.45;
   filter: saturate(0.5);
 }
@@ -934,6 +951,31 @@ p {
 
 .tray-dot.selected .css-dot {
   transform: translateY(-4px) scale(1.12);
+}
+
+.tray-complete {
+  position: absolute;
+  inset: 7px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  pointer-events: none;
+}
+
+.tray-complete .icon {
+  width: 22px;
+  height: 22px;
+  stroke-width: 3;
+}
+
+.tray-dot.completing .tray-complete {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .tray-label {
@@ -1276,6 +1318,37 @@ p {
   pointer-events: none;
   overflow: hidden;
   transition: opacity 0.25s ease;
+}
+
+.panel-complete-badge {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 999px;
+  background: rgba(13, 48, 25, 0.94);
+  box-shadow: 0 3px 16px rgba(0, 0, 0, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-weight: 800;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: panel-badge-in 0.22s ease-out;
+}
+
+.panel-complete-badge .icon {
+  color: #92e5a7;
+}
+
+@keyframes panel-badge-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 6px)) scale(0.97);
+  }
 }
 
 .celebrate.fade {
