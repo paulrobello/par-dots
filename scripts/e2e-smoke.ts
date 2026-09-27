@@ -338,6 +338,53 @@ async function main(): Promise<void> {
   if (panels !== 9) throw new Error('expected 9 panels');
   await page.getByRole('button', { name: 'Back to gallery' }).click();
   await page.locator('.save-card').nth(1).waitFor();
+
+  // Backup round trip: back up all, delete every picture, restore, same names and progress.
+  const cardSummary = async (): Promise<string[]> =>
+    (
+      await page
+        .locator('.save-meta')
+        .evaluateAll((els) =>
+          els.map(
+            (e) => `${e.querySelector('h3')?.textContent} | ${e.querySelector('p')?.textContent}`,
+          ),
+        )
+    ).sort();
+  const beforeBackup = await cardSummary();
+  const [backup] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Back up all' }).click(),
+  ]);
+  const backupName = backup.suggestedFilename();
+  if (!/^par-dots-backup-\d{4}-\d{2}-\d{2}\.pardots$/.test(backupName)) {
+    throw new Error(`unexpected backup name ${backupName}`);
+  }
+  const backupPath = `${out}/${backupName}`;
+  await backup.saveAs(backupPath);
+  while ((await page.locator('.save-card').count()) > 0) {
+    const n = await page.locator('.save-card').count();
+    await page
+      .locator('.save-card')
+      .first()
+      .getByRole('button', { name: /^Delete/ })
+      .click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+    await page.waitForFunction((m) => document.querySelectorAll('.save-card').length === m - 1, n);
+  }
+  await page.getByText('No pictures yet.').waitFor();
+  await page.locator('#restore-input').setInputFiles(backupPath);
+  await page.getByText(`Restored ${beforeBackup.length} pictures`).waitFor();
+  await page
+    .locator('.save-card')
+    .nth(beforeBackup.length - 1)
+    .waitFor();
+  const afterRestore = await cardSummary();
+  console.log('backup', backupName, 'before:', beforeBackup, 'after restore:', afterRestore);
+  if (JSON.stringify(afterRestore) !== JSON.stringify(beforeBackup)) {
+    throw new Error('restore did not reproduce the gallery');
+  }
+  await shot(page, '21b-gallery-restored');
+
   const cards = await page.locator('.save-card').count();
   await page
     .locator('.save-card')

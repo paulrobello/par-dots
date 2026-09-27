@@ -152,6 +152,7 @@ Game rules stay in `game/`: `ui/` never decides whether a dot is correct, it ask
 - New uploads go through `createSave(save, blob)`, which writes the image and the save in one transaction (`putSaveWithImage`). A quota error surfaces as `StorageFullError`.
 - Panel play writes the save at the end of each stroke, after undo/redo, when the page is hidden, on unmount, and when the panel completes.
 - Every read passes through `migrateSave()` in `src/storage/migrate.ts`, which validates the shape against `LAYOUT` and the palette and stamps `schemaVersion`. Records that are malformed or come from a newer build are skipped with a warning.
+- Backups (`src/storage/backup.ts`) are one JSON document (`format: 'par-dots-backup'`, `version: 1`) holding each save with base64 `target`/`placed` and, for uploads, the base64 image. Import caps a file at 200 MB and 200 saves and each image at 20 MB, runs every save through `migrateSave()`, drops invalid ones, and writes each as a new save with fresh save and image ids, so a restore never overwrites existing progress.
 - To change the save shape, bump `SAVE_SCHEMA_VERSION` in `src/types.ts` and add the upgrade step to `migrateSave()`. The IndexedDB `DB_VERSION` only needs to change when object stores or indexes change.
 
 ## PWA and Updates

@@ -187,6 +187,11 @@ export function formatBytes(n: number): string {
   return `${v.toFixed(1)} ${units[i]}`;
 }
 
+/** A picture name reduced to a safe file-name stem ("mosaic" when nothing survives). */
+export function safeFileStem(name: string): string {
+  return name.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '') || 'mosaic';
+}
+
 /** Short user-facing text for an unknown error. */
 export function userMessage(err: unknown, fallback = 'Something went wrong.'): string {
   if (err instanceof Error && err.message) return err.message;

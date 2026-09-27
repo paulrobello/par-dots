@@ -1,19 +1,44 @@
 /**
- * Gallery screen (`#/`): the New Picture button and a card per save with progress, time,
- * and Continue, Download PNG, Restart and Delete actions.
+ * Gallery screen (`#/`): the New Picture button, Back up all and Restore (`.pardots` files),
+ * and a card per save with progress, time, and Continue, Download PNG, Back up, Restart and
+ * Delete actions.
  */
 
 import { overallProgress, pictureComplete } from '../game';
 import { renderMosaicToCanvas } from '../render/mosaicImage';
 import type { PictureSave } from '../types';
-import { asThumb, confirmDialog, h, icon, toast } from './dom';
+import { asThumb, confirmDialog, downloadBlob, h, icon, toast } from './dom';
 import { exportPng } from './exportImage';
-import { formatDuration, formatPercent, routeHash, userMessage } from './pure';
-import { listSaves, removeSave, restartSave } from './saves';
+import { formatDuration, formatPercent, routeHash, safeFileStem, userMessage } from './pure';
+import {
+  backupSaves,
+  listSaves,
+  MAX_BACKUP_FILE_BYTES,
+  removeSave,
+  restartSave,
+  restoreBackup,
+} from './saves';
 import type { Cleanup, ScreenContext } from './screen';
 
 function totalMs(save: PictureSave): number {
   return save.panelElapsedMs.reduce((a, b) => a + b, 0);
+}
+
+/** Local calendar date as YYYY-MM-DD. */
+function isoDate(d = new Date()): string {
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+/** Download saves as a `.pardots` backup file. */
+async function downloadBackup(saves: PictureSave[], filename: string): Promise<void> {
+  try {
+    downloadBlob(await backupSaves(saves), filename);
+  } catch (err) {
+    console.error(err);
+    toast(`Could not back up: ${userMessage(err)}`, 3000);
+  }
 }
 
 /**
@@ -29,6 +54,44 @@ export function mountGallery({ root, navigate }: ScreenContext): Cleanup {
     icon('plus'),
     'New Picture',
   );
+  const restoreInput = h('input', {
+    type: 'file',
+    accept: '.pardots,application/json',
+    class: 'visually-hidden',
+    id: 'restore-input',
+    'aria-label': 'Restore from a backup file',
+  });
+  restoreInput.addEventListener('change', async () => {
+    const file = restoreInput.files?.[0];
+    restoreInput.value = '';
+    if (!file) return;
+    if (file.size > MAX_BACKUP_FILE_BYTES) {
+      toast('That backup is larger than 200 MB.', 3500);
+      return;
+    }
+    try {
+      const n = await restoreBackup(await file.text());
+      toast(`Restored ${n} picture${n === 1 ? '' : 's'}`, 2500);
+    } catch (err) {
+      console.error(err);
+      toast(`Could not restore: ${userMessage(err)}`, 3500);
+    }
+    if (alive) void render();
+  });
+  const backupAll = async (): Promise<void> => {
+    let saves: PictureSave[];
+    try {
+      saves = await listSaves();
+    } catch (err) {
+      toast(`Could not back up: ${userMessage(err)}`, 3000);
+      return;
+    }
+    if (saves.length === 0) {
+      toast('No pictures to back up yet.');
+      return;
+    }
+    await downloadBackup(saves, `par-dots-backup-${isoDate()}.pardots`);
+  };
   root.append(
     h(
       'div',
@@ -42,6 +105,23 @@ export function mountGallery({ root, navigate }: ScreenContext): Cleanup {
       ),
       h('div', { class: 'gallery-actions' }, newBtn),
       h('h2', { class: 'section-title' }, 'Your pictures'),
+      h(
+        'div',
+        { class: 'backup-actions' },
+        h(
+          'button',
+          { type: 'button', class: 'chip', on: { click: () => void backupAll() } },
+          icon('download'),
+          'Back up all',
+        ),
+        h(
+          'button',
+          { type: 'button', class: 'chip', on: { click: () => restoreInput.click() } },
+          icon('upload'),
+          'Restore',
+        ),
+        restoreInput,
+      ),
       list,
     ),
   );
@@ -168,6 +248,19 @@ export function mountGallery({ root, navigate }: ScreenContext): Cleanup {
               icon('download'),
             )
           : null,
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'icon-btn',
+            'aria-label': `Back up ${save.name}`,
+            title: 'Back up',
+            on: {
+              click: () => void downloadBackup([save], `${safeFileStem(save.name)}.pardots`),
+            },
+          },
+          icon('backup'),
+        ),
         h(
           'button',
           {

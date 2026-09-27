@@ -44,6 +44,7 @@ const ICONS = {
   upload: 'M12 16V4M7 9l5-5 5 5M5 20h14',
   eye: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
   download: 'M12 4v12M7 11l5 5 5-5M5 20h14',
+  backup: 'M4 8h16v12H4zM6 4h12l2 4H4zM12 11v6M9 14l3 3 3-3',
   trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
   restart: 'M4 12a8 8 0 1 0 2.3-5.7M4 4v5h5',
   play: 'M8 5l11 7-11 7z',

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Settings: Background color presets (gray, blue, green, brown, purple), applied app-wide with the browser theme color and remembered across visits.
+- Back up and restore: "Back up all" in the gallery (or Back up on one card) saves pictures and their uploaded photos to a `.pardots` file; "Restore" imports one as new pictures, on any browser or after clearing site data.
 
 ### Audit remediation (2026-09-26)
 

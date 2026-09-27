@@ -1,9 +1,12 @@
 /** Save repository: the only persistence entry point for ui/, backed by a shared in-memory cache. */
 
+import { buildBackup, importEntries, parseBackup } from '../storage/backup';
 import * as db from '../storage/db';
 import { newId } from '../storage/id';
 import { requestPersistence } from '../storage/quota';
 import { EMPTY, type PictureSave } from '../types';
+
+export { MAX_BACKUP_FILE_BYTES } from '../storage/backup';
 
 /** One object per save id, so the overview and panel play mutate the same placed array. */
 const cache = new Map<string, PictureSave>();
@@ -81,4 +84,17 @@ export async function restartSave(save: PictureSave): Promise<void> {
   save.panelElapsedMs = save.panelElapsedMs.map(() => 0);
   delete save.completedAt;
   await persistSave(save);
+}
+
+/** Encode saves, with their uploaded images, as a `.pardots` backup blob. */
+export function backupSaves(saves: PictureSave[]): Promise<Blob> {
+  return buildBackup(saves, db.getImage);
+}
+
+/**
+ * Import a `.pardots` backup's text as new saves and return how many were restored.
+ * Invalid saves in the file are skipped; a file that is not a backup rejects.
+ */
+export async function restoreBackup(text: string): Promise<number> {
+  return importEntries(await parseBackup(text));
 }
