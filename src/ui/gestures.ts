@@ -7,6 +7,7 @@
  * - A second pointer within `PINCH_GRACE_MS` of the stroke's touch-down cancels the stroke;
  *   later it ends it. Either way the gesture becomes a pinch.
  * - In pan mode one pointer pans.
+ * - A mouse right-button drag is always an erase stroke, even in pan mode.
  */
 
 export const TOUCH_HOLD_MS = 70;
@@ -20,10 +21,12 @@ export interface GesturePointer {
   x: number;
   y: number;
   type: 'touch' | 'mouse' | 'pen';
+  /** Right mouse button: the stroke removes dots whatever tool is selected. */
+  erase?: boolean;
 }
 
 export type GestureIntent =
-  | { type: 'strokeStart'; id: number; x: number; y: number }
+  | { type: 'strokeStart'; id: number; x: number; y: number; erase: boolean }
   | { type: 'strokeMove'; points: Array<{ x: number; y: number }> }
   | { type: 'strokeEnd' }
   | { type: 'strokeCancel' }
@@ -37,8 +40,11 @@ export interface BoardGesturesOptions {
   now: () => number;
   setTimer: (fn: () => void, ms: number) => unknown;
   clearTimer: (t: unknown) => void;
-  /** Whether a stroke may start now. Checked when the stroke would begin, not on pointerdown. */
-  canPaint: () => boolean;
+  /**
+   * Whether a stroke may start now (`erase` for a right-button stroke). Checked when the
+   * stroke would begin, not on pointerdown.
+   */
+  canPaint: (erase: boolean) => boolean;
   /** Whether a single pointer pans instead of painting. */
   panMode: () => boolean;
 }
@@ -77,12 +83,18 @@ export function createBoardGestures(opts: BoardGesturesOptions): BoardGestures {
     if (!a || !b) return null;
     return { dist: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
   };
-  const startStroke = (id: number, x: number, y: number, touchDownAt: number | null): void => {
+  const startStroke = (
+    id: number,
+    x: number,
+    y: number,
+    touchDownAt: number | null,
+    erase = false,
+  ): void => {
     cancelPending();
-    if (!opts.canPaint()) return;
+    if (!opts.canPaint(erase)) return;
     strokePointer = id;
     strokeTouchDownAt = touchDownAt;
-    emit({ type: 'strokeStart', id, x, y });
+    emit({ type: 'strokeStart', id, x, y, erase });
   };
   const endStroke = (): void => {
     cancelPending();
@@ -112,6 +124,10 @@ export function createBoardGestures(opts: BoardGesturesOptions): BoardGestures {
         pinch = pinchState();
         pinching = true;
         emit({ type: 'pinchStart' });
+        return;
+      }
+      if (p.erase) {
+        startStroke(p.id, p.x, p.y, null, true);
         return;
       }
       if (opts.panMode()) {

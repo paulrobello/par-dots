@@ -48,6 +48,7 @@ describe('createBoardGestures', () => {
   let time: ReturnType<typeof fakeTime>;
   let paint: boolean;
   let pan: boolean;
+  let paintedErase: boolean[];
   let g: BoardGestures;
   let out: GestureIntent[];
 
@@ -55,11 +56,15 @@ describe('createBoardGestures', () => {
     time = fakeTime();
     paint = true;
     pan = false;
+    paintedErase = [];
     g = createBoardGestures({
       now: time.now,
       setTimer: time.setTimer,
       clearTimer: time.clearTimer,
-      canPaint: () => paint,
+      canPaint: (erase) => {
+        paintedErase.push(erase);
+        return paint;
+      },
       panMode: () => pan,
     });
     out = [];
@@ -77,12 +82,26 @@ describe('createBoardGestures', () => {
   describe('mouse and pen', () => {
     it('start a stroke immediately on pointerdown', () => {
       g.down(mouse(1, 10, 20));
-      expect(out).toEqual([{ type: 'strokeStart', id: 1, x: 10, y: 20 }]);
+      expect(out).toEqual([{ type: 'strokeStart', id: 1, x: 10, y: 20, erase: false }]);
+    });
+
+    it('right button starts an erase stroke and asks canPaint with erase', () => {
+      g.down({ ...mouse(1, 10, 20), erase: true });
+      expect(out).toEqual([{ type: 'strokeStart', id: 1, x: 10, y: 20, erase: true }]);
+      expect(paintedErase).toEqual([true]);
+    });
+
+    it('right button erases even in pan mode', () => {
+      pan = true;
+      g.down({ ...mouse(1, 10, 20), erase: true });
+      g.move({ ...mouse(1, 15, 20), erase: true });
+      g.up({ ...mouse(1, 15, 20), erase: true }, false);
+      expect(types()).toEqual(['strokeStart', 'strokeMove', 'strokeEnd']);
     });
 
     it('pen starts a stroke immediately too', () => {
       g.down({ id: 2, x: 5, y: 5, type: 'pen' });
-      expect(out).toEqual([{ type: 'strokeStart', id: 2, x: 5, y: 5 }]);
+      expect(out).toEqual([{ type: 'strokeStart', id: 2, x: 5, y: 5, erase: false }]);
     });
 
     it('move emits the coalesced points when given, else the event point', () => {
@@ -132,7 +151,7 @@ describe('createBoardGestures', () => {
       time.advance(TOUCH_HOLD_MS - 1);
       expect(out).toEqual([]);
       time.advance(1);
-      expect(out).toEqual([{ type: 'strokeStart', id: 1, x: 10, y: 10 }]);
+      expect(out).toEqual([{ type: 'strokeStart', id: 1, x: 10, y: 10, erase: false }]);
     });
 
     it('ignores drift under TOUCH_SLOP_PX while held', () => {
@@ -145,7 +164,7 @@ describe('createBoardGestures', () => {
       g.down(touch(1, 10, 10));
       g.move(touch(1, 10 + TOUCH_SLOP_PX, 10), [touch(1, 15, 10), touch(1, 20, 10)]);
       expect(out).toEqual([
-        { type: 'strokeStart', id: 1, x: 10, y: 10 },
+        { type: 'strokeStart', id: 1, x: 10, y: 10, erase: false },
         {
           type: 'strokeMove',
           points: [
@@ -162,7 +181,10 @@ describe('createBoardGestures', () => {
       g.down(touch(1, 4, 4));
       time.advance(20);
       g.up(touch(1, 4, 4), false);
-      expect(out).toEqual([{ type: 'strokeStart', id: 1, x: 4, y: 4 }, { type: 'strokeEnd' }]);
+      expect(out).toEqual([
+        { type: 'strokeStart', id: 1, x: 4, y: 4, erase: false },
+        { type: 'strokeEnd' },
+      ]);
       time.advance(TOUCH_HOLD_MS);
       expect(out).toHaveLength(2);
     });

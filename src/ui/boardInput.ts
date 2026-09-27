@@ -81,6 +81,7 @@ export function bindBoardInput(
     x: e.clientX,
     y: e.clientY,
     type: e.pointerType === 'touch' || e.pointerType === 'pen' ? e.pointerType : 'mouse',
+    erase: e.pointerType === 'mouse' && e.button === 2,
   });
   const onDown = (e: PointerEvent): void => {
     try {
@@ -95,6 +96,7 @@ export function bindBoardInput(
     gestures.move(toPointer(e), coalesced.map(toPointer));
   };
   const onUp = (e: PointerEvent): void => gestures.up(toPointer(e), e.type !== 'pointerup');
+  const onContextMenu = (e: MouseEvent): void => e.preventDefault();
   const onWheel = (e: WheelEvent): void => {
     e.preventDefault();
     const p = canvasPoint(e.clientX, e.clientY);
@@ -105,6 +107,7 @@ export function bindBoardInput(
   canvas.addEventListener('pointerup', onUp);
   canvas.addEventListener('pointercancel', onUp);
   canvas.addEventListener('wheel', onWheel, { passive: false });
+  canvas.addEventListener('contextmenu', onContextMenu);
 
   return () => {
     gestures.dispose();
@@ -114,5 +117,6 @@ export function bindBoardInput(
     canvas.removeEventListener('pointerup', onUp);
     canvas.removeEventListener('pointercancel', onUp);
     canvas.removeEventListener('wheel', onWheel);
+    canvas.removeEventListener('contextmenu', onContextMenu);
   };
 }

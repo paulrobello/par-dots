@@ -292,7 +292,8 @@ export function mountPanelPlay(
     const onStroke = (i: StrokeIntent): void => {
       if (i.type === 'strokeStart') {
         board.clearHighlight();
-        session.beginStroke(removeMode ? 'remove' : 'paint', removeMode ? undefined : selected);
+        const remove = removeMode || i.erase;
+        session.beginStroke(remove ? 'remove' : 'paint', remove ? undefined : selected);
         if (strokeTo(i.x, i.y)) syncTray(true);
         updateHud();
       } else if (i.type === 'strokeMove') {
@@ -319,7 +320,7 @@ export function mountPanelPlay(
       }
     };
     const unbindInput = bindBoardInput(boardCanvas, board, {
-      canPaint: () => !lockedAtOpen && !finished && (removeMode || selected >= 0),
+      canPaint: (erase) => !lockedAtOpen && !finished && (erase || removeMode || selected >= 0),
       panMode: () => panMode || lockedAtOpen,
       onStroke,
       onPinch: (down) => {
