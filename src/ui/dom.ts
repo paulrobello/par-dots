@@ -52,6 +52,7 @@ const ICONS = {
   'chevron-left': 'M15 6l-6 6 6 6',
   'chevron-right': 'M9 6l6 6-6 6',
   check: 'M5 12.5l4.5 4.5L19 7',
+  list: 'M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01',
 } as const;
 
 export type IconName = keyof typeof ICONS;

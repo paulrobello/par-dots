@@ -86,6 +86,27 @@ async function main(): Promise<void> {
   await page.locator('.panel-btn').first().waitFor();
   await shot(page, '04-overview');
 
+  // Parts list: whole-picture counts sum to width*height (Lighthouse is 3:4, 48x64), a panel's to 256.
+  await page.getByRole('button', { name: 'Parts' }).click();
+  const parts = page.getByRole('dialog', { name: 'Parts' });
+  await parts.waitFor();
+  const partsSum = async (): Promise<{ rows: number; total: number }> => {
+    const counts = await parts.locator('td.parts-count').allTextContents();
+    const footer = Number(await parts.locator('.parts-total').textContent());
+    const rows = counts.reduce((a, b) => a + Number(b), 0);
+    if (rows !== footer) throw new Error(`parts rows sum ${rows} != footer ${footer}`);
+    return { rows: counts.length, total: rows };
+  };
+  const whole = await partsSum();
+  await shot(page, '04b-parts');
+  await parts.locator('select').selectOption({ label: 'Panel 1' });
+  const panel1 = await partsSum();
+  console.log('parts whole picture:', whole, 'panel 1:', panel1);
+  if (whole.total !== 48 * 64) throw new Error(`parts total ${whole.total} != 3072`);
+  if (panel1.total !== 256) throw new Error(`panel 1 parts total ${panel1.total} != 256`);
+  await page.keyboard.press('Escape');
+  await parts.waitFor({ state: 'detached' });
+
   await page.getByRole('button', { name: 'Open panel 5 of 12' }).click();
   await page.waitForURL(/#\/play\/[^/]+\/4$/);
   await page.locator('.tray-dot').first().waitFor();

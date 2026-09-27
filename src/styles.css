@@ -1132,6 +1132,61 @@ p {
   transform: translate(-50%, 0);
 }
 
+.parts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.parts-scope {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 0;
+  background: rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+}
+
+.parts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.parts-table th {
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.parts-table th,
+.parts-table td {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.parts-table .css-dot {
+  font-size: 1.4rem;
+  vertical-align: middle;
+}
+
+.parts-table .parts-count {
+  font-weight: 800;
+  text-align: right;
+}
+
+.parts-table .parts-done {
+  text-align: right;
+}
+
+.parts-foot {
+  font-weight: 800;
+  color: var(--muted);
+}
+
 .finale {
   display: flex;
   flex-direction: column;

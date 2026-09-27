@@ -13,6 +13,7 @@ import type { PictureSave } from '../types';
 import { celebrate } from './celebrate';
 import { h, icon, iconButton, openSheet, toast } from './dom';
 import { exportPng } from './exportImage';
+import { openPartsSheet } from './partsSheet';
 import { formatDuration, formatPercent, panelZoomTransform, routeHash, userMessage } from './pure';
 import { loadSave } from './saves';
 import type { Cleanup, ScreenContext } from './screen';
@@ -48,6 +49,7 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
     icon('eye'),
     'Ghost',
   );
+  const partsBtn = h('button', { type: 'button', class: 'chip' }, icon('list'), 'Parts');
   const exportBtn = h(
     'button',
     { type: 'button', class: 'btn primary', hidden: true },
@@ -75,6 +77,7 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
         { class: 'overview-foot' },
         h('p', { class: 'muted small' }, 'Tap a panel to build it'),
         ghostBtn,
+        partsBtn,
         exportBtn,
       ),
     ),
@@ -180,6 +183,8 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
         ghostBtn.setAttribute('aria-pressed', String(on));
         ghostBtn.classList.toggle('on', on);
       });
+
+      partsBtn.addEventListener('click', () => openPartsSheet(save));
 
       canvas.addEventListener('click', (e) => {
         const p = renderer?.hitTestPanel(e.clientX, e.clientY);

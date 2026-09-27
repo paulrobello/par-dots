@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   aspectOf,
+  colorCounts,
   MAX_HISTORY,
   nextUnfinishedPanel,
   overallProgress,
   type PanelEvent,
   PanelSession,
+  panelColorCounts,
   panelComplete,
   panelCount,
   panelCountOf,
@@ -491,6 +493,33 @@ describe('progress helpers', () => {
       [2, 0],
     ]);
     expect(panelProgress(save, 3).correct).toBe(s.progress().correct);
+  });
+});
+
+describe('color counts', () => {
+  const sum = (a: number[]): number => a.reduce((x, y) => x + y, 0);
+
+  it('colorCounts sums to width*height', () => {
+    const save = makeSave('3:4', 5);
+    const counts = colorCounts(save);
+    expect(counts).toHaveLength(5);
+    expect(sum(counts)).toBe(save.width * save.height);
+  });
+
+  it('panelColorCounts over all panels equals colorCounts', () => {
+    const save = makeSave('4:3', 4);
+    const total = new Array<number>(4).fill(0);
+    for (let p = 0; p < panelCount(save); p++) {
+      panelColorCounts(save, p).forEach((n, c) => {
+        total[c] += n;
+      });
+    }
+    expect(total).toEqual(colorCounts(save));
+  });
+
+  it('panelColorCounts for one panel sums to 256', () => {
+    const save = makeSave('1:1', 3);
+    expect(sum(panelColorCounts(save, 4))).toBe(PANEL_SIZE * PANEL_SIZE);
   });
 });
 

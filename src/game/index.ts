@@ -24,10 +24,12 @@ export {
   type StrokeMode,
 } from './panelSession';
 export {
+  colorCounts,
   isCorrect,
   nextUnfinishedPanel,
   overallProgress,
   type Progress,
+  panelColorCounts,
   panelComplete,
   panelProgress,
   pictureComplete,

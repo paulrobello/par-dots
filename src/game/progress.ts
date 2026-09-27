@@ -42,6 +42,24 @@ export function panelProgress(save: PictureSave, panelIndex: number): Progress {
   return { correct, total, percent: pct(correct, total) };
 }
 
+/** Target dot count per palette index for the whole picture (length = palette.length). */
+export function colorCounts(save: PictureSave): number[] {
+  const counts = new Array<number>(save.palette.length).fill(0);
+  for (let i = 0; i < save.width * save.height; i++) counts[save.target[i]]++;
+  return counts;
+}
+
+/** Target dot count per palette index within one panel (length = palette.length). */
+export function panelColorCounts(save: PictureSave, panelIndex: number): number[] {
+  const counts = new Array<number>(save.palette.length).fill(0);
+  const o = panelOrigin(save, panelIndex);
+  for (let y = 0; y < PANEL_SIZE; y++) {
+    const row = (o.y + y) * save.width + o.x;
+    for (let x = 0; x < PANEL_SIZE; x++) counts[save.target[row + x]]++;
+  }
+  return counts;
+}
+
 export function panelComplete(save: PictureSave, panelIndex: number): boolean {
   const p = panelProgress(save, panelIndex);
   return p.correct === p.total;
