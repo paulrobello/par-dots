@@ -173,42 +173,78 @@ async function main(): Promise<void> {
   await page.locator('.board-canvas').waitFor();
   await shot(page, '14-panel-landscape');
 
-  // Completion: fill every stud correctly except panel 1's first stud, then place it.
+  // Completion: fill every stud correctly except the first stud of the given panels,
+  // then place panel 0's missing stud.
   await page.setViewportSize({ width: 390, height: 844 });
   // Leave the panel first: its cleanup persists the in-memory save.
   await page.goto(`${base}#/`);
   await page.locator('.save-card').first().waitFor();
-  const saveId = await page.evaluate(
-    () =>
-      new Promise<string>((resolve, reject) => {
-        const req = indexedDB.open('par-dots');
-        req.onerror = () => reject(req.error);
-        req.onsuccess = () => {
-          const db = req.result;
-          const t = db.transaction('saves', 'readwrite');
-          const store = t.objectStore('saves');
-          const all = store.getAll();
-          all.onsuccess = () => {
-            const s = all.result[0];
-            s.placed = new Uint8Array(s.target);
-            s.placed[0] = 255;
-            store.put(s);
-            t.oncomplete = () => resolve(s.id as string);
+  /** Fill the first save correctly except the top-left stud of each panel in `holes`; returns its id. */
+  const prepareSave = (holes: number[]): Promise<string> =>
+    page.evaluate(
+      (holes) =>
+        new Promise<string>((resolve, reject) => {
+          const req = indexedDB.open('par-dots');
+          req.onerror = () => reject(req.error);
+          req.onsuccess = () => {
+            const db = req.result;
+            const t = db.transaction('saves', 'readwrite');
+            const store = t.objectStore('saves');
+            const all = store.getAll();
+            all.onsuccess = () => {
+              const s = all.result[0];
+              const cols = s.width / 16;
+              s.placed = new Uint8Array(s.target);
+              for (const p of holes) {
+                s.placed[Math.floor(p / cols) * 16 * s.width + (p % cols) * 16] = 255;
+              }
+              store.put(s);
+              t.oncomplete = () => resolve(s.id as string);
+            };
           };
-        };
-      }),
-  );
+        }),
+      holes,
+    );
+  const placeFirstStud = async (): Promise<void> => {
+    const b = await page.locator('.board-canvas').boundingBox();
+    if (!b) throw new Error('no board');
+    const c = Math.min(b.width, b.height) / 16.5;
+    await page.mouse.click(
+      b.x + (b.width - c * 16) / 2 + c / 2,
+      b.y + (b.height - c * 16) / 2 + c / 2,
+    );
+  };
+
+  // Panel navigation: panels 0, 2 and 5 unfinished.
+  const saveId = await prepareSave([0, 2, 5]);
+  await page.goto(`${base}#/play/${saveId}/0`);
+  await page.reload();
+  await page.locator('.tray-dot').first().waitFor();
+  if (!(await page.getByRole('button', { name: 'Previous panel' }).isDisabled()))
+    throw new Error('Previous panel enabled on panel 0');
+  await page.keyboard.press('ArrowRight');
+  await page.waitForURL(new RegExp(`#/play/${saveId}/1$`));
+  console.log('ArrowRight moved to panel 1');
+  await page.keyboard.press('ArrowLeft');
+  await page.waitForURL(new RegExp(`#/play/${saveId}/0$`));
+  await page.locator('.tray-dot').first().waitFor();
+  await placeFirstStud();
+  const nextPanel = page.getByRole('dialog').getByRole('button', { name: /^Next panel/ });
+  await nextPanel.waitFor({ timeout: 8000 });
+  await shot(page, '15a-panel-complete-next');
+  await nextPanel.click();
+  await page.waitForURL(new RegExp(`#/play/${saveId}/2$`));
+  console.log('Next panel moved to the next unfinished panel (3)');
+
+  // Picture completion: only panel 0's first stud left.
+  await page.goto(`${base}#/`);
+  await page.locator('.save-card').first().waitFor();
+  await prepareSave([0]);
   await page.goto(`${base}#/play/${saveId}/0`);
   await page.reload();
   await page.locator('.tray-dot').first().waitFor();
   console.log('tray colors with one stud left:', await page.locator('.tray-dot').count());
-  const box2 = await page.locator('.board-canvas').boundingBox();
-  if (!box2) throw new Error('no board');
-  const cell2 = Math.min(box2.width, box2.height) / 16.5;
-  await page.mouse.click(
-    box2.x + (box2.width - cell2 * 16) / 2 + cell2 / 2,
-    box2.y + (box2.height - cell2 * 16) / 2 + cell2 / 2,
-  );
+  await placeFirstStud();
   await page.waitForTimeout(500);
   await shot(page, '15-panel-complete');
   await page.getByRole('dialog', { name: 'Picture complete' }).waitFor({ timeout: 8000 });

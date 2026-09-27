@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   aspectOf,
   MAX_HISTORY,
+  nextUnfinishedPanel,
   overallProgress,
   type PanelEvent,
   PanelSession,
@@ -451,6 +452,34 @@ describe('progress helpers', () => {
     fillPanel(save, 11);
     expect(pictureComplete(save)).toBe(true);
     expect(overallProgress(save).percent).toBe(100);
+  });
+
+  it('nextUnfinishedPanel wraps past the last panel', () => {
+    const save = makeSave('4:3');
+    expect(nextUnfinishedPanel(save, 11)).toBe(0);
+    expect(nextUnfinishedPanel(save, 3)).toBe(4);
+  });
+
+  it('nextUnfinishedPanel skips complete panels', () => {
+    const save = makeSave('4:3');
+    fillPanel(save, 4);
+    fillPanel(save, 5);
+    expect(nextUnfinishedPanel(save, 3)).toBe(6);
+    fillPanel(save, 11);
+    fillPanel(save, 0);
+    expect(nextUnfinishedPanel(save, 10)).toBe(1);
+  });
+
+  it('nextUnfinishedPanel is null when every panel is complete', () => {
+    const save = makeSave('4:3');
+    for (let p = 0; p < 12; p++) fillPanel(save, p);
+    expect(nextUnfinishedPanel(save, 5)).toBeNull();
+  });
+
+  it('nextUnfinishedPanel returns from when only it is incomplete', () => {
+    const save = makeSave('4:3');
+    for (let p = 0; p < 12; p++) if (p !== 7) fillPanel(save, p);
+    expect(nextUnfinishedPanel(save, 7)).toBe(7);
   });
 
   it('agrees with PanelSession.progress', () => {

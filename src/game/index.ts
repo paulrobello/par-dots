@@ -25,6 +25,7 @@ export {
 } from './panelSession';
 export {
   isCorrect,
+  nextUnfinishedPanel,
   overallProgress,
   type Progress,
   panelComplete,

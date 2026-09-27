@@ -177,6 +177,24 @@ p {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
+.screen.play .topbar {
+  gap: 4px;
+}
+
+.screen.play .topbar .title {
+  text-align: center;
+}
+
+.topbar .nav-btn {
+  width: 32px;
+  background: none;
+  box-shadow: none;
+}
+
+.topbar .nav-btn:disabled {
+  opacity: 0.3;
+}
+
 .spacer {
   width: var(--tap);
   flex: none;

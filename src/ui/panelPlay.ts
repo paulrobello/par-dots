@@ -8,12 +8,12 @@
  */
 
 import { haptic, play } from '../audio/sfx';
-import { PanelSession, panelCount, pictureComplete } from '../game';
+import { nextUnfinishedPanel, PanelSession, panelCount, pictureComplete } from '../game';
 import { BoardRenderer } from '../render/boardRenderer';
 import type { PictureSave } from '../types';
 import { bindBoardInput, type StrokeIntent } from './boardInput';
 import { celebrate } from './celebrate';
-import { h, isOverlayOpen, toast } from './dom';
+import { h, isOverlayOpen, openSheet, toast } from './dom';
 import { maybePromptInstall } from './install';
 import { createPanelTimer } from './panelTimer';
 import { bindPlayFeedback } from './playFeedback';
@@ -108,12 +108,21 @@ export function mountPanelPlay(
     document.addEventListener('visibilitychange', onVisibility);
 
     // ---- DOM ----------------------------------------------------------------
+    const total = panelCount(save);
     const goBack = (completed = false): void => {
       setTransitionHint({ fromPanel: panel, justCompleted: completed || finished });
       navigate(routeHash({ name: 'overview', id: save.id }));
     };
-    const view = renderPlayView(shell, save, panel, panelCount(save), lockedAtOpen, {
+    // Replace keeps Back returning to the overview; the hint is cleared so no stale zoom fires.
+    const goToPanel = (i: number): void => {
+      if (i < 0 || i >= total || i === panel) return;
+      setTransitionHint({});
+      navigate(routeHash({ name: 'panel', id: save.id, panel: i }), { replace: true });
+    };
+    const view = renderPlayView(shell, save, panel, total, lockedAtOpen, {
       back: () => goBack(),
+      prev: () => goToPanel(panel - 1),
+      next: () => goToPanel(panel + 1),
       settings: () => openSettingsSheet(),
     });
     const { boardCanvas, hintBtn, undoBtn, redoBtn, removeBtn, moveBtn, overlayBtn } = view;
@@ -196,7 +205,30 @@ export function mountPanelPlay(
       haptic('panelComplete');
       await celebrate(save.palette, 'Panel complete!');
       if (!alive) return;
-      goBack(true);
+      const next = nextUnfinishedPanel(save, panel);
+      if (next === null) {
+        goBack(true);
+        return;
+      }
+      const nextBtn = h(
+        'button',
+        { type: 'button', class: 'btn primary' },
+        `Next panel (${next + 1})`,
+      );
+      const overviewBtn = h('button', { type: 'button', class: 'btn ghost' }, 'Overview');
+      const sheet = openSheet(
+        'Panel complete',
+        h('div', { class: 'confirm' }, h('div', { class: 'row' }, overviewBtn, nextBtn)),
+      );
+      nextBtn.addEventListener('click', () => {
+        sheet.close();
+        goToPanel(next);
+      });
+      overviewBtn.addEventListener('click', () => {
+        sheet.close();
+        goBack(true);
+      });
+      nextBtn.focus();
     };
 
     const afterChange = (): void => {
@@ -303,6 +335,17 @@ export function mountPanelPlay(
         (e.shiftKey ? redoBtn : undoBtn).click();
       } else if (e.key === 'Escape' && !isOverlayOpen()) {
         goBack();
+      } else if (
+        (e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !e.shiftKey &&
+        !isOverlayOpen() &&
+        !session.strokeActive
+      ) {
+        e.preventDefault();
+        goToPanel(e.key === 'ArrowLeft' ? panel - 1 : panel + 1);
       }
     };
     document.addEventListener('keydown', onKey);

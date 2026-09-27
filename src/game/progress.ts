@@ -51,3 +51,13 @@ export function pictureComplete(save: PictureSave): boolean {
   for (let i = 0; i < panelCount(save); i++) if (!panelComplete(save, i)) return false;
   return true;
 }
+
+/** Next incomplete panel after `from` in row-major order, wrapping; null when every panel is complete. */
+export function nextUnfinishedPanel(save: PictureSave, from: number): number | null {
+  const n = panelCount(save);
+  for (let k = 1; k <= n; k++) {
+    const i = (from + k) % n;
+    if (!panelComplete(save, i)) return i;
+  }
+  return null;
+}

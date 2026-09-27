@@ -45,7 +45,7 @@ export function renderPlayView(
   panel: number,
   total: number,
   locked: boolean,
-  actions: { back: () => void; settings: () => void },
+  actions: { back: () => void; prev: () => void; next: () => void; settings: () => void },
 ): PlayView {
   const origin = panelOrigin(save, panel);
   const refCanvas = (): HTMLCanvasElement =>
@@ -82,6 +82,10 @@ export function renderPlayView(
   const undoBtn = toolButton('undo', 'Undo', 'Undo', false);
   const redoBtn = toolButton('redo', 'Redo', 'Redo', false);
   const tray = h('div', { class: 'tray', role: 'radiogroup', 'aria-label': 'Dot colors' });
+  const prevBtn = iconButton('chevron-left', 'Previous panel', actions.prev, 'icon-btn nav-btn');
+  prevBtn.disabled = panel === 0;
+  const nextBtn = iconButton('chevron-right', 'Next panel', actions.next, 'icon-btn nav-btn');
+  nextBtn.disabled = panel >= total - 1;
   const toolbar = h(
     'div',
     { class: 'toolbar', role: 'toolbar', 'aria-label': 'Tools' },
@@ -97,7 +101,14 @@ export function renderPlayView(
       'header',
       { class: 'topbar' },
       iconButton('back', 'Back to overview', actions.back),
-      h('h1', { class: 'title' }, `Panel ${panel + 1} / ${total}`),
+      prevBtn,
+      h(
+        'h1',
+        { class: 'title' },
+        h('span', { class: 'visually-hidden' }, 'Panel '),
+        `${panel + 1} / ${total}`,
+      ),
+      nextBtn,
       pctEl,
       timeEl,
       iconButton('gear', 'Settings', actions.settings),

@@ -48,6 +48,8 @@ const ICONS = {
   restart: 'M4 12a8 8 0 1 0 2.3-5.7M4 4v5h5',
   play: 'M8 5l11 7-11 7z',
   close: 'M6 6l12 12M18 6L6 18',
+  'chevron-left': 'M15 6l-6 6 6 6',
+  'chevron-right': 'M9 6l6 6-6 6',
   check: 'M5 12.5l4.5 4.5L19 7',
 } as const;
 
