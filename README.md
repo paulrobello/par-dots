@@ -1,20 +1,63 @@
-# par-dots
+# PAR Dots
 
-A mobile-first LEGO Dots mosaic game for the browser. Pick a bundled picture or upload your own, and par-dots turns it into a stud mosaic of up to 32 colors split into 16x16 baseplate panels. Fill each panel dot by dot from a color tray, using the panel's reference image as your only guide.
+## Table of Contents
+
+* [About](#about)
+* [Features](#features)
+    * [Core Capabilities](#core-capabilities)
+    * [Building Tools](#building-tools)
+    * [Technical Excellence](#technical-excellence)
+* [Documentation](#documentation)
+* [How to Play](#how-to-play)
+* [Development](#development)
+* [Project Structure](#project-structure)
+* [Troubleshooting](#troubleshooting)
+* [Contributing](#contributing)
+* [What's new](#whats-new)
+    * [Unreleased](https://github.com/paulrobello/par-dots/blob/main/CHANGELOG.md#unreleased)
+    * [v0.1.0](https://github.com/paulrobello/par-dots/blob/main/CHANGELOG.md#010---2026-09-26)
+* [License](#license)
+
+[![Deploy](https://github.com/paulrobello/par-dots/actions/workflows/deploy.yml/badge.svg)](https://github.com/paulrobello/par-dots/actions/workflows/deploy.yml)
+[![Play](https://img.shields.io/badge/play-dots.pardev.net-brightgreen)](https://dots.pardev.net)
+![TypeScript](https://img.shields.io/badge/TypeScript-7-3178C6?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
+![Bun](https://img.shields.io/badge/Bun-1.4-000000?logo=bun&logoColor=white)
+![PWA](https://img.shields.io/badge/PWA-offline%20ready-5A0FC8?logo=pwa&logoColor=white)
+![Runs on iOS | Android | Desktop](https://img.shields.io/badge/runs%20on-iOS%20%7C%20Android%20%7C%20Desktop-blue)
+
+![License](https://img.shields.io/github/license/paulrobello/par-dots)
+
+## About
+PAR Dots is a mobile-first LEGO Dots mosaic game for the browser. Pick a bundled picture or upload your own, and PAR Dots turns it into a stud mosaic of up to 32 colors split into 16x16 baseplate panels. Fill each panel dot by dot from a color tray, using the panel's reference image as your only guide.
 
 Everything runs on-device: uploads never leave your phone, progress is saved locally, and the app installs as a PWA that plays fully offline.
 
 **Play:** https://dots.pardev.net
 
-## Table of Contents
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/probello3)
 
-- [Documentation](#documentation)
-- [How to Play](#how-to-play)
-- [Development](#development)
-- [Project Structure](#project-structure)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [License](#license)
+## Features
+
+### Core Capabilities
+- **Any Picture**: Start from a bundled picture, an uploaded photo, or an `https` image link
+- **Framing and Layout**: Drag and pinch to crop, then choose Square, Portrait or Landscape (9 or 12 panels of 16x16 studs)
+- **LEGO or Free Colors**: Match the official LEGO Dots palette or let the quantizer pick free colors, from 4 to 32, with optional dithering for photos
+- **Panel Play**: A color tray with remaining counts, Remove and Move modes, Hint, Undo/Redo, pinch zoom, and a reference overlay
+- **Progress Overview**: Panel progress badges, a Ghost toggle, animated zoom into panels, and previous/next panel navigation
+- **Celebrations and Export**: Sounds, haptics and celebrations on completion, plus PNG download of finished pictures
+
+### Building Tools
+- **Parts List**: Dot counts per color for the whole picture or a single panel
+- **Printable Building Sheets**: Per-panel guides with a symbol on every dot, usable in grayscale and by colorblind builders
+- **Back Up and Restore**: Save every picture, its progress and uploaded photo to a `.pardots` file and restore it on any device
+
+### Technical Excellence
+- **Offline First**: Installable PWA that precaches the app and bundled library
+- **Private by Design**: No backend; saves live in IndexedDB and uploads never leave the device
+- **Safe Updates**: New versions apply only when no play state can be lost
+- **Fast Quantization**: Deterministic color quantization in a Web Worker with a main-thread fallback
+- **Tested**: Vitest unit tests with a coverage threshold and a Playwright smoke test in CI
 
 ## Documentation
 
@@ -134,6 +177,22 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the layers fit together
 4. Update the docs that describe what you changed: [PRD.md](PRD.md) for behavior, [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for structure, following [docs/DOCUMENTATION_STYLE_GUIDE.md](docs/DOCUMENTATION_STYLE_GUIDE.md).
 
 > **Warning:** Every push to `main` deploys to production at https://dots.pardev.net once CI passes.
+
+## What's new
+
+### Unreleased
+
+* **Building tools**: Parts list with dot counts per color, printable per-panel building sheets with color symbols
+* **Play**: Previous/next panel navigation, right mouse button removes dots, the panel timer pauses while Settings is open
+* **Pictures**: Optional Floyd-Steinberg dithering for photo mosaics
+* **Data**: Back up and restore to `.pardots` files, persistent storage request with usage shown in Settings
+* **Settings**: Background color presets
+
+### v0.1.0
+
+* First release, live at https://dots.pardev.net
+
+For the full version history, see [CHANGELOG.md](https://github.com/paulrobello/par-dots/blob/main/CHANGELOG.md).
 
 ## License
 
