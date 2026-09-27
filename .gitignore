@@ -9,3 +9,4 @@ playwright-report/
 coverage/
 .preview.pid
 .preview.log
+.impeccable/
