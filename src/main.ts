@@ -6,6 +6,8 @@
 
 import { registerSW } from 'virtual:pwa-register';
 import { initAudio } from './audio/sfx';
+import { getSettings } from './storage/settings';
+import { applyBackground } from './ui/background';
 import { closeAllOverlays, isOverlayOpen } from './ui/dom';
 import { mountGallery } from './ui/gallery';
 import { initInstall } from './ui/install';
@@ -89,6 +91,7 @@ function maybeApplyUpdate(): void {
 window.addEventListener('hashchange', render);
 initAudio();
 initInstall();
+applyBackground(getSettings().background);
 
 // iOS Safari ignores user-scalable=no; cancel its pinch gestures to lock page zoom.
 for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) {

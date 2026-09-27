@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Settings: Background color presets (gray, blue, green, brown, purple), applied app-wide with the browser theme color and remembered across visits.
+
+### Audit remediation (2026-09-26)
+
 Changes from the 2026-09-26 audit remediation.
 
 ### Added

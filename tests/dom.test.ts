@@ -1,11 +1,13 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  BACKGROUNDS,
   getSettings,
   resetSettingsCache,
   SETTINGS_KEY,
   setSettings,
 } from '../src/storage/settings';
+import { applyBackground, BACKGROUND_COLORS } from '../src/ui/background';
 import { closeAllOverlays, confirmDialog, h, isOverlayOpen, openSheet } from '../src/ui/dom';
 
 afterEach(() => {
@@ -111,5 +113,24 @@ describe('settings cache across tabs', () => {
     expect(getSettings().sound).toBe(true);
     window.dispatchEvent(new StorageEvent('storage', { key: SETTINGS_KEY }));
     expect(getSettings().sound).toBe(false);
+  });
+});
+
+describe('applyBackground', () => {
+  it('sets the baseplate variables and theme-color for every preset', () => {
+    const meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    document.head.append(meta);
+    for (const bg of BACKGROUNDS) {
+      applyBackground(bg);
+      const c = BACKGROUND_COLORS[bg];
+      const style = document.documentElement.style;
+      expect(style.getPropertyValue('--bg-a')).toBe(c.a);
+      expect(style.getPropertyValue('--bg-b')).toBe(c.b);
+      expect(style.getPropertyValue('--bg-top')).toBe(c.top);
+      expect(style.getPropertyValue('--bg-stud-hi')).toBe(c.studHi);
+      expect(meta.getAttribute('content')).toBe(c.a);
+    }
+    meta.remove();
   });
 });

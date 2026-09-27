@@ -1,16 +1,19 @@
 /**
- * Settings bottom sheet: sound, place sound (with preview), haptics, and Install app when
+ * Settings bottom sheet: sound, place sound (with preview), haptics, background color, and
+ * Install app when
  * the app is not already installed. Changes are stored immediately.
  */
 
 import { playPlaceSound } from '../audio/sfx';
 import {
+  BACKGROUNDS,
   getSettings,
   PLACE_SOUNDS,
   type PlaceSound,
   type Settings,
   setSettings,
 } from '../storage/settings';
+import { applyBackground, BACKGROUND_COLORS } from './background';
 import { h, openSheet } from './dom';
 import { canOfferInstall, installApp } from './install';
 
@@ -67,6 +70,36 @@ export function openSettingsSheet(): void {
       }),
     ),
   );
+  const backgroundRow = h(
+    'div',
+    { class: 'setting-row column' },
+    h('span', {}, h('strong', {}, 'Background'), h('small', {}, 'Color behind the board')),
+    h(
+      'div',
+      { class: 'swatches', role: 'radiogroup', 'aria-label': 'Background' },
+      ...BACKGROUNDS.map((bg) => {
+        const on = getSettings().background === bg;
+        const b = h('button', {
+          type: 'button',
+          role: 'radio',
+          class: on ? 'swatch on' : 'swatch',
+          'aria-checked': String(on),
+          'aria-label': BACKGROUND_COLORS[bg].label,
+          title: BACKGROUND_COLORS[bg].label,
+        });
+        b.style.background = BACKGROUND_COLORS[bg].a;
+        b.addEventListener('click', () => {
+          setSettings({ background: bg });
+          applyBackground(bg);
+          for (const el of b.parentElement?.children ?? []) {
+            el.setAttribute('aria-checked', String(el === b));
+            el.classList.toggle('on', el === b);
+          }
+        });
+        return b;
+      }),
+    ),
+  );
   const installRow = canOfferInstall()
     ? h(
         'div',
@@ -87,6 +120,7 @@ export function openSettingsSheet(): void {
       row('sound', 'Sound', 'Clicks and chimes'),
       placeSoundRow,
       row('haptics', 'Haptics', 'Vibration where supported'),
+      backgroundRow,
       ...(installRow ? [installRow] : []),
     ),
   );

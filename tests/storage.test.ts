@@ -260,6 +260,16 @@ describe('settings', () => {
     expect(getSettings().maxColors).toBe(MAX_COLORS);
   });
 
+  it('keeps a known background and falls back to gray for an unknown one', () => {
+    storage.setItem(SETTINGS_KEY, JSON.stringify({ background: 'blue' }));
+    resetSettingsCache();
+    expect(getSettings().background).toBe('blue');
+    storage.setItem(SETTINGS_KEY, JSON.stringify({ background: 'neon' }));
+    resetSettingsCache();
+    expect(getSettings().background).toBe('gray');
+    expect(setSettings({ background: 'purple' }).background).toBe('purple');
+  });
+
   it('survives a throwing localStorage', () => {
     vi.stubGlobal('localStorage', {
       getItem() {

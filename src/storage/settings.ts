@@ -10,6 +10,11 @@ export type PlaceSound = 'click' | 'snap' | 'pop' | 'tick' | 'blip';
 /** Place sounds in settings-sheet order; also the allowlist sanitize() accepts. */
 export const PLACE_SOUNDS: readonly PlaceSound[] = ['snap', 'click', 'pop', 'tick', 'blip'];
 
+/** App background presets (see ui/background.ts for their colors). */
+export type Background = 'gray' | 'blue' | 'green' | 'brown' | 'purple';
+/** Backgrounds in settings-sheet order; also the allowlist sanitize() accepts. */
+export const BACKGROUNDS: readonly Background[] = ['gray', 'blue', 'green', 'brown', 'purple'];
+
 /** Stored settings. Invalid or missing fields fall back to DEFAULT_SETTINGS. */
 export interface Settings {
   /** Play sounds. Default true. */
@@ -22,6 +27,8 @@ export interface Settings {
   paletteMode: PaletteMode;
   /** Setup-screen max colors: an integer clamped to MIN_COLORS..MAX_COLORS. Default MAX_COLORS. */
   maxColors: number;
+  /** App background preset. Default 'gray'. */
+  background: Background;
 }
 
 /** Settings used for any field that is missing or invalid. Frozen. */
@@ -31,6 +38,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   haptics: true,
   paletteMode: 'lego',
   maxColors: MAX_COLORS,
+  background: 'gray',
 });
 
 /** localStorage key holding the settings JSON. */
@@ -51,6 +59,7 @@ function sanitize(raw: unknown): Settings {
       s.maxColors = Math.max(MIN_COLORS, Math.min(MAX_COLORS, r.maxColors));
     }
     if (r.paletteMode === 'lego' || r.paletteMode === 'free') s.paletteMode = r.paletteMode;
+    if (BACKGROUNDS.includes(r.background as Background)) s.background = r.background as Background;
   }
   return s;
 }
