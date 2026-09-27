@@ -77,6 +77,7 @@ export function renderPlayView(
   });
   const boardWrap = h('div', { class: 'board-wrap' }, boardCanvas);
   const removeBtn = toolButton('eraser', 'Remove tool', 'Remove');
+  removeBtn.title = 'Remove dots. Tip: right-click removes a dot without changing tools or colors.';
   const moveBtn = toolButton('move', 'Move tool: drag to pan', 'Move');
   const hintBtn = toolButton('bulb', 'Hint: show wrong dots', 'Hint', false);
   const undoBtn = toolButton('undo', 'Undo', 'Undo', false);
