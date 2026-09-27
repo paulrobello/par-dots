@@ -71,7 +71,7 @@ Everything runs on-device: uploads never leave your phone, progress is saved loc
 1. Tap **New Picture**, then pick a bundled picture, upload a photo, or paste an `https` link to an image.
 2. On the setup screen, drag and pinch to frame the picture, choose Square, Portrait or Landscape, pick **LEGO colors** or **Free colors**, and set **Max colors**. Tap **Start**.
 3. On the overview, tap any panel to build it. Toggle **Ghost** to see the target picture faintly.
-4. In a panel, pick a color from the tray and tap or drag across studs to place dots. Each tray color shows how many studs still need it and leaves the tray once they are all correct.
+4. In a panel, pick a color from the tray and tap or drag across studs to place dots. Each tray color shows how many dots of it are left. A color at 0 can't be placed; if it stays in the tray, one of its dots is on a wrong stud. A color leaves the tray once all its studs are correct.
 
 | Control | What it does |
 | --- | --- |
@@ -79,7 +79,7 @@ Everything runs on-device: uploads never leave your phone, progress is saved loc
 | **Move** | One finger pans the zoomed board instead of painting |
 | **Hint** | Outlines every wrong dot for 3 seconds; pulses when the panel is full but has mistakes |
 | **Undo** / **Redo** | Steps through the last 10 strokes of this panel |
-| **Overlay** | Shows the target colors faintly on empty studs; holding a two-finger pinch does the same |
+| **Overlay** | Shows the target colors faintly on empty studs, each with its color's letter, and shows the letters on the tray; holding a two-finger pinch does the same |
 | Two fingers or the mouse wheel | Zoom and pan the board |
 | Cmd/Ctrl+Z, Shift+Cmd/Ctrl+Z | Undo, redo |
 | Escape | Back to the overview |

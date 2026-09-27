@@ -28,10 +28,15 @@ function doneCounts(save: PictureSave, panelIndex: number | null): number[] {
   return done;
 }
 
-/** Guide download controls: every panel stacked in one PNG, or one chosen panel. */
+/** Guide download controls: every panel as a PDF, one per page, or one chosen panel as a PNG. */
 function guideControls(save: PictureSave): HTMLElement {
-  const all = h('button', { type: 'button', class: 'btn primary' }, icon('download'), 'All panels');
-  all.addEventListener('click', () => exportAllSheets(save));
+  const all = h(
+    'button',
+    { type: 'button', class: 'btn primary' },
+    icon('download'),
+    'All panels (PDF)',
+  );
+  all.addEventListener('click', () => void exportAllSheets(save));
   const pick = h(
     'select',
     { class: 'parts-scope', 'aria-label': 'Guide panel' },

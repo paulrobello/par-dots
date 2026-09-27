@@ -94,7 +94,7 @@ describe('trayCounts', () => {
     expect(counts.get(2)).toBe(85);
   });
 
-  it('drops a finished color and counts a wrong dot against its target color', () => {
+  it('drops a finished color and counts a wrong dot against the color placed', () => {
     const save = makeSave(3);
     const s = new PanelSession(save, 0);
     s.beginStroke('paint', 0);
@@ -106,11 +106,11 @@ describe('trayCounts', () => {
     s.applyAt(1, 0);
     s.endStroke();
     expect(trayCounts(s).get(1)).toBe(85);
-    expect(trayCounts(s).get(2)).toBe(85);
+    expect(trayCounts(s).get(2)).toBe(84);
   });
 
   it('works against a structural session', () => {
-    const counts = trayCounts({ trayColors: () => [2, 5], remainingFor: (c) => c * 10 });
+    const counts = trayCounts({ trayColors: () => [2, 5], availableFor: (c) => c * 10 });
     expect([...counts]).toEqual([
       [2, 20],
       [5, 50],

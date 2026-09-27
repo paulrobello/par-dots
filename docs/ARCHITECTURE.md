@@ -68,7 +68,7 @@ graph TD
 | `src/types.ts` | `Mosaic`, `PictureSave`, `PaletteColor`, `LAYOUT`, `EMPTY`, color limits | The shared model every layer imports |
 | `src/engine/` | Image math: crop and area-average resample (`resample.ts`), quantization (`quantize.ts`), Lab color math (`color.ts`), the LEGO color table (`legoPalette.ts`), the quantize worker and its client | DOM-free; runs in a worker or on the main thread |
 | `src/game/` | Panel geometry (`geometry.ts`), per-panel rules and undo/redo (`panelSession.ts`), progress (`progress.ts`) | DOM-free; `PanelSession` mutates `save.placed` in place and emits events |
-| `src/render/` | `BoardRenderer` (one 16x16 panel), `OverviewRenderer` (the whole picture), offscreen mosaic images, sprites, layout math, shared canvas helpers | Knows nothing about screens; `render/color.ts` reuses `engine/color.ts` |
+| `src/render/` | `BoardRenderer` (one 16x16 panel), `OverviewRenderer` (the whole picture), offscreen mosaic images, building sheets and a minimal PDF writer (`pdf.ts`), sprites, layout math, shared canvas helpers | Knows nothing about screens; `render/color.ts` reuses `engine/color.ts` |
 | `src/storage/` | IndexedDB (`db.ts`), save validation and migration (`migrate.ts`), settings (`settings.ts`), id generation (`id.ts`) | `ui/` reaches `db.ts` only through `src/ui/saves.ts` |
 | `src/audio/` | Web Audio sounds and `navigator.vibrate` haptics (`sfx.ts`) | Reads settings on every call |
 | `src/ui/` | Screens, DOM helpers, input handling, the save repository, navigation handoff state | The only layer that touches the document |

@@ -1,17 +1,15 @@
 /**
- * PNG downloads: the picture as built (`<name>-dots.png`), and building sheets for making
- * the mosaic from real dots (`<name>-panel-N.png`, or every panel stacked in `<name>-guide.png`).
+ * Picture downloads: the picture as built (`<name>-dots.png`), and building sheets for making
+ * the mosaic from real dots (`<name>-panel-N.png`, or every panel as one page of `<name>-guide.pdf`).
  */
 
 import { panelColorCounts, panelCount } from '../game';
 import { renderMosaicToCanvas } from '../render/mosaicImage';
 import { renderPanelSheet } from '../render/panelSheet';
+import { buildImagePdf } from '../render/pdf';
 import type { PictureSave } from '../types';
 import { downloadBlob, toast } from './dom';
 import { paletteLabels, paletteSymbols, safeFileStem } from './pure';
-
-/** Browsers refuse canvases taller than this. */
-const MAX_CANVAS_PX = 16384;
 
 function downloadCanvas(canvas: HTMLCanvasElement, filename: string): void {
   canvas.toBlob((blob) => {
@@ -40,35 +38,35 @@ export function exportPanelSheet(save: PictureSave, i: number): void {
   downloadCanvas(panelSheet(save, i), `${safeFileStem(save.name)}-panel-${i + 1}.png`);
 }
 
-/**
- * Download every panel's sheet stacked into one tall PNG. When that would exceed the browser's
- * canvas limit, download one PNG per panel instead.
- */
-export function exportAllSheets(save: PictureSave): void {
-  const sheets = Array.from({ length: panelCount(save) }, (_, i) => panelSheet(save, i));
-  const width = Math.max(...sheets.map((s) => s.width));
-  const height = sheets.reduce((sum, s) => sum + s.height, 0);
-  if (height > MAX_CANVAS_PX) {
-    toast('Guide too tall for one image; downloading one per panel', 3000);
-    sheets.forEach((s, i) => {
-      downloadCanvas(s, `${safeFileStem(save.name)}-panel-${i + 1}.png`);
-    });
-    return;
-  }
-  const out = document.createElement('canvas');
-  out.width = width;
-  out.height = height;
-  const ctx = out.getContext('2d');
-  if (!ctx) {
+/** Download every panel's sheet as one PDF, one panel per US Letter page. */
+export async function exportAllSheets(save: PictureSave): Promise<void> {
+  try {
+    const pages = await Promise.all(
+      Array.from({ length: panelCount(save) }, async (_, i) => {
+        const sheet = panelSheet(save, i);
+        return { jpeg: await canvasJpeg(sheet), width: sheet.width, height: sheet.height };
+      }),
+    );
+    const pdf = buildImagePdf(pages);
+    downloadBlob(
+      new Blob([pdf as BlobPart], { type: 'application/pdf' }),
+      `${safeFileStem(save.name)}-guide.pdf`,
+    );
+  } catch (err) {
+    console.error('guide PDF export failed', err);
     toast('Export failed');
-    return;
   }
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, width, height);
-  let y = 0;
-  for (const s of sheets) {
-    ctx.drawImage(s, 0, y);
-    y += s.height;
-  }
-  downloadCanvas(out, `${safeFileStem(save.name)}-guide.png`);
+}
+
+function canvasJpeg(canvas: HTMLCanvasElement): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) reject(new Error('canvas.toBlob returned null'));
+        else blob.arrayBuffer().then((b) => resolve(new Uint8Array(b)), reject);
+      },
+      'image/jpeg',
+      0.92,
+    );
+  });
 }

@@ -107,19 +107,19 @@ async function main(): Promise<void> {
   await page.keyboard.press('Escape');
   await parts.waitFor({ state: 'detached' });
 
-  // Guide: All panels downloads the stacked building sheets as one PNG.
+  // Guide: All panels downloads the building sheets as a PDF, one panel per page.
   await page.getByRole('button', { name: 'Guide' }).click();
   const guide = page.getByRole('dialog', { name: 'Guide' });
   await guide.waitFor();
   await shot(page, '04c-guide');
   const [guideDownload] = await Promise.all([
     page.waitForEvent('download'),
-    guide.getByRole('button', { name: 'All panels', exact: true }).click(),
+    guide.getByRole('button', { name: 'All panels (PDF)', exact: true }).click(),
   ]);
   const guideName = guideDownload.suggestedFilename();
   console.log('guide exported', guideName);
-  if (!guideName.endsWith('-guide.png')) throw new Error(`guide download ${guideName}`);
-  await guideDownload.saveAs(`${out}/guide.png`);
+  if (!guideName.endsWith('-guide.pdf')) throw new Error(`guide download ${guideName}`);
+  await guideDownload.saveAs(`${out}/guide.pdf`);
   await page.keyboard.press('Escape');
   await guide.waitFor({ state: 'detached' });
 

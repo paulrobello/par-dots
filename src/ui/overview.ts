@@ -57,6 +57,12 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
     icon('download'),
     'Download PNG',
   );
+  const viewBtn = h(
+    'button',
+    { type: 'button', class: 'btn', hidden: true },
+    icon('eye'),
+    'View picture',
+  );
   const panelList = h('div', { class: 'visually-hidden' });
 
   root.append(
@@ -80,6 +86,7 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
         ghostBtn,
         partsBtn,
         guideBtn,
+        viewBtn,
         exportBtn,
       ),
     ),
@@ -118,6 +125,21 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
     canvas.style.transition = ZOOM_TRANSITION;
     canvas.style.transform = '';
     canvas.style.opacity = '1';
+  };
+
+  const showPicture = (save: PictureSave): void => {
+    const img = renderMosaicToCanvas(save, 8, 'dots', { cells: save.placed });
+    img.classList.add('finale-img');
+    img.setAttribute('role', 'img');
+    img.setAttribute('aria-label', `${save.name}, finished`);
+    const dl = h(
+      'button',
+      { type: 'button', class: 'btn primary' },
+      icon('download'),
+      'Download PNG',
+    );
+    dl.addEventListener('click', () => exportPng(save));
+    openSheet(save.name, h('div', { class: 'finale' }, img, dl));
   };
 
   const showFinale = async (save: PictureSave): Promise<void> => {
@@ -167,9 +189,12 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
         h('span', { class: 'stat' }, h('strong', {}, formatPercent(prog.percent)), ' done'),
         h('span', { class: 'stat' }, h('strong', {}, formatDuration(total)), ' time'),
         h('span', { class: 'stat' }, h('strong', {}, String(panelCount(save))), ' panels'),
+        h('span', { class: 'stat' }, h('strong', {}, String(save.palette.length)), ' colors'),
       );
       exportBtn.hidden = !complete;
       exportBtn.addEventListener('click', () => exportPng(save));
+      viewBtn.hidden = !complete;
+      viewBtn.addEventListener('click', () => showPicture(save));
 
       renderer = new OverviewRenderer(canvas);
       renderer.setData(save, save.placed);

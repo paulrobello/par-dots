@@ -58,6 +58,10 @@ export class PanelSession {
   /** Per palette index: studs of that target color in this panel not yet correct. */
   private readonly remaining: number[];
   private remainingTotal = 0;
+  /** Per palette index: studs in this panel whose target is that color. */
+  private readonly needed: number[];
+  /** Per palette index: dots of that color placed in this panel, right or wrong. */
+  private readonly used: number[];
   /** Studs in this panel with no dot placed. */
   private empty = 0;
   private undoStack: CellChange[][] = [];
@@ -73,11 +77,15 @@ export class PanelSession {
     this.ox = o.x;
     this.oy = o.y;
     this.remaining = new Array<number>(save.palette.length).fill(0);
+    this.needed = new Array<number>(save.palette.length).fill(0);
+    this.used = new Array<number>(save.palette.length).fill(0);
     for (let y = 0; y < PANEL_SIZE; y++) {
       for (let x = 0; x < PANEL_SIZE; x++) {
         const i = this.idx(x, y);
         const t = save.target[i];
+        this.needed[t]++;
         if (save.placed[i] === EMPTY) this.empty++;
+        else this.used[save.placed[i]]++;
         if (save.placed[i] !== t) {
           this.remaining[t]++;
           this.remainingTotal++;
@@ -123,7 +131,7 @@ export class PanelSession {
     const before = this.save.placed[this.idx(localX, localY)];
     let after: number;
     if (s.mode === 'paint') {
-      if (before !== EMPTY) return false;
+      if (before !== EMPTY || this.availableFor(s.color) <= 0) return false;
       after = s.color;
     } else {
       if (before === EMPTY) return false;
@@ -207,6 +215,14 @@ export class PanelSession {
     return this.remaining[c] ?? 0;
   }
 
+  /**
+   * Dots of color `c` still in hand: the panel's studs of that color minus the dots of it already
+   * placed, right or wrong. A paint stroke cannot place a color at 0.
+   */
+  availableFor(c: number): number {
+    return (this.needed[c] ?? 0) - (this.used[c] ?? 0);
+  }
+
   /** Studs in this panel with no dot placed. */
   emptyCount(): number {
     return this.empty;
@@ -269,7 +285,9 @@ export class PanelSession {
     const nowCorrect = to === t;
     this.save.placed[i] = to;
     if (from === EMPTY) this.empty--;
+    else this.used[from]--;
     if (to === EMPTY) this.empty++;
+    else this.used[to]++;
     if (to === EMPTY) {
       this.emit({ type: 'removed', x: c.x, y: c.y, colorIndex: from, cause });
     } else {

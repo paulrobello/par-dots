@@ -20,12 +20,14 @@ export function diffTray(prev: readonly number[], next: readonly number[]): Tray
   return { removed, added };
 }
 
-/** Studs still needed per tray color. */
+/**
+ * Dots left in hand per tray color. A color with wrong dots still out stays in the tray at 0.
+ */
 export function trayCounts(session: {
   trayColors(): number[];
-  remainingFor(c: number): number;
+  availableFor(c: number): number;
 }): Map<number, number> {
   const out = new Map<number, number>();
-  for (const c of session.trayColors()) out.set(c, session.remainingFor(c));
+  for (const c of session.trayColors()) out.set(c, session.availableFor(c));
   return out;
 }

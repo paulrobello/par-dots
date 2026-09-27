@@ -268,12 +268,12 @@ p {
   place-items: center;
   border-radius: 50%;
   border: 0;
-  background: rgba(0, 0, 0, 0.28);
+  background: rgba(0, 0, 0, 0.5);
   box-shadow: inset 0 0 0 1px var(--line);
 }
 
 .icon-btn:active {
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.65);
 }
 
 .chip {
@@ -284,7 +284,7 @@ p {
   padding: 0 14px;
   border-radius: 999px;
   border: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.52);
   box-shadow: inset 0 0 0 1px var(--line);
   font-weight: 700;
 }
@@ -298,7 +298,7 @@ p {
   flex: none;
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.52);
   font-weight: 800;
   font-size: 0.9rem;
   font-variant-numeric: tabular-nums;
@@ -608,7 +608,7 @@ p {
   padding: 4px;
   gap: 4px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.32);
+  background: rgba(0, 0, 0, 0.54);
   box-shadow: inset 0 0 0 1px var(--line);
 }
 
@@ -660,7 +660,7 @@ p {
 .stat {
   padding: 6px 12px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.52);
   font-size: 0.9rem;
   color: var(--muted);
 }
@@ -726,7 +726,7 @@ p {
   height: 44px;
   border-radius: 12px;
   border: 0;
-  background: rgba(0, 0, 0, 0.28);
+  background: rgba(0, 0, 0, 0.5);
   box-shadow: inset 0 0 0 1px var(--line);
   font-weight: 800;
   transition:
@@ -765,7 +765,7 @@ p {
   padding: 4px;
   border: 0;
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.52);
   box-shadow: inset 0 0 0 1px var(--line);
   line-height: 0;
 }
@@ -819,7 +819,7 @@ p {
   min-height: 52px;
   border: 0;
   border-radius: 14px;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.52);
   box-shadow: inset 0 0 0 1px var(--line);
   font-size: 0.75rem;
   font-weight: 800;
@@ -832,7 +832,7 @@ p {
 
 .tray-wrap {
   border-radius: var(--radius);
-  background: rgba(0, 0, 0, 0.32);
+  background: rgba(0, 0, 0, 0.54);
   box-shadow: inset 0 0 0 1px var(--line);
   overflow-x: auto;
   overflow-y: hidden;
@@ -886,6 +886,38 @@ p {
   font-variant-numeric: tabular-nums;
   color: var(--count-ink, #fff);
  
+}
+
+.tray-dot .css-dot {
+  position: relative;
+}
+
+.tray-symbol {
+  display: none;
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: #1b1b1b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 20px;
+  text-align: center;
+}
+
+.tray.show-symbols .tray-symbol {
+  display: block;
+}
+
+/* No dots of this color left in hand: at least one is on a wrong stud. */
+.tray-dot.empty .css-dot {
+  opacity: 0.45;
+  filter: saturate(0.5);
 }
 
 .tray-dot.selected {
@@ -1031,7 +1063,7 @@ p {
   min-height: 60px;
   padding: 8px 12px;
   border-radius: 14px;
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.47);
 }
 
 .setting-row.column {
@@ -1143,7 +1175,7 @@ p {
   padding: 0 12px;
   border-radius: 12px;
   border: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.52);
   box-shadow: inset 0 0 0 1px var(--line);
   color: var(--ink);
   font: inherit;
@@ -1400,7 +1432,7 @@ p {
   padding: 0 14px;
   border: 0;
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.52);
   box-shadow: inset 0 0 0 1px var(--line);
   color: inherit;
   font: inherit;
@@ -1419,7 +1451,7 @@ p {
   min-height: 44px;
   padding: 0 14px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.28);
+  background: rgba(0, 0, 0, 0.5);
   font-weight: 700;
 }
 

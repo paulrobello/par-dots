@@ -15,6 +15,8 @@ import { fitGrid, type GridLayout, IDENTITY_VIEWPORT, screenToCell } from './lay
 import { clientToCanvas } from './motion';
 import { PLATE_GREEN, SpriteCache } from './sprites';
 
+const COMPLETE_GREEN = '#3fcf5c';
+
 /** Construction options for OverviewRenderer. */
 export interface OverviewRendererOptions {
   /** Show a percentage badge on started-but-unfinished panels. Default true. */
@@ -163,6 +165,24 @@ export class OverviewRenderer {
     const aspect = aspectOf(m.width, m.height);
     const { cols, rows } = panelGridOf(aspect);
     const completion = this.placed ? panelFractions(aspect, m.width, m.target, this.placed) : [];
+
+    // A finished picture drops its seams and badges for a single green frame.
+    if (completion.length > 0 && completion.every((f) => f >= 1)) {
+      const lw = Math.max(3, 4 * d);
+      const x0 = edgesX[0] ?? 0;
+      const y0 = edgesY[0] ?? 0;
+      ctx.save();
+      ctx.lineWidth = lw;
+      ctx.strokeStyle = COMPLETE_GREEN;
+      ctx.strokeRect(
+        x0 - lw / 2,
+        y0 - lw / 2,
+        (edgesX[m.width] ?? x0) - x0 + lw,
+        (edgesY[m.height] ?? y0) - y0 + lw,
+      );
+      ctx.restore();
+      return;
+    }
 
     // Panel seams: dark groove with a light edge.
     ctx.save();

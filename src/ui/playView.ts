@@ -154,6 +154,8 @@ export interface TrayView {
   /** Mark `selected` as checked, or none when `active` is false. */
   mark(selected: number, active: boolean): void;
   scrollTo(c: number): void;
+  /** Show or hide each dot's palette symbol (shown while the reference overlay is on). */
+  setSymbols(on: boolean): void;
 }
 
 /** The color tray inside `tray`. `onPick` fires when a dot is clicked. */
@@ -161,6 +163,7 @@ export function createTrayView(
   tray: HTMLElement,
   save: PictureSave,
   labels: string[],
+  symbols: string[],
   onPick: (c: number) => void,
 ): TrayView {
   const els = new Map<number, HTMLButtonElement>();
@@ -178,7 +181,12 @@ export function createTrayView(
         title: labels[c],
         style: `--c:${hex};--count-ink:${luminance(hex) > 0.45 ? '#1b1b1b' : '#fff'}`,
       },
-      h('span', { class: 'css-dot' }, h('span', { class: 'tray-count' })),
+      h(
+        'span',
+        { class: 'css-dot' },
+        h('span', { class: 'tray-count' }),
+        h('span', { class: 'tray-symbol', 'aria-hidden': 'true' }, symbols[c]),
+      ),
       h('span', { class: 'tray-label' }, labels[c]),
     );
     b.addEventListener('click', () => onPick(c));
@@ -214,7 +222,11 @@ export function createTrayView(
         const n = counts.get(c) ?? 0;
         const count = el.querySelector('.tray-count');
         if (count && count.textContent !== String(n)) count.textContent = String(n);
-        el.setAttribute('aria-label', `${labels[c]}, ${n} left`);
+        el.classList.toggle('empty', n === 0);
+        el.setAttribute(
+          'aria-label',
+          n === 0 ? `${labels[c]}, none left, some misplaced` : `${labels[c]}, ${n} left`,
+        );
       }
     },
     mark(selected, active) {
@@ -223,6 +235,9 @@ export function createTrayView(
         el.classList.toggle('selected', on);
         el.setAttribute('aria-checked', String(on));
       }
+    },
+    setSymbols(on) {
+      tray.classList.toggle('show-symbols', on);
     },
     scrollTo(c) {
       const el = els.get(c);

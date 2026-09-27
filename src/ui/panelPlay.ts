@@ -24,6 +24,7 @@ import {
   formatPercent,
   nextSelection,
   paletteLabels,
+  paletteSymbols,
   routeHash,
   userMessage,
 } from './pure';
@@ -129,11 +130,12 @@ export function mountPanelPlay(
       },
     });
     const { boardCanvas, hintBtn, undoBtn, redoBtn, removeBtn, moveBtn, overlayBtn } = view;
-    const trayView = createTrayView(view.tray, save, labels, (c) => select(c));
+    const symbols = paletteSymbols(save.palette.length);
+    const trayView = createTrayView(view.tray, save, labels, symbols, (c) => select(c));
 
     // ---- board --------------------------------------------------------------
     const board = new BoardRenderer(boardCanvas);
-    board.setData((x, y) => session.cellAt(x, y), save.palette);
+    board.setData((x, y) => session.cellAt(x, y), save.palette, symbols);
     board.resize();
     const ro = new ResizeObserver(() => {
       board.setViewport(1, 0, 0);
@@ -146,6 +148,7 @@ export function mountPanelPlay(
     let pinchDown = false;
     const syncOverlay = (): void => {
       board.setOverlay(overlayOn || pinchDown);
+      trayView.setSymbols(overlayOn || pinchDown);
       overlayBtn.setAttribute('aria-pressed', String(overlayOn));
       overlayBtn.classList.toggle('on', overlayOn);
     };

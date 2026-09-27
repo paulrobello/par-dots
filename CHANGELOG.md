@@ -7,8 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- A tray color's count is now the dots of it left in hand, so a wrong dot uses one up. A color at 0 can no longer be placed; it stays in the tray, dimmed, while any of its dots are misplaced.
+- A finished picture's overview shows one green frame instead of a check mark on every panel.
+- Glass buttons, chips and panels are darker for contrast.
+
 ### Added
 
+- Overlay marks each empty stud with its color's symbol, as on the building sheets, and shows the symbols on the tray dots while it is on.
+- View picture on the overview of a finished picture opens the finished mosaic in a sheet, next to Download PNG.
+- The overview lists the picture's color count next to its panel count.
+- Guide → All panels downloads a PDF with one panel per page instead of one tall PNG.
 - Settings: Background color presets (gray, blue, green, brown, purple), applied app-wide with the browser theme color and remembered across visits.
 - Back up and restore: "Back up all" in the gallery (or Back up on one card) saves pictures and their uploaded photos to a `.pardots` file; "Restore" imports one as new pictures, on any browser or after clearing site data.
 

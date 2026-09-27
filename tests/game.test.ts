@@ -631,23 +631,33 @@ describe('PanelSession remainingFor/emptyCount', () => {
     };
   }
 
-  function recount(s: PanelSession, colors: number): { remaining: number[]; empty: number } {
+  function recount(
+    s: PanelSession,
+    colors: number,
+  ): { remaining: number[]; available: number[]; empty: number } {
     const remaining = new Array<number>(colors).fill(0);
+    const available = new Array<number>(colors).fill(0);
     let empty = 0;
     for (let y = 0; y < 16; y++) {
       for (let x = 0; x < 16; x++) {
         const cell = s.cellAt(x, y);
+        available[cell.target]++;
         if (cell.placed === EMPTY) empty++;
+        else available[cell.placed]--;
         if (cell.placed !== cell.target) remaining[cell.target]++;
       }
     }
-    return { remaining, empty };
+    return { remaining, available, empty };
   }
 
   function expectMatches(s: PanelSession, colors: number): void {
     const want = recount(s, colors);
     expect(s.emptyCount()).toBe(want.empty);
-    for (let c = 0; c < colors; c++) expect(s.remainingFor(c)).toBe(want.remaining[c]);
+    for (let c = 0; c < colors; c++) {
+      expect(s.remainingFor(c)).toBe(want.remaining[c]);
+      expect(s.availableFor(c)).toBe(want.available[c]);
+      expect(s.availableFor(c)).toBeGreaterThanOrEqual(0);
+    }
   }
 
   it('starts in agreement with a partially filled panel', () => {
@@ -691,5 +701,31 @@ describe('PanelSession remainingFor/emptyCount', () => {
         if (s.isComplete()) break;
       }
     }
+  });
+});
+
+describe('PanelSession dot supply', () => {
+  it('refuses to paint a color once all its dots are placed, even with some misplaced', () => {
+    const save = makeSave('1:1', 3);
+    const s = new PanelSession(save, 0);
+    const c = save.target[studIndex(save, 0, 0, 0)];
+    const supply = s.availableFor(c);
+    const empties: Array<[number, number]> = [];
+    for (let y = 0; y < 16; y++)
+      for (let x = 0; x < 16; x++) if (s.cellAt(x, y).target !== c) empties.push([x, y]);
+    s.beginStroke('paint', c);
+    for (let k = 0; k < supply; k++) expect(s.applyAt(empties[k][0], empties[k][1])).toBe(true);
+    expect(s.availableFor(c)).toBe(0);
+    expect(s.applyAt(0, 0)).toBe(false);
+    s.endStroke();
+    expect(s.trayColors()).toContain(c);
+    expect(s.remainingFor(c)).toBe(supply);
+    s.beginStroke('remove');
+    s.applyAt(empties[0][0], empties[0][1]);
+    s.endStroke();
+    expect(s.availableFor(c)).toBe(1);
+    s.beginStroke('paint', c);
+    expect(s.applyAt(0, 0)).toBe(true);
+    s.endStroke();
   });
 });

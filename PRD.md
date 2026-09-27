@@ -98,17 +98,18 @@ Targets: iOS Safari 17+, Android Chrome (latest two), desktop Chrome/Safari/Fire
 ### 5.4 Overview (full picture)
 - Renders the full picture on a baseplate grid with panel borders. With a mouse, hovering a panel outlines it.
 - Completed studs render as placed dots. Unstarted/empty areas show the empty baseplate; the **Ghost** toggle shows the target mosaic faintly.
-- Each panel shows a small completion badge (%, check mark when done).
+- Each panel shows a small completion badge (%, check mark when done). When every panel is done, the badges and panel seams are replaced by one green frame around the picture.
 - Tap any panel (any order), or use the numbered panel buttons, to zoom into it with an animated zoom transition.
-- Shows overall progress %, total elapsed time and panel count. A completed picture shows a **Download PNG** button.
+- Shows overall progress %, total elapsed time, panel count and color count. A completed picture shows **View picture** (the finished mosaic in a sheet, with its own download) and **Download PNG** buttons.
+- **Guide** downloads printable building sheets: every panel as a PDF with one panel per US Letter page, or one chosen panel as a PNG.
 
 ### 5.5 Panel Play
 Layout (portrait phone, top to bottom):
 - **Top bar:** back to Overview, panel label (e.g. "Panel 5 / 12"), progress %, timer, settings.
-- **Reference image:** the panel's target mosaic as a thumbnail, tappable to enlarge. The **Overlay** toggle, or holding a two-finger pinch on the board, shows the target colors faintly on empty studs. This is the player's only color guidance (no numbers).
+- **Reference image:** the panel's target mosaic as a thumbnail, tappable to enlarge. The **Overlay** toggle, or holding a two-finger pinch on the board, shows the target colors faintly on empty studs, each marked with its color's symbol (A, B, C, … as on the building sheets), and shows the same symbol on each tray dot. Symbols are hidden while the overlay is off.
 - **Board:** the 16×16 stud baseplate filling the width, with pinch-zoom and pan for small screens.
 - **Toolbar:** Remove, Move, Hint, Undo, Redo.
-- **Color tray:** single horizontal, scrollable row of dots, one per color still needed in this panel, each showing how many studs of that color remain.
+- **Color tray:** single horizontal, scrollable row of dots, one per color still needed in this panel, each showing how many dots of that color are left in hand: the panel's studs of that color minus the dots of it already placed, right or wrong.
 - A panel that was already complete when opened shows "Panel complete" instead of the toolbar and tray.
 
 Interaction:
@@ -118,6 +119,7 @@ Interaction:
 - **Move tool:** toggle on; one finger (or the mouse) pans the zoomed board instead of painting. Remove and Move are mutually exclusive. A completed panel always pans.
 - **Hint:** outlines/flashes every incorrectly placed dot in the current panel for 3 s and toasts the count. Unlimited. If none are wrong, show a brief "No mistakes" toast.
 - **Full but wrong:** when every stud holds a dot but some are wrong, the app plays an error buzz and haptic once on entering that state, and the Hint button pulses until tapped.
+- **Dot supply:** a color at 0 cannot be placed. If it is still in the tray at 0, at least one of its dots is on a wrong stud, and the dot is dimmed until one is removed.
 - **Tray depletion:** when every stud whose target is color C holds a correct C dot, C is removed from the tray (animated). If the player later removes one of those correct dots, C returns to the tray.
 - **Gesture disambiguation:** one finger paints or removes; two fingers pan/zoom; the mouse wheel zooms. A touch is held 70 ms (or until it drifts 10 px) before it paints, so the first finger of a pinch never paints; a second finger within 300 ms cancels the stroke. A drag must not scroll the page, and page zoom is locked.
 - **Keyboard:** Cmd/Ctrl+Z undoes, Shift+Cmd/Ctrl+Z redoes, and Escape returns to the Overview when no sheet or dialog is open.

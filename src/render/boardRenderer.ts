@@ -13,6 +13,7 @@
 
 import { EMPTY, PANEL_SIZE, type PaletteColor } from '../types';
 import { clearCanvas, drawPlate, resizeBacking } from './canvas';
+import { luminance } from './color';
 import {
   cellDeviceRect,
   fitGrid,
@@ -42,6 +43,7 @@ export interface BoardRendererOptions {
 }
 
 const PRESS_MS = 180;
+const SYMBOL_FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
 
 /** Draws one panel board; see the file header for ownership and call order. */
 export class BoardRenderer {
@@ -52,6 +54,7 @@ export class BoardRenderer {
   private readonly margin: number;
   private getCell: CellGetter | null = null;
   private palette: PaletteColor[] = [];
+  private symbols: string[] = [];
   private vp: Viewport = { ...IDENTITY_VIEWPORT };
   private layoutCache: GridLayout = {
     cell: 0,
@@ -84,11 +87,12 @@ export class BoardRenderer {
 
   /**
    * Board contents. getCell(x, y) is called for panel-local cells; placed is EMPTY or a palette
-   * index. Does not redraw; call draw().
+   * index. `symbols` (by palette index) are drawn on overlay studs. Does not redraw; call draw().
    */
-  setData(getCell: CellGetter, palette: PaletteColor[]): void {
+  setData(getCell: CellGetter, palette: PaletteColor[], symbols: string[] = []): void {
     this.getCell = getCell;
     this.palette = palette;
+    this.symbols = symbols;
   }
 
   /** Viewport in canvas CSS px (see file header). Does not redraw; call draw(). */
@@ -96,7 +100,10 @@ export class BoardRenderer {
     this.vp = { scale: scale > 0 ? scale : 1, offsetX, offsetY };
   }
 
-  /** Show the target colors as faint dots on empty studs (reference overlay). Redraws on change. */
+  /**
+   * Show the target colors as faint dots, each carrying its palette symbol, on empty studs
+   * (reference overlay). Redraws on change.
+   */
   setOverlay(on: boolean): void {
     if (this.overlay === on) return;
     this.overlay = on;
@@ -247,6 +254,14 @@ export class BoardRenderer {
         ctx.globalAlpha = 0.35;
         ctx.drawImage(this.sprites.dot(t.hex, s), r.x, r.y, r.w, r.h);
         ctx.globalAlpha = 1;
+        const sym = this.symbols[cell.target];
+        if (sym) {
+          ctx.font = `bold ${Math.round(s * (sym.length > 1 ? 0.34 : 0.44))}px ${SYMBOL_FONT}`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = luminance(t.hex) > 0.45 ? '#1b1b1b' : '#fff';
+          ctx.fillText(sym, r.x + r.w / 2, r.y + r.h / 2);
+        }
       }
     }
     if (this.hints.has(k)) {
