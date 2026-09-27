@@ -145,7 +145,7 @@ Game rules stay in `game/`: `ui/` never decides whether a dot is correct, it ask
 | --- | --- | --- |
 | IndexedDB `par-dots`, version 1, store `saves` | `src/storage/db.ts` | `PictureSave` records, keyPath `id` |
 | IndexedDB `par-dots`, store `images` | `src/storage/db.ts` | Uploaded image blobs, keyed by the save's `sourceImageId`; library pictures use `library:<slug>` and have no blob |
-| localStorage `par-dots:settings` | `src/storage/settings.ts` | `Settings` (sound, place sound, haptics, music and track, palette mode, max colors, dither, background), cached in memory |
+| localStorage `par-dots:settings` | `src/storage/settings.ts` | `Settings` (sound, place sound, haptics, music and track, effects and music volume, palette mode, max colors, dither, background), cached in memory |
 | localStorage `par-dots:install-prompt-dismissed` | `src/ui/install.ts` | Whether the one-time install prompt was shown |
 
 - `src/ui/saves.ts` is the save repository and the only persistence entry point for `ui/`. It keeps one in-memory object per save id, so the overview and panel play share the same `placed` array.

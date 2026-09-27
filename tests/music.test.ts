@@ -61,6 +61,22 @@ describe('music', () => {
     expect(a.paused).toBe(true);
   });
 
+  it('scales element volume with the music volume and pauses at 0', async () => {
+    const { settings, music, target } = await load();
+    settings.setSettings({ musicVolume: 50 });
+    target.dispatchEvent(new Event('pointerdown'));
+    const a = FakeAudio.made[0];
+    expect(a.volume).toBeCloseTo(0.3);
+    settings.setSettings({ musicVolume: 0 });
+    music.syncMusic();
+    expect(a.volume).toBe(0);
+    expect(a.paused).toBe(true);
+    settings.setSettings({ musicVolume: 100 });
+    music.syncMusic();
+    expect(a.volume).toBeCloseTo(0.6);
+    expect(a.paused).toBe(false);
+  });
+
   it('does not play when music is off at the first gesture', async () => {
     const { settings, target } = await load();
     settings.setSettings({ music: false });

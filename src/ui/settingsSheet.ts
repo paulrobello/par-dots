@@ -6,7 +6,7 @@
  */
 
 import { MUSIC_LABELS, syncMusic } from '../audio/music';
-import { playPlaceSound } from '../audio/sfx';
+import { play, playPlaceSound } from '../audio/sfx';
 import {
   canRequestPersistence,
   isPersisted,
@@ -81,6 +81,37 @@ export function openSettingsSheet(onClose?: () => void): void {
       }),
     ),
   );
+  const volumeRow = (
+    key: 'sfxVolume' | 'musicVolume',
+    label: string,
+    onChange: () => void,
+  ): HTMLElement => {
+    const value = h('output', { class: 'colors-value' }, `${getSettings()[key]}%`);
+    const input = h('input', {
+      type: 'range',
+      min: '0',
+      max: '100',
+      step: '5',
+      value: String(getSettings()[key]),
+      class: 'colors-range',
+      'aria-label': label,
+    });
+    input.addEventListener('input', () => {
+      const patch: Partial<Settings> = { [key]: Number(input.value) };
+      setSettings(patch);
+      value.textContent = `${input.value}%`;
+      onChange();
+    });
+    return h(
+      'label',
+      { class: 'setting-row volume-row' },
+      h('strong', {}, label),
+      h('span', { class: 'colors-ctl' }, input, value),
+    );
+  };
+  const sfxVolumeRow = volumeRow('sfxVolume', 'Effects volume', () => undefined);
+  sfxVolumeRow.querySelector('input')?.addEventListener('change', () => play('place'));
+  const musicVolumeRow = volumeRow('musicVolume', 'Music volume', syncMusic);
   const musicTrackRow = h(
     'div',
     { class: 'setting-row column' },
@@ -181,9 +212,11 @@ export function openSettingsSheet(onClose?: () => void): void {
       'div',
       { class: 'settings' },
       row('sound', 'Sound', 'Clicks and chimes'),
+      sfxVolumeRow,
       placeSoundRow,
       row('haptics', 'Haptics', 'Vibration where supported'),
       row('music', 'Music', 'Background music while you play'),
+      musicVolumeRow,
       musicTrackRow,
       backgroundRow,
       storageRow,

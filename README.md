@@ -84,7 +84,7 @@ Everything runs on-device: uploads never leave your phone, progress is saved loc
 | Cmd/Ctrl+Z, Shift+Cmd/Ctrl+Z | Undo, redo |
 | Escape | Back to the overview |
 
-A panel is done when every stud holds the correct color. Finished pictures can be downloaded as a PNG from the finale, the overview, or the gallery. "Back up all" in the gallery saves every picture, with its progress and uploaded photo, to a `.pardots` file, and "Restore" loads one back on any browser or device. Sound, place sound, haptics and background music (Happy, Calm or Energy) are in the settings sheet (gear button on a panel).
+A panel is done when every stud holds the correct color. Finished pictures can be downloaded as a PNG from the finale, the overview, or the gallery. "Back up all" in the gallery saves every picture, with its progress and uploaded photo, to a `.pardots` file, and "Restore" loads one back on any browser or device. Sound, place sound, haptics, background music (Happy, Calm or Energy) and separate effects and music volumes are in the settings sheet (gear button on a panel).
 
 ## Development
 

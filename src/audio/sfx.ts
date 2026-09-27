@@ -75,7 +75,18 @@ export const SOUNDS: Record<SoundName, Note[]> = {
 type AudioCtor = new () => AudioContext;
 
 let ctx: AudioContext | null = null;
+let master: GainNode | null = null;
 let listening = false;
+
+/** The shared output node for every effect; its gain follows the sfxVolume setting. */
+function out(ac: AudioContext): AudioNode {
+  if (!master || master.context !== ac) {
+    master = ac.createGain();
+    master.connect(ac.destination);
+  }
+  master.gain.value = getSettings().sfxVolume / 100;
+  return master;
+}
 
 function audioCtor(): AudioCtor | undefined {
   const g = globalThis as unknown as { AudioContext?: AudioCtor; webkitAudioContext?: AudioCtor };
@@ -136,7 +147,7 @@ function schedule(ac: AudioContext, notes: Note[]): void {
     amp.gain.exponentialRampToValueAtTime(n.gain, start + Math.min(0.01, n.dur / 4));
     amp.gain.exponentialRampToValueAtTime(0.0001, end);
     osc.connect(amp);
-    amp.connect(ac.destination);
+    amp.connect(out(ac));
     osc.start(start);
     osc.stop(end + 0.02);
   }
@@ -168,7 +179,7 @@ function noiseBurst(
   amp.gain.value = gain;
   src.connect(bp);
   bp.connect(amp);
-  amp.connect(ac.destination);
+  amp.connect(out(ac));
   src.start(at);
 }
 

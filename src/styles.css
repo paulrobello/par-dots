@@ -1455,6 +1455,21 @@ p {
   font-weight: 700;
 }
 
+.volume-row {
+  gap: 14px;
+}
+
+.setting-row.volume-row .colors-ctl {
+  display: flex;
+  flex-direction: row;
+  flex: 1 1 auto;
+  max-width: 60%;
+}
+
+.volume-row .colors-value {
+  min-width: 4ch;
+}
+
 .colors-range {
   flex: 1 1 auto;
   min-width: 0;

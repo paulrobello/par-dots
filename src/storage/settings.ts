@@ -40,6 +40,10 @@ export interface Settings {
   music: boolean;
   /** Background music track. Default 'happy'. */
   musicTrack: MusicTrack;
+  /** Sound-effect volume, an integer 0..100. Default 80. */
+  sfxVolume: number;
+  /** Music volume, an integer 0..100. Default 60. */
+  musicVolume: number;
 }
 
 /** Settings used for any field that is missing or invalid. Frozen. */
@@ -53,6 +57,8 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   background: 'gray',
   music: true,
   musicTrack: 'happy',
+  sfxVolume: 80,
+  musicVolume: 60,
 });
 
 /** localStorage key holding the settings JSON. */
@@ -78,6 +84,11 @@ function sanitize(raw: unknown): Settings {
     if (typeof r.music === 'boolean') s.music = r.music;
     if (MUSIC_TRACKS.includes(r.musicTrack as MusicTrack))
       s.musicTrack = r.musicTrack as MusicTrack;
+    for (const key of ['sfxVolume', 'musicVolume'] as const) {
+      const v = r[key];
+      if (typeof v === 'number' && Number.isFinite(v))
+        s[key] = Math.max(0, Math.min(100, Math.round(v)));
+    }
   }
   return s;
 }

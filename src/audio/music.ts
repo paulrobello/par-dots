@@ -13,7 +13,8 @@ export const MUSIC_LABELS: Record<MusicTrack, string> = {
   energy: 'Energy',
 };
 
-const VOLUME = 0.35;
+/** Music sits under the effects: 100% on the slider is this element volume. */
+const MAX_VOLUME = 0.6;
 
 let audio: HTMLAudioElement | null = null;
 let current: MusicTrack | null = null;
@@ -27,9 +28,10 @@ function trackUrl(track: MusicTrack): string {
 /** Start, stop, or switch the music to match the current settings and page visibility. */
 export function syncMusic(): void {
   if (typeof Audio === 'undefined') return;
-  const { music, musicTrack } = getSettings();
+  const { music, musicTrack, musicVolume } = getSettings();
   const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
-  if (!music || !unlocked || hidden) {
+  if (audio) audio.volume = (MAX_VOLUME * musicVolume) / 100;
+  if (!music || musicVolume === 0 || !unlocked || hidden) {
     audio?.pause();
     return;
   }
@@ -37,7 +39,7 @@ export function syncMusic(): void {
     audio = new Audio();
     audio.loop = true;
     audio.preload = 'auto';
-    audio.volume = VOLUME;
+    audio.volume = (MAX_VOLUME * musicVolume) / 100;
   }
   if (current !== musicTrack) {
     current = musicTrack;

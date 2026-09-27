@@ -348,6 +348,16 @@ describe('settings', () => {
     });
   });
 
+  it('clamps volumes to 0..100 and falls back on non-numbers', () => {
+    expect(getSettings()).toMatchObject({ sfxVolume: 80, musicVolume: 60 });
+    storage.setItem(SETTINGS_KEY, JSON.stringify({ sfxVolume: 140, musicVolume: -5 }));
+    resetSettingsCache();
+    expect(getSettings()).toMatchObject({ sfxVolume: 100, musicVolume: 0 });
+    storage.setItem(SETTINGS_KEY, JSON.stringify({ sfxVolume: 'loud', musicVolume: 42.6 }));
+    resetSettingsCache();
+    expect(getSettings()).toMatchObject({ sfxVolume: 80, musicVolume: 43 });
+  });
+
   it('clamps maxColors to the slider range', () => {
     storage.setItem(SETTINGS_KEY, JSON.stringify({ maxColors: 2 }));
     resetSettingsCache();
