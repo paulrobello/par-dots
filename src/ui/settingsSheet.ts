@@ -1,10 +1,16 @@
 /**
- * Settings bottom sheet: sound, place sound (with preview), haptics, background color, and
- * Install app when
+ * Settings bottom sheet: sound, place sound (with preview), haptics, background color, storage
+ * usage (with Keep safe when not persistent), and Install app when
  * the app is not already installed. Changes are stored immediately.
  */
 
 import { playPlaceSound } from '../audio/sfx';
+import {
+  canRequestPersistence,
+  isPersisted,
+  requestPersistence,
+  storageEstimate,
+} from '../storage/quota';
 import {
   BACKGROUNDS,
   getSettings,
@@ -16,6 +22,7 @@ import {
 import { applyBackground, BACKGROUND_COLORS } from './background';
 import { h, openSheet } from './dom';
 import { canOfferInstall, installApp } from './install';
+import { formatBytes } from './pure';
 
 /** Sound / haptics toggles in a bottom sheet. */
 export function openSettingsSheet(): void {
@@ -112,6 +119,32 @@ export function openSettingsSheet(): void {
         ),
       )
     : null;
+  const storageNote = h('small', {}, 'Checking…');
+  const keepSafeBtn = h('button', { type: 'button', class: 'btn' }, 'Keep safe');
+  keepSafeBtn.hidden = true;
+  const refreshStorage = async (): Promise<void> => {
+    const [estimate, persisted] = await Promise.all([storageEstimate(), isPersisted()]);
+    if (!estimate) {
+      storageNote.textContent = 'Unavailable';
+      keepSafeBtn.hidden = true;
+      return;
+    }
+    const used = `${formatBytes(estimate.usage)} used`;
+    storageNote.textContent = persisted
+      ? `${used} · kept safe`
+      : `${used} · may be cleared by the browser`;
+    keepSafeBtn.hidden = persisted || !canRequestPersistence();
+  };
+  keepSafeBtn.addEventListener('click', () => {
+    void requestPersistence().then(refreshStorage);
+  });
+  const storageRow = h(
+    'div',
+    { class: 'setting-row' },
+    h('span', {}, h('strong', {}, 'Storage'), storageNote),
+    keepSafeBtn,
+  );
+  void refreshStorage();
   openSheet(
     'Settings',
     h(
@@ -121,6 +154,7 @@ export function openSettingsSheet(): void {
       placeSoundRow,
       row('haptics', 'Haptics', 'Vibration where supported'),
       backgroundRow,
+      storageRow,
       ...(installRow ? [installRow] : []),
     ),
   );

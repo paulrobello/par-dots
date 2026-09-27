@@ -6,6 +6,7 @@ import {
   cropSize,
   defaultCrop,
   fitWithin,
+  formatBytes,
   formatDuration,
   formatPercent,
   nameFromFile,
@@ -191,6 +192,20 @@ describe('formatPercent', () => {
     expect(formatPercent(99.96)).toBe('99%');
     expect(formatPercent(100)).toBe('100%');
     expect(formatPercent(0)).toBe('0%');
+  });
+});
+
+describe('formatBytes', () => {
+  it('shows bytes below 1 KB and one decimal above', () => {
+    expect(formatBytes(0)).toBe('0 B');
+    expect(formatBytes(1023)).toBe('1023 B');
+    expect(formatBytes(1536)).toBe('1.5 KB');
+    expect(formatBytes(5 * 1024 ** 2)).toBe('5.0 MB');
+    expect(formatBytes(3 * 1024 ** 3)).toBe('3.0 GB');
+  });
+
+  it('moves up a unit rather than showing 1024.0', () => {
+    expect(formatBytes(1024 ** 2 - 1)).toBe('1.0 MB');
   });
 });
 

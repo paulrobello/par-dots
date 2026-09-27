@@ -186,6 +186,18 @@ async function main(): Promise<void> {
   await page.keyboard.press('Escape');
 
   await page.getByRole('button', { name: 'Settings' }).click();
+  const storageNote = page.locator('.setting-row', { hasText: 'Storage' }).locator('small');
+  await page.waitForFunction(
+    () =>
+      /\d+(\.\d)? (B|KB|MB|GB) used/.test(
+        [...document.querySelectorAll('.setting-row')]
+          .find((r) => r.querySelector('strong')?.textContent === 'Storage')
+          ?.querySelector('small')?.textContent ?? '',
+      ),
+    undefined,
+    { timeout: 5000 },
+  );
+  console.log('settings storage row:', await storageNote.textContent());
   await shot(page, '11-settings');
   await page.keyboard.press('Escape');
 

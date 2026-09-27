@@ -173,6 +173,20 @@ export function formatPercent(p: number): string {
   return `${Math.floor(p)}%`;
 }
 
+/** Byte count for display: "512 B" below 1 KB, then one decimal in KB, MB or GB ("12.4 MB"). */
+export function formatBytes(n: number): string {
+  if (n < 1024) return `${Math.max(0, Math.round(n))} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let v = n / 1024;
+  let i = 0;
+  // 1023.95 so a value that would round to "1024.0" moves up a unit instead.
+  while (v >= 1023.95 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  return `${v.toFixed(1)} ${units[i]}`;
+}
+
 /** Short user-facing text for an unknown error. */
 export function userMessage(err: unknown, fallback = 'Something went wrong.'): string {
   if (err instanceof Error && err.message) return err.message;

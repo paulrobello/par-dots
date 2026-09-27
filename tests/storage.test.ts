@@ -21,6 +21,12 @@ import {
 } from '../src/storage/db';
 import { newId } from '../src/storage/id';
 import {
+  canRequestPersistence,
+  isPersisted,
+  requestPersistence,
+  storageEstimate,
+} from '../src/storage/quota';
+import {
   DEFAULT_SETTINGS,
   getSettings,
   PLACE_SOUNDS,
@@ -29,6 +35,7 @@ import {
   setSettings,
 } from '../src/storage/settings';
 import { EMPTY, MAX_COLORS, MIN_COLORS, type PictureSave } from '../src/types';
+import { createSave } from '../src/ui/saves';
 
 class MemoryStorage {
   map = new Map<string, string>();
@@ -216,6 +223,73 @@ describe('db', () => {
     }
     expect(await getImage('orphan')).toBeUndefined();
     expect(await getSave(save.id)).toBeUndefined();
+  });
+});
+
+describe('quota', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('returns the browser values when navigator.storage is supported', async () => {
+    vi.stubGlobal('navigator', {
+      storage: {
+        persist: async () => true,
+        persisted: async () => false,
+        estimate: async () => ({ usage: 10, quota: 100 }),
+      },
+    });
+    expect(await requestPersistence()).toBe(true);
+    expect(await isPersisted()).toBe(false);
+    expect(await storageEstimate()).toEqual({ usage: 10, quota: 100 });
+    expect(canRequestPersistence()).toBe(true);
+  });
+
+  it('falls back when navigator.storage is undefined', async () => {
+    vi.stubGlobal('navigator', {});
+    expect(await requestPersistence()).toBe(false);
+    expect(await isPersisted()).toBe(false);
+    expect(await storageEstimate()).toBeNull();
+    expect(canRequestPersistence()).toBe(false);
+  });
+
+  it('falls back when the browser call throws', async () => {
+    const fail = async (): Promise<never> => {
+      throw new Error('denied');
+    };
+    vi.stubGlobal('navigator', { storage: { persist: fail, persisted: fail, estimate: fail } });
+    expect(await requestPersistence()).toBe(false);
+    expect(await isPersisted()).toBe(false);
+    expect(await storageEstimate()).toBeNull();
+  });
+});
+
+describe('createSave persistence request', () => {
+  beforeEach(async () => {
+    await closeDb();
+    globalThis.indexedDB = new IDBFactory();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('asks for persistent storage exactly once after a successful create', async () => {
+    const persist = vi.fn(async () => true);
+    vi.stubGlobal('navigator', { storage: { persist } });
+    const save = makeSave();
+    await createSave(save);
+    expect(persist).toHaveBeenCalledTimes(1);
+    expect(await getSave(save.id)).toBeDefined();
+  });
+
+  it('does not ask when the create fails', async () => {
+    const persist = vi.fn(async () => true);
+    vi.stubGlobal('navigator', { storage: { persist } });
+    const spy = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError');
+    });
+    try {
+      await expect(createSave(makeSave())).rejects.toBeInstanceOf(StorageFullError);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(persist).not.toHaveBeenCalled();
   });
 });
 

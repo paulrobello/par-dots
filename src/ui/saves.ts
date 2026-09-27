@@ -2,6 +2,7 @@
 
 import * as db from '../storage/db';
 import { newId } from '../storage/id';
+import { requestPersistence } from '../storage/quota';
 import { EMPTY, type PictureSave } from '../types';
 
 /** One object per save id, so the overview and panel play mutate the same placed array. */
@@ -52,7 +53,9 @@ export async function persistSave(save: PictureSave): Promise<void> {
 
 /**
  * Store a new save. With an uploaded image blob, mints the image id, sets sourceImageId, and
- * writes image and save in one transaction so a failure leaves neither behind.
+ * writes image and save in one transaction so a failure leaves neither behind. On success, asks
+ * the browser to keep storage persistent: this runs from the Start click, which satisfies the
+ * user-activation heuristics, so it is never asked on page load.
  */
 export async function createSave(save: PictureSave, blob?: Blob): Promise<void> {
   save.updatedAt = Date.now();
@@ -63,6 +66,7 @@ export async function createSave(save: PictureSave, blob?: Blob): Promise<void> 
     await track(db.putSave(save));
   }
   cache.set(save.id, save);
+  void requestPersistence();
 }
 
 /** Delete a save from storage and the cache. */
