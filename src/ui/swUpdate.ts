@@ -35,3 +35,23 @@ export function watchForUpdates(
     doc.removeEventListener('visibilitychange', onVisibility);
   };
 }
+
+/**
+ * When the page hides, call `apply` once the saves that hiding triggers have settled. Screens
+ * start their hide-time save in their own visibilitychange listener, possibly after this one
+ * runs, so the wait begins on the next task. Returns a function that stops listening.
+ */
+export function applyWhenHidden(
+  doc: VisibilitySource,
+  whenSaved: () => Promise<void>,
+  apply: () => void,
+): () => void {
+  const onVisibility = (): void => {
+    if (doc.visibilityState !== 'hidden') return;
+    setTimeout(() => {
+      whenSaved().then(apply, apply);
+    }, 0);
+  };
+  doc.addEventListener('visibilitychange', onVisibility);
+  return () => doc.removeEventListener('visibilitychange', onVisibility);
+}

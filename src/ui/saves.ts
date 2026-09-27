@@ -6,6 +6,22 @@ import { EMPTY, type PictureSave } from '../types';
 
 /** One object per save id, so the overview and panel play mutate the same placed array. */
 const cache = new Map<string, PictureSave>();
+/** Writes still in flight, so a reload can wait for them instead of racing them. */
+const pending = new Set<Promise<unknown>>();
+
+function track<T>(p: Promise<T>): Promise<T> {
+  pending.add(p);
+  const done = (): void => {
+    pending.delete(p);
+  };
+  p.then(done, done);
+  return p;
+}
+
+/** Resolves once every write started so far has settled, including writes started meanwhile. */
+export async function whenSaved(): Promise<void> {
+  while (pending.size > 0) await Promise.allSettled([...pending]);
+}
 
 function remember(save: PictureSave): PictureSave {
   const hit = cache.get(save.id);
@@ -31,7 +47,7 @@ export async function loadSave(id: string): Promise<PictureSave | undefined> {
 export async function persistSave(save: PictureSave): Promise<void> {
   save.updatedAt = Date.now();
   cache.set(save.id, save);
-  await db.putSave(save);
+  await track(db.putSave(save));
 }
 
 /**
@@ -42,9 +58,9 @@ export async function createSave(save: PictureSave, blob?: Blob): Promise<void> 
   save.updatedAt = Date.now();
   if (blob) {
     save.sourceImageId = newId();
-    await db.putSaveWithImage(save, blob);
+    await track(db.putSaveWithImage(save, blob));
   } else {
-    await db.putSave(save);
+    await track(db.putSave(save));
   }
   cache.set(save.id, save);
 }

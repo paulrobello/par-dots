@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { UPDATE_CHECK_MS, watchForUpdates } from '../src/ui/swUpdate';
+import { applyWhenHidden, UPDATE_CHECK_MS, watchForUpdates } from '../src/ui/swUpdate';
 
 function fakeDoc(): {
   doc: Parameters<typeof watchForUpdates>[1];
@@ -70,5 +70,40 @@ describe('watchForUpdates', () => {
     vi.advanceTimersByTime(UPDATE_CHECK_MS * 3);
     f.setVisibility('visible');
     expect(reg.update).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('applyWhenHidden', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('applies only after a slow hide-time save resolves', async () => {
+    const f = fakeDoc();
+    let finishSave: () => void = () => {};
+    const slowSave = new Promise<void>((r) => {
+      finishSave = r;
+    });
+    const apply = vi.fn();
+    applyWhenHidden(f.doc, () => slowSave, apply);
+    f.setVisibility('hidden');
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(apply).not.toHaveBeenCalled();
+    finishSave();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(apply).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies even when the save fails, ignores becoming visible, and stops on dispose', async () => {
+    const f = fakeDoc();
+    const apply = vi.fn();
+    const stop = applyWhenHidden(f.doc, () => Promise.reject(new Error('quota')), apply);
+    f.setVisibility('visible');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(apply).not.toHaveBeenCalled();
+    f.setVisibility('hidden');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(apply).toHaveBeenCalledTimes(1);
+    stop();
+    expect(f.listeners()).toBe(0);
   });
 });

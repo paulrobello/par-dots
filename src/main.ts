@@ -14,10 +14,11 @@ import { initInstall } from './ui/install';
 import { mountOverview } from './ui/overview';
 import { mountPanelPlay } from './ui/panelPlay';
 import { parseRoute, shouldApplyUpdate } from './ui/pure';
+import { whenSaved } from './ui/saves';
 import type { Cleanup, Navigate, ScreenContext } from './ui/screen';
 import { mountSetup } from './ui/setup';
 import { mountSource } from './ui/source';
-import { watchForUpdates } from './ui/swUpdate';
+import { applyWhenHidden, watchForUpdates } from './ui/swUpdate';
 
 const app = document.getElementById('app');
 if (!app) throw new Error('#app missing');
@@ -119,8 +120,6 @@ const updateSW = registerSW({
     if (reg) watchForUpdates(reg, document);
   },
 });
-// Delayed so the panel screen's own hide-time IndexedDB save completes before the reload.
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') setTimeout(maybeApplyUpdate, 1000);
-});
+// Waits for the panel screen's own hide-time IndexedDB save so the reload cannot lose it.
+applyWhenHidden(document, whenSaved, maybeApplyUpdate);
 render();
