@@ -13,7 +13,7 @@ import { EMPTY, type Mosaic, PANEL_SIZE } from '../types';
 import { clearCanvas, drawPlate, resizeBacking } from './canvas';
 import { fitGrid, type GridLayout, IDENTITY_VIEWPORT, screenToCell } from './layout';
 import { clientToCanvas } from './motion';
-import { SpriteCache } from './sprites';
+import { PLATE_GREEN, SpriteCache } from './sprites';
 
 /** Construction options for OverviewRenderer. */
 export interface OverviewRendererOptions {
@@ -120,7 +120,7 @@ export class OverviewRenderer {
         h: (L.cell * m.height + 2 * pad) * d,
       },
       6 * d,
-      this.sprites.plateColor,
+      PLATE_GREEN,
       { blur: 10 * d, offsetY: 3 * d, color: 'rgba(0,0,0,0.35)' },
     );
 

@@ -24,7 +24,7 @@ import {
   type Viewport,
 } from './layout';
 import { clientToCanvas, now, prefersReducedMotion } from './motion';
-import { SpriteCache } from './sprites';
+import { PLATE_GREEN, SpriteCache } from './sprites';
 
 /** A panel-local stud coordinate. */
 export interface Cell {
@@ -213,7 +213,7 @@ export class BoardRenderer {
       this.ctx,
       { x: a.x * d, y: a.y * d, w: size * d, h: size * d },
       Math.min(size * d * 0.02, 10 * d),
-      this.sprites.plateColor,
+      PLATE_GREEN,
       { blur: 12 * d, offsetY: 4 * d, color: 'rgba(0,0,0,0.35)' },
     );
   }

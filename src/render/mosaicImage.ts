@@ -8,8 +8,6 @@ export type MosaicStyle = 'dots';
 export interface MosaicImageOptions {
   /** Render only this stud region (e.g. one 16x16 panel for the reference image). */
   region?: { x: number; y: number; w: number; h: number };
-  /** Baseplate color behind the dots. Default LEGO green. */
-  plateColor?: string;
   /** Per-stud palette index override (e.g. placed state); EMPTY/out-of-range shows a bare stud. */
   cells?: ArrayLike<number>;
 }
@@ -43,7 +41,7 @@ export function renderMosaicToCanvas(
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('2D canvas context unavailable');
   const cells = opts.cells ?? mosaic.target;
-  const plate = opts.plateColor ?? PLATE_GREEN;
+  const plate = PLATE_GREEN;
 
   let stud: HTMLCanvasElement | null = null;
   const dotCache = new Map<string, HTMLCanvasElement>();

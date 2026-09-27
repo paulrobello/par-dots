@@ -220,8 +220,6 @@ export function drawWrongOutline(ctx: Ctx2D, x: number, y: number, size: number,
 }
 
 export interface SpriteCacheOptions {
-  /** Baseplate color, default LEGO green. */
-  plateColor?: string;
   /** Max cached sprites before least-recently-used eviction. Default 160. */
   maxEntries?: number;
 }
@@ -231,23 +229,17 @@ export interface SpriteCacheOptions {
  * Sizes are quantized (quantizeSpritePx) so continuous zooming reuses a bounded set.
  */
 export class SpriteCache {
-  private readonly plate: string;
   private readonly max: number;
   private readonly map = new Map<string, SpriteCanvas>();
 
   constructor(opts: SpriteCacheOptions = {}) {
-    this.plate = opts.plateColor ?? PLATE_GREEN;
     this.max = Math.max(8, opts.maxEntries ?? 160);
-  }
-
-  get plateColor(): string {
-    return this.plate;
   }
 
   /** Opaque baseplate cell with a stud, sizePx x sizePx device px (quantized). */
   stud(sizePx: number): SpriteCanvas {
     const s = quantizeSpritePx(sizePx);
-    const plate = this.plate;
+    const plate = PLATE_GREEN;
     return this.get(`s|${plate}|${s}`, s, (ctx) => drawStud(ctx, 0, 0, s, plate));
   }
 
