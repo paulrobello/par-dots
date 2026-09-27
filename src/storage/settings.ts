@@ -27,6 +27,8 @@ export interface Settings {
   paletteMode: PaletteMode;
   /** Setup-screen max colors: an integer clamped to MIN_COLORS..MAX_COLORS. Default MAX_COLORS. */
   maxColors: number;
+  /** Setup-screen Floyd–Steinberg dithering. Default false. */
+  dither: boolean;
   /** App background preset. Default 'gray'. */
   background: Background;
 }
@@ -38,6 +40,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   haptics: true,
   paletteMode: 'lego',
   maxColors: MAX_COLORS,
+  dither: false,
   background: 'gray',
 });
 
@@ -58,6 +61,7 @@ function sanitize(raw: unknown): Settings {
     if (typeof r.maxColors === 'number' && Number.isInteger(r.maxColors)) {
       s.maxColors = Math.max(MIN_COLORS, Math.min(MAX_COLORS, r.maxColors));
     }
+    if (typeof r.dither === 'boolean') s.dither = r.dither;
     if (r.paletteMode === 'lego' || r.paletteMode === 'free') s.paletteMode = r.paletteMode;
     if (BACKGROUNDS.includes(r.background as Background)) s.background = r.background as Background;
   }

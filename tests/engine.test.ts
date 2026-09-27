@@ -260,3 +260,70 @@ describe('buildMosaic golden output', () => {
     }
   }
 });
+
+describe('buildMosaic dither', () => {
+  /** Horizontal gray ramp from black to white. */
+  const grayRamp = (w: number, hgt: number): Uint8ClampedArray => {
+    const px = new Uint8ClampedArray(w * hgt * 4);
+    for (let y = 0; y < hgt; y++) {
+      for (let x = 0; x < w; x++) {
+        const v = Math.round((x / (w - 1)) * 255);
+        px.set([v, v, v, 255], (y * w + x) * 4);
+      }
+    }
+    return px;
+  };
+  const rowIndices = (target: Uint8Array, w: number, y: number): Set<number> =>
+    new Set(target.subarray(y * w, (y + 1) * w));
+
+  it('is deterministic and mixes indices within the flat bands of plain mapping', () => {
+    const w = 48;
+    const hgt = 16;
+    const a = buildMosaic(grayRamp(w, hgt), w, hgt, 'free', 4, true);
+    const b = buildMosaic(grayRamp(w, hgt), w, hgt, 'free', 4, true);
+    expect(b).toEqual(a);
+    const plain = buildMosaic(grayRamp(w, hgt), w, hgt, 'free', 4);
+    // Plain mapping steps through flat bands; dithering mixes neighbors inside them.
+    let plainSwitches = 0;
+    let ditherSwitches = 0;
+    for (let y = 0; y < hgt; y++) {
+      expect(rowIndices(a.target, w, y).size).toBeGreaterThanOrEqual(2);
+      for (let x = 1; x < w; x++) {
+        const i = y * w + x;
+        if (plain.target[i] !== plain.target[i - 1]) plainSwitches++;
+        if (a.target[i] !== a.target[i - 1]) ditherSwitches++;
+      }
+    }
+    expect(ditherSwitches).toBeGreaterThan(plainSwitches);
+  });
+
+  it('keeps the palette sorted by L* with every target in range', () => {
+    const m = buildMosaic(grayRamp(48, 16), 48, 16, 'free', 4, true);
+    const l = m.palette.map((c) => {
+      const [r, g, b] = hexToRgb(c.hex);
+      return rgbToLab(r, g, b)[0];
+    });
+    for (let i = 1; i < l.length; i++) expect(l[i]).toBeGreaterThanOrEqual(l[i - 1]);
+    for (const t of m.target) expect(t).toBeLessThan(m.palette.length);
+    const lego = buildMosaic(noisyImage(32, 32, 5), 32, 32, 'lego', 8, true);
+    for (const t of lego.target) expect(t).toBeLessThan(lego.palette.length);
+  });
+
+  it('leaves non-dithered output unchanged', () => {
+    const px = grayRamp(48, 16);
+    expect(buildMosaic(px, 48, 16, 'free', 4, false)).toEqual(buildMosaic(px, 48, 16, 'free', 4));
+    const noisy = noisyImage(64, 48, 11);
+    expect(buildMosaic(noisy, 64, 48, 'lego', 12, false)).toEqual(
+      buildMosaic(noisy, 64, 48, 'lego', 12),
+    );
+  });
+
+  it('dithers a 64x48 free mosaic in under 1000 ms', () => {
+    const px = noisyImage(64, 48, 11);
+    const t0 = performance.now();
+    buildMosaic(px, 64, 48, 'free', MAX_COLORS, true);
+    const ms = performance.now() - t0;
+    console.log(`dither 64x48 free: ${ms.toFixed(1)} ms`);
+    expect(ms).toBeLessThan(1000);
+  });
+});

@@ -46,6 +46,41 @@ async function main(): Promise<void> {
   await page.locator('.preview-box canvas').waitFor();
   await shot(page, '03-setup');
 
+  // Dither switch re-renders the preview and persists across a reload.
+  const previewData = (): Promise<string> =>
+    page.locator('.preview-box canvas').evaluate((c) => (c as HTMLCanvasElement).toDataURL());
+  const waitPreviewChange = async (before: string): Promise<void> => {
+    await page.waitForFunction(
+      (prev) => {
+        const c = document.querySelector<HTMLCanvasElement>('.preview-box canvas');
+        return c !== null && c.toDataURL() !== prev;
+      },
+      before,
+      { timeout: 10000 },
+    );
+  };
+  const ditherSwitch = page.getByRole('switch', { name: /Dither/ });
+  if (await ditherSwitch.isChecked()) throw new Error('dither should start off');
+  const plainPreview = await previewData();
+  await ditherSwitch.click();
+  await waitPreviewChange(plainPreview);
+  console.log('dither on: preview re-rendered');
+  await shot(page, '03b-setup-dither');
+  await page.reload();
+  await page.waitForURL(/#\/new/);
+  await page.getByRole('button', { name: 'Lighthouse' }).click();
+  await page.waitForURL(/#\/setup/);
+  await page.locator('.preview-box canvas').waitFor();
+  if (!(await page.getByRole('switch', { name: /Dither/ }).isChecked())) {
+    throw new Error('dither setting did not persist after reload');
+  }
+  console.log('dither persisted after reload');
+  const ditheredPreview = await previewData();
+  await page.getByRole('switch', { name: /Dither/ }).click();
+  await waitPreviewChange(ditheredPreview);
+  if ((await previewData()) !== plainPreview) throw new Error('dither off did not restore preview');
+  console.log('dither off: preview restored');
+
   await page.getByRole('button', { name: 'Start' }).click();
   await page.waitForURL(/#\/play\/[^/]+$/);
   await page.locator('.panel-btn').first().waitFor();

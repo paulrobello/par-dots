@@ -251,6 +251,16 @@ describe('settings', () => {
     expect(getSettings()).toEqual({ ...DEFAULT_SETTINGS, haptics: false });
   });
 
+  it('keeps a boolean dither and falls back to false otherwise', () => {
+    storage.setItem(SETTINGS_KEY, JSON.stringify({ dither: 'yes' }));
+    resetSettingsCache();
+    expect(getSettings().dither).toBe(false);
+    storage.setItem(SETTINGS_KEY, JSON.stringify({ dither: true }));
+    resetSettingsCache();
+    expect(getSettings().dither).toBe(true);
+    expect(setSettings({ dither: false }).dither).toBe(false);
+  });
+
   it('clamps maxColors to the slider range', () => {
     storage.setItem(SETTINGS_KEY, JSON.stringify({ maxColors: 2 }));
     resetSettingsCache();

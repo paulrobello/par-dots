@@ -1,5 +1,5 @@
 /**
- * Setup screen (`#/setup`): crop editor, aspect, palette mode and max colors, a debounced
+ * Setup screen (`#/setup`): crop editor, aspect, palette mode, max colors and dither, a debounced
  * worker-computed mosaic preview, and Start, which creates the save. Needs a pending source
  * from the source screen; without one it redirects to `#/new`.
  */
@@ -56,6 +56,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
   let aspect: Aspect = src.aspect;
   let mode: PaletteMode = getSettings().paletteMode;
   let maxColors = getSettings().maxColors;
+  let dither = getSettings().dither;
   let crop: CropState = clampCrop(
     img.width,
     img.height,
@@ -172,6 +173,20 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
     colorsValue,
   );
 
+  const ditherInput = h('input', { type: 'checkbox', role: 'switch', class: 'switch' });
+  ditherInput.checked = dither;
+  ditherInput.addEventListener('change', () => {
+    dither = ditherInput.checked;
+    setSettings({ dither });
+    schedulePreview();
+  });
+  const ditherCtl = h(
+    'label',
+    { class: 'setting-row' },
+    h('span', {}, h('strong', {}, 'Dither'), h('small', {}, 'Smoother gradients')),
+    ditherInput,
+  );
+
   root.append(
     h(
       'div',
@@ -187,7 +202,16 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
         'div',
         { class: 'setup-body' },
         h('div', { class: 'setup-crop' }, stageWrap, aspectCtl),
-        h('div', { class: 'setup-side' }, modeCtl, colorsCtl, preview, previewNote, startBtn),
+        h(
+          'div',
+          { class: 'setup-side' },
+          modeCtl,
+          colorsCtl,
+          ditherCtl,
+          preview,
+          previewNote,
+          startBtn,
+        ),
       ),
     ),
   );
@@ -307,7 +331,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
     const dims = studDims(aspect);
     const rect = cropRectFor(img.width, img.height, aspect, crop);
     const pixels = cropAndResample(img, rect, dims.width, dims.height);
-    return quantizeInWorker(pixels, dims.width, dims.height, mode, maxColors);
+    return quantizeInWorker(pixels, dims.width, dims.height, mode, maxColors, dither);
   };
   const runPreview = (): void => {
     const my = ++token;

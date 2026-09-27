@@ -23,6 +23,8 @@ export interface QuantizeRequest {
   mode: PaletteMode;
   /** Color cap, clamped to MIN_COLORS..MAX_COLORS by buildMosaic. Defaults to MAX_COLORS. */
   maxColors?: number;
+  /** Floyd–Steinberg dithering instead of nearest-color mapping. Defaults to false. */
+  dither?: boolean;
 }
 
 /**
@@ -34,9 +36,9 @@ export type QuantizeResponse = { id: number; mosaic: Mosaic } | { id: number; er
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 
 ctx.onmessage = (ev: MessageEvent<QuantizeRequest>): void => {
-  const { id, pixels, width, height, mode, maxColors } = ev.data;
+  const { id, pixels, width, height, mode, maxColors, dither } = ev.data;
   try {
-    const mosaic = buildMosaic(pixels, width, height, mode, maxColors);
+    const mosaic = buildMosaic(pixels, width, height, mode, maxColors, dither);
     const msg: QuantizeResponse = { id, mosaic };
     ctx.postMessage(msg, [mosaic.target.buffer]);
   } catch (err) {

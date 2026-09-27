@@ -9,7 +9,8 @@
  *    otherwise weighted k-means++ seeding (fixed FREE_SEED) and Lloyd iterations in Lab,
  *    each centroid colored by its RGB mean and named after the nearest LEGO color.
  * 3. Merge candidates closer than MIN_DELTA_E, dropping the one covering fewer pixels.
- * 4. Map pixels to their nearest candidate, keep used candidates only, and sort by L*, then hex.
+ * 4. Map pixels to their nearest candidate (or, with dithering, Floyd–Steinberg error diffusion
+ *    in serpentine order), keep used candidates only, and sort by L*, then hex.
  */
 
 import { MAX_COLORS, MIN_COLORS, type Mosaic, type PaletteColor, type PaletteMode } from '../types';
@@ -387,10 +388,71 @@ function enforceContrast(colors: ColorSet, candidates: Entry[]): void {
   }
 }
 
+/** Candidate index per pixel: each distinct color maps to its nearest candidate. */
+function mapNearest(colors: ColorSet, candidates: readonly Entry[]): Int32Array {
+  const colorToCand = colors.lab.map((lab) => nearest(lab, candidates));
+  const out = new Int32Array(colors.pixelColor.length);
+  for (let i = 0; i < out.length; i++) out[i] = colorToCand[colors.pixelColor[i]];
+  return out;
+}
+
+/**
+ * Candidate index per pixel by Floyd–Steinberg error diffusion in RGB, scanning serpentine
+ * (even rows left to right, odd rows right to left, kernel mirrored). Deterministic.
+ */
+function ditherMap(
+  colors: ColorSet,
+  width: number,
+  height: number,
+  candidates: readonly Entry[],
+): Int32Array {
+  const count = width * height;
+  const work = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    const rgb = colors.rgb[colors.pixelColor[i]];
+    work[i * 3] = (rgb >> 16) & 255;
+    work[i * 3 + 1] = (rgb >> 8) & 255;
+    work[i * 3 + 2] = rgb & 255;
+  }
+  const candRgb = candidates.map((e) => hexToRgb(e.color.hex));
+  const clamp = (v: number): number => (v < 0 ? 0 : v > 255 ? 255 : v);
+  const spread = (x: number, y: number, er: number, eg: number, eb: number, w: number): void => {
+    if (x < 0 || x >= width || y >= height) return;
+    const p = (y * width + x) * 3;
+    work[p] = clamp(work[p] + er * w);
+    work[p + 1] = clamp(work[p + 1] + eg * w);
+    work[p + 2] = clamp(work[p + 2] + eb * w);
+  };
+  const out = new Int32Array(count);
+  for (let y = 0; y < height; y++) {
+    const ltr = y % 2 === 0;
+    const dir = ltr ? 1 : -1;
+    for (let k = 0; k < width; k++) {
+      const x = ltr ? k : width - 1 - k;
+      const i = y * width + x;
+      const r = work[i * 3];
+      const g = work[i * 3 + 1];
+      const b = work[i * 3 + 2];
+      const c = nearest(rgbToLab(r, g, b), candidates);
+      out[i] = c;
+      const [cr, cg, cb] = candRgb[c];
+      const er = r - cr;
+      const eg = g - cg;
+      const eb = b - cb;
+      spread(x + dir, y, er, eg, eb, 7 / 16);
+      spread(x - dir, y + 1, er, eg, eb, 3 / 16);
+      spread(x, y + 1, er, eg, eb, 5 / 16);
+      spread(x + dir, y + 1, er, eg, eb, 1 / 16);
+    }
+  }
+  return out;
+}
+
 /**
  * Quantize RGBA pixels (already at stud resolution) to a <=32 color mosaic.
  * Deterministic for identical input. Palette is sorted by luminance (dark to light),
- * contains only colors actually used, and in 'lego' mode only LEGO_COLORS entries.
+ * contains only colors actually used, and in 'lego' mode only LEGO_COLORS entries. With
+ * `dither`, pixels map by Floyd–Steinberg error diffusion instead of nearest color.
  */
 export function buildMosaic(
   pixels: Uint8ClampedArray,
@@ -398,6 +460,7 @@ export function buildMosaic(
   height: number,
   mode: PaletteMode,
   maxColors: number = MAX_COLORS,
+  dither = false,
 ): Mosaic {
   const count = width * height;
   const limit = Math.max(MIN_COLORS, Math.min(MAX_COLORS, Math.round(maxColors)));
@@ -413,9 +476,11 @@ export function buildMosaic(
 
   enforceContrast(colors, candidates);
 
-  // Map each distinct color to its nearest candidate, then keep only used candidates.
-  const colorToCand = colors.lab.map((lab) => nearest(lab, candidates));
-  const usedCands = [...new Set(colorToCand)];
+  // Map each pixel to a candidate, then keep only used candidates.
+  const pixelCand = dither
+    ? ditherMap(colors, width, height, candidates)
+    : mapNearest(colors, candidates);
+  const usedCands = [...new Set(pixelCand)];
   usedCands.sort((a, b) => {
     const la = candidates[a].lab[0];
     const lb = candidates[b].lab[0];
@@ -429,7 +494,7 @@ export function buildMosaic(
 
   const target = new Uint8Array(count);
   for (let i = 0; i < count; i++) {
-    target[i] = candToPalette.get(colorToCand[colors.pixelColor[i]]) as number;
+    target[i] = candToPalette.get(pixelCand[i]) as number;
   }
   const palette = usedCands.map((c) => ({ ...candidates[c].color }));
   return { width, height, palette, target };
