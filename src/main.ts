@@ -5,6 +5,7 @@
  */
 
 import { registerSW } from 'virtual:pwa-register';
+import { initAnalytics, trackPageView } from './analytics';
 import { initMusic } from './audio/music';
 import { initAudio } from './audio/sfx';
 import { getSettings } from './storage/settings';
@@ -66,6 +67,7 @@ function render(): void {
       break;
   }
   window.scrollTo(0, 0);
+  trackPageView();
   maybeApplyUpdate();
 }
 
@@ -91,6 +93,7 @@ function maybeApplyUpdate(): void {
 }
 
 window.addEventListener('hashchange', render);
+initAnalytics();
 initAudio();
 initMusic();
 initInstall();

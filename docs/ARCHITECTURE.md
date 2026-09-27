@@ -17,7 +17,7 @@ How par-dots is organized: the source layers, how a photo becomes a playable pic
 
 ## Overview
 
-par-dots is a static, backend-free single-page app built with Vite and TypeScript, with no UI framework. Screens are plain DOM built by a small `h()` helper, the boards are drawn on Canvas 2D, image quantization runs in a Web Worker, and all state lives on the device in IndexedDB and localStorage. `src/main.ts` is the entry point: it owns the hash router and the service-worker update policy.
+par-dots is a static, backend-free single-page app built with Vite and TypeScript, with no UI framework. Screens are plain DOM built by a small `h()` helper, the boards are drawn on Canvas 2D, image quantization runs in a Web Worker, and all state lives on the device in IndexedDB and localStorage. `src/main.ts` is the entry point: it owns the hash router and the service-worker update policy, and reports one GA4 page view per route render via `src/analytics.ts`.
 
 ## Layers
 
