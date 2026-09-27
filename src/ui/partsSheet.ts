@@ -1,11 +1,13 @@
 /**
  * Parts sheet: how many dots of each color the picture, or one panel, needs, with how many
- * are already placed correctly and a tab-separated copy of the list.
+ * are already placed correctly and a tab-separated copy of the list. Also the Guide controls
+ * that download printable building sheets.
  */
 
 import { colorCounts, panelColorCounts, panelCount, panelOrigin } from '../game';
 import { PANEL_SIZE, type PictureSave } from '../types';
-import { h, openSheet, toast } from './dom';
+import { h, icon, openSheet, toast } from './dom';
+import { exportAllSheets, exportPanelSheet } from './exportImage';
 import { paletteLabels } from './pure';
 
 /** Correctly placed dots per palette index, over the whole picture or one panel. */
@@ -24,6 +26,33 @@ function doneCounts(save: PictureSave, panelIndex: number | null): number[] {
     for (let x = 0; x < PANEL_SIZE; x++) count((o.y + y) * save.width + o.x + x);
   }
   return done;
+}
+
+/** Guide download controls: every panel stacked in one PNG, or one chosen panel. */
+function guideControls(save: PictureSave): HTMLElement {
+  const all = h('button', { type: 'button', class: 'btn primary' }, icon('download'), 'All panels');
+  all.addEventListener('click', () => exportAllSheets(save));
+  const pick = h(
+    'select',
+    { class: 'parts-scope', 'aria-label': 'Guide panel' },
+    ...Array.from({ length: panelCount(save) }, (_, i) =>
+      h('option', { value: String(i) }, `Panel ${i + 1}`),
+    ),
+  );
+  const one = h('button', { type: 'button', class: 'btn ghost' }, icon('download'), 'Panel sheet');
+  one.addEventListener('click', () => exportPanelSheet(save, Number(pick.value)));
+  return h(
+    'div',
+    { class: 'guide' },
+    h('p', { class: 'muted small' }, 'Printable building sheets with a symbol on every dot.'),
+    all,
+    h('div', { class: 'guide-row' }, pick, one),
+  );
+}
+
+/** Open the Guide sheet: download building sheets for all panels or one. */
+export function openGuideSheet(save: PictureSave): void {
+  openSheet('Guide', guideControls(save));
 }
 
 /** Open the Parts sheet for a picture. */
@@ -107,6 +136,8 @@ export function openPartsSheet(save: PictureSave): void {
       ),
       h('p', { class: 'parts-foot' }, totalEl, ' dots · ', colorsEl, ' colors'),
       copyBtn,
+      h('h3', { class: 'parts-guide-head' }, 'Guide'),
+      guideControls(save),
     ),
   );
 }

@@ -99,13 +99,29 @@ async function main(): Promise<void> {
   };
   const whole = await partsSum();
   await shot(page, '04b-parts');
-  await parts.locator('select').selectOption({ label: 'Panel 1' });
+  await parts.locator('select.parts-scope').first().selectOption({ label: 'Panel 1' });
   const panel1 = await partsSum();
   console.log('parts whole picture:', whole, 'panel 1:', panel1);
   if (whole.total !== 48 * 64) throw new Error(`parts total ${whole.total} != 3072`);
   if (panel1.total !== 256) throw new Error(`panel 1 parts total ${panel1.total} != 256`);
   await page.keyboard.press('Escape');
   await parts.waitFor({ state: 'detached' });
+
+  // Guide: All panels downloads the stacked building sheets as one PNG.
+  await page.getByRole('button', { name: 'Guide' }).click();
+  const guide = page.getByRole('dialog', { name: 'Guide' });
+  await guide.waitFor();
+  await shot(page, '04c-guide');
+  const [guideDownload] = await Promise.all([
+    page.waitForEvent('download'),
+    guide.getByRole('button', { name: 'All panels', exact: true }).click(),
+  ]);
+  const guideName = guideDownload.suggestedFilename();
+  console.log('guide exported', guideName);
+  if (!guideName.endsWith('-guide.png')) throw new Error(`guide download ${guideName}`);
+  await guideDownload.saveAs(`${out}/guide.png`);
+  await page.keyboard.press('Escape');
+  await guide.waitFor({ state: 'detached' });
 
   await page.getByRole('button', { name: 'Open panel 5 of 12' }).click();
   await page.waitForURL(/#\/play\/[^/]+\/4$/);

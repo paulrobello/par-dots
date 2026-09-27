@@ -60,6 +60,21 @@ export function paletteLabels(palette: PaletteColor[]): string[] {
   });
 }
 
+const UPPER = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const SYMBOL_CHARS = `${UPPER}abcdefghijklmnopqrstuvwxyz`;
+
+/**
+ * Stable 1–2 char symbol per palette index: A..Z, then a..z, then two-letter codes (AA, AB, ...).
+ * Palettes are sorted dark to light, so dark colors get the early letters.
+ */
+export function paletteSymbols(n: number): string[] {
+  return Array.from({ length: n }, (_, i) => {
+    if (i < SYMBOL_CHARS.length) return SYMBOL_CHARS[i];
+    const k = i - SYMBOL_CHARS.length;
+    return UPPER[Math.floor(k / UPPER.length) % UPPER.length] + UPPER[k % UPPER.length];
+  });
+}
+
 /** Cells on the Bresenham line from (x0, y0) to (x1, y1), inclusive of both ends. */
 export function cellLine(
   x0: number,

@@ -13,6 +13,7 @@ import {
   nameFromUrl,
   nextSelection,
   paletteLabels,
+  paletteSymbols,
   panelZoomTransform,
   parseImageUrl,
   parseRoute,
@@ -57,6 +58,25 @@ describe('paletteLabels', () => {
       { hex: '#222222', name: 'Black' },
     ]);
     expect(labels).toEqual(['Black', 'White', 'Black 2', 'Black 3']);
+  });
+});
+
+describe('paletteSymbols', () => {
+  it('returns unique symbols of at most two characters', () => {
+    const syms = paletteSymbols(32);
+    expect(syms).toHaveLength(32);
+    expect(new Set(syms).size).toBe(32);
+    for (const s of syms) expect(s.length).toBeLessThanOrEqual(2);
+  });
+
+  it('starts at A', () => {
+    expect(paletteSymbols(1)).toEqual(['A']);
+  });
+
+  it('stays unique past the single letters', () => {
+    const syms = paletteSymbols(120);
+    expect(new Set(syms).size).toBe(120);
+    expect(syms[52]).toBe('AA');
   });
 });
 

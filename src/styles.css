@@ -1187,6 +1187,27 @@ p {
   color: var(--muted);
 }
 
+.parts-guide-head {
+  margin-top: 8px;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.guide {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.guide-row {
+  display: flex;
+  gap: 10px;
+}
+
+.guide-row .parts-scope {
+  flex: 1;
+}
+
 .finale {
   display: flex;
   flex-direction: column;

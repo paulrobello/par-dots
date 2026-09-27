@@ -13,7 +13,7 @@ import type { PictureSave } from '../types';
 import { celebrate } from './celebrate';
 import { h, icon, iconButton, openSheet, toast } from './dom';
 import { exportPng } from './exportImage';
-import { openPartsSheet } from './partsSheet';
+import { openGuideSheet, openPartsSheet } from './partsSheet';
 import { formatDuration, formatPercent, panelZoomTransform, routeHash, userMessage } from './pure';
 import { loadSave } from './saves';
 import type { Cleanup, ScreenContext } from './screen';
@@ -50,6 +50,7 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
     'Ghost',
   );
   const partsBtn = h('button', { type: 'button', class: 'chip' }, icon('list'), 'Parts');
+  const guideBtn = h('button', { type: 'button', class: 'chip' }, icon('grid'), 'Guide');
   const exportBtn = h(
     'button',
     { type: 'button', class: 'btn primary', hidden: true },
@@ -78,6 +79,7 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
         h('p', { class: 'muted small' }, 'Tap a panel to build it'),
         ghostBtn,
         partsBtn,
+        guideBtn,
         exportBtn,
       ),
     ),
@@ -185,6 +187,7 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
       });
 
       partsBtn.addEventListener('click', () => openPartsSheet(save));
+      guideBtn.addEventListener('click', () => openGuideSheet(save));
 
       canvas.addEventListener('click', (e) => {
         const p = renderer?.hitTestPanel(e.clientX, e.clientY);
