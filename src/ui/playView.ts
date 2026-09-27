@@ -68,7 +68,7 @@ export function renderPlayView(
       'aria-label': 'Show reference on the board',
     },
     icon('eye'),
-    h('span', {}, 'Reference'),
+    h('span', {}, 'Overlay'),
   );
   const boardCanvas = h('canvas', {
     class: 'board-canvas',

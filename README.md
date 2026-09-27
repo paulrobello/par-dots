@@ -36,7 +36,7 @@ Everything runs on-device: uploads never leave your phone, progress is saved loc
 | **Move** | One finger pans the zoomed board instead of painting |
 | **Hint** | Outlines every wrong dot for 3 seconds; pulses when the panel is full but has mistakes |
 | **Undo** / **Redo** | Steps through the last 10 strokes of this panel |
-| **Reference** | Shows the target colors faintly on empty studs; holding a two-finger pinch does the same |
+| **Overlay** | Shows the target colors faintly on empty studs; holding a two-finger pinch does the same |
 | Two fingers or the mouse wheel | Zoom and pan the board |
 | Cmd/Ctrl+Z, Shift+Cmd/Ctrl+Z | Undo, redo |
 | Escape | Back to the overview |

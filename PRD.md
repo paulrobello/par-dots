@@ -105,7 +105,7 @@ Targets: iOS Safari 17+, Android Chrome (latest two), desktop Chrome/Safari/Fire
 ### 5.5 Panel Play
 Layout (portrait phone, top to bottom):
 - **Top bar:** back to Overview, panel label (e.g. "Panel 5 / 12"), progress %, timer, settings.
-- **Reference image:** the panel's target mosaic as a thumbnail, tappable to enlarge. The **Reference** toggle, or holding a two-finger pinch on the board, shows the target colors faintly on empty studs. This is the player's only color guidance (no numbers).
+- **Reference image:** the panel's target mosaic as a thumbnail, tappable to enlarge. The **Overlay** toggle, or holding a two-finger pinch on the board, shows the target colors faintly on empty studs. This is the player's only color guidance (no numbers).
 - **Board:** the 16×16 stud baseplate filling the width, with pinch-zoom and pan for small screens.
 - **Toolbar:** Remove, Move, Hint, Undo, Redo.
 - **Color tray:** single horizontal, scrollable row of dots, one per color still needed in this panel, each showing how many studs of that color remain.
