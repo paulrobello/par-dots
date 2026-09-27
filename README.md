@@ -3,6 +3,7 @@
 ## Table of Contents
 
 * [About](#about)
+* [Screenshots](#screenshots)
 * [Features](#features)
     * [Core Capabilities](#core-capabilities)
     * [Building Tools](#building-tools)
@@ -36,6 +37,19 @@ Everything runs on-device: uploads never leave your phone, progress is saved loc
 **Play:** https://dots.pardev.net
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/probello3)
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Home screen](https://raw.githubusercontent.com/paulrobello/par-dots/main/screenshots/home-screen.png) | ![New picture library](https://raw.githubusercontent.com/paulrobello/par-dots/main/screenshots/new-picture-library.png) |
+| *Home screen* | *Bundled picture library* |
+| ![Picture setup](https://raw.githubusercontent.com/paulrobello/par-dots/main/screenshots/picture-setup.png) | ![Progress overview](https://raw.githubusercontent.com/paulrobello/par-dots/main/screenshots/progress-overview.png) |
+| *Picture setup* | *Progress overview* |
+| ![Panel play, starting](https://raw.githubusercontent.com/paulrobello/par-dots/main/screenshots/panel-play-start.png) | ![Panel play, in progress](https://raw.githubusercontent.com/paulrobello/par-dots/main/screenshots/panel-play-progress.png) |
+| *Panel play, starting* | *Panel play, in progress* |
+| ![Settings](https://raw.githubusercontent.com/paulrobello/par-dots/main/screenshots/settings.png) | |
+| *Settings* | |
 
 ## Features
 
