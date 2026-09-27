@@ -121,6 +121,7 @@ describe('buildMosaic', () => {
     ];
     const m = buildMosaic(solidImage(16, 16, cols), 16, 16, 'free');
     expect(m.palette.map((c) => c.hex)).toEqual(['#000000', '#0ac81e', '#ffffff']);
+    expect(m.palette.map((c) => c.name)).toEqual(['Black', 'Green', 'White']);
     expect(m.target[0]).toBe(2);
     expect(m.target[1]).toBe(0);
     expect(m.target[2]).toBe(1);
@@ -241,20 +242,26 @@ function fnv1a(text: string): string {
 }
 
 describe('buildMosaic golden output', () => {
-  // Recorded from the pre-refactor quantizer; any change in selection or RNG order breaks these.
+  // LEGO retains the original full-palette regression. Free hashes exclude descriptive labels.
   const GOLDEN: Record<string, string> = {
     'lego:4': '1188e071',
     'lego:12': '64945795',
     'lego:32': '27a1ba08',
-    'free:4': '893d16b4',
-    'free:12': 'b2470c4e',
-    'free:32': 'b69d3a8a',
+    'free:4': '341db152',
+    'free:12': '2fdec716',
+    'free:32': 'da9a37be',
   };
   for (const mode of ['lego', 'free'] as const) {
     for (const max of [4, 12, 32]) {
       it(`${mode} with ${max} colors is unchanged`, () => {
         const m = buildMosaic(noisyImage(64, 48, 11), 64, 48, mode, max);
-        const hash = fnv1a(JSON.stringify({ palette: m.palette, target: Array.from(m.target) }));
+        const hash = fnv1a(
+          JSON.stringify(
+            mode === 'lego'
+              ? { palette: m.palette, target: Array.from(m.target) }
+              : { palette: m.palette.map((c) => c.hex), target: Array.from(m.target) },
+          ),
+        );
         expect(hash).toBe(GOLDEN[`${mode}:${max}`]);
       });
     }

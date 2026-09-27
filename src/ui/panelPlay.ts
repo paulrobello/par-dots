@@ -76,7 +76,7 @@ export function mountPanelPlay(
 
   const build = (save: PictureSave): Cleanup => {
     const session = new PanelSession(save, panel);
-    const labels = paletteLabels(save.palette);
+    const labels = paletteLabels(save.palette, save.paletteMode);
     const lockedAtOpen = session.isComplete();
     let selected = -1;
     let removeMode = false;

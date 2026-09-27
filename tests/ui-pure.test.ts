@@ -51,13 +51,33 @@ describe('router', () => {
 
 describe('paletteLabels', () => {
   it('suffixes duplicate names in palette order', () => {
-    const labels = paletteLabels([
-      { hex: '#000000', name: 'Black' },
-      { hex: '#ffffff', name: 'White' },
-      { hex: '#111111', name: 'Black' },
-      { hex: '#222222', name: 'Black' },
-    ]);
+    const labels = paletteLabels(
+      [
+        { hex: '#000000', name: 'Black' },
+        { hex: '#ffffff', name: 'White' },
+        { hex: '#111111', name: 'Black' },
+        { hex: '#222222', name: 'Black' },
+      ],
+      'lego',
+    );
     expect(labels).toEqual(['Black', 'White', 'Black 2', 'Black 3']);
+  });
+
+  it('relabels legacy free palettes from the shade without mutating saved data', () => {
+    const palette = [
+      { hex: '#080608', name: 'Black' },
+      { hex: '#381921', name: 'Black' },
+      { hex: '#963f26', name: 'Dark Red' },
+      { hex: '#963f27', name: 'Dark Red' },
+    ];
+    const before = structuredClone(palette);
+    expect(paletteLabels(palette, 'free')).toEqual(['Black', 'Burgundy', 'Rust', 'Rust 2']);
+    expect(paletteLabels(palette, 'lego')).toEqual(['Black', 'Black 2', 'Dark Red', 'Dark Red 2']);
+    expect(palette).toEqual(before);
+  });
+
+  it('accepts shorthand hexes from imported free saves', () => {
+    expect(paletteLabels([{ hex: '#fff', name: 'Old label' }], 'free')).toEqual(['White']);
   });
 });
 

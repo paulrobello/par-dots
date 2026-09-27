@@ -44,4 +44,8 @@ if [ "$status" -eq 0 ]; then
   bun run scripts/e2e-polish.ts "$URL"
   status=$?
 fi
+if [ "$status" -eq 0 ]; then
+  bun run scripts/e2e-color-names.ts "$URL"
+  status=$?
+fi
 exit "$status"

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Free color names now describe the actual shade, including burgundy, rust, and peach, instead of borrowing the nearest LEGO name. Existing pictures show the corrected names in the tray, Parts, and building guides without changing their colors or progress. LEGO mode retains official names.
 - Softer background studs, tactile dot placement with a brief highlight, smooth tray selection and count feedback, and reversible reference-overlay fades.
 - Completed tray colors briefly show a checkmark before collapsing. Undo and redo safely restore colors even while they are leaving.
 - Panel completion uses a light sweep and local badge. Confetti is reserved for completing the whole picture, with reduced-motion alternatives throughout.

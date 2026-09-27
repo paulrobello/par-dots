@@ -1,6 +1,7 @@
 /** DOM-free UI helpers: routing, labels, stroke interpolation, crop math, formatting. */
 
-import type { Aspect, CropRect, NormalizedCrop, PaletteColor } from '../types';
+import { describeColor } from '../engine/colorNames';
+import type { Aspect, CropRect, NormalizedCrop, PaletteColor, PaletteMode } from '../types';
 
 export type Route =
   | { name: 'gallery' }
@@ -48,15 +49,16 @@ export function routeHash(route: Route): string {
 }
 
 /**
- * Display labels for a palette. Colors sharing a name get " 2", " 3", ... suffixes in
- * palette order, so a label is stable across every panel of a picture.
+ * Free colors are named from their hex value, including saves with old LEGO-derived names.
+ * Duplicate labels get stable suffixes in palette order across every panel and guide.
  */
-export function paletteLabels(palette: PaletteColor[]): string[] {
+export function paletteLabels(palette: PaletteColor[], mode: PaletteMode): string[] {
   const seen = new Map<string, number>();
   return palette.map((c) => {
-    const n = (seen.get(c.name) ?? 0) + 1;
-    seen.set(c.name, n);
-    return n === 1 ? c.name : `${c.name} ${n}`;
+    const name = mode === 'free' ? describeColor(c.hex) : c.name;
+    const n = (seen.get(name) ?? 0) + 1;
+    seen.set(name, n);
+    return n === 1 ? name : `${name} ${n}`;
   });
 }
 

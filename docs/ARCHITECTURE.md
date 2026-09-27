@@ -139,6 +139,8 @@ Any other hash, including one with a malformed percent-escape, falls back to the
 
 Game rules stay in `game/`: `ui/` never decides whether a dot is correct, it asks `PanelSession`.
 
+`engine/colorNames.ts` describes Free colors from their RGB shade. Quantization stores those names for new pictures, while `paletteLabels(palette, mode)` derives them for existing Free pictures when the tray, Parts, or building guides are rendered. LEGO labels stay intact. Display relabeling never mutates saves or changes palette indices, target cells, or placed cells.
+
 Visual effects do not delay game-state updates. The renderer runs its animation loop only while an effect is active and resolves a pending completion sweep when destroyed. Panel play waits for that sweep before showing the board-local badge in `celebrate.ts`; full-screen confetti is used only by the picture finale. The tray owns transient selection, count, and completed-color feedback and disposes its animation resources on unmount. Reduced motion skips movement while retaining the resulting state and completion message.
 
 ## Persistence

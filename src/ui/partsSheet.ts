@@ -62,7 +62,7 @@ export function openGuideSheet(save: PictureSave): void {
 
 /** Open the Parts sheet for a picture. */
 export function openPartsSheet(save: PictureSave): void {
-  const labels = paletteLabels(save.palette);
+  const labels = paletteLabels(save.palette, save.paletteMode);
   const scope = h(
     'select',
     { class: 'parts-scope', 'aria-label': 'Count dots for' },

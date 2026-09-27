@@ -28,7 +28,7 @@ export function exportPng(save: PictureSave): void {
 }
 
 function panelSheet(save: PictureSave, i: number): HTMLCanvasElement {
-  const labels = paletteLabels(save.palette);
+  const labels = paletteLabels(save.palette, save.paletteMode);
   const symbols = paletteSymbols(save.palette.length);
   return renderPanelSheet(save, i, labels, symbols, panelColorCounts(save, i));
 }

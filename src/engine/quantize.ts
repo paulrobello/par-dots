@@ -7,7 +7,7 @@
  *    fit the limit, use them; otherwise greedy selection from LEGO_COLORS by weighted Lab
  *    error, then swap refinement. Free mode: when the distinct colors fit, use them;
  *    otherwise weighted k-means++ seeding (fixed FREE_SEED) and Lloyd iterations in Lab,
- *    each centroid colored by its RGB mean and named after the nearest LEGO color.
+ *    each centroid colored by its RGB mean and given a descriptive shade name.
  * 3. Merge candidates closer than MIN_DELTA_E, dropping the one covering fewer pixels.
  * 4. Map pixels to their nearest candidate (or, with dithering, Floyd–Steinberg error diffusion
  *    in serpentine order), keep used candidates only, and sort by L*, then hex.
@@ -15,6 +15,7 @@
 
 import { MAX_COLORS, MIN_COLORS, type Mosaic, type PaletteColor, type PaletteMode } from '../types';
 import { deltaE76Sq, hexToRgb, type Lab, rgbToHex, rgbToLab } from './color';
+import { describeColor } from './colorNames';
 import { LEGO_COLORS } from './legoPalette';
 
 /** Distinct pixel colors with their occurrence counts (the weighted point set). */
@@ -220,25 +221,13 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-function legoName(lab: Lab): string {
-  let best = LEGO_ENTRIES[0].color.name;
-  let bestD = Number.POSITIVE_INFINITY;
-  for (const e of LEGO_ENTRIES) {
-    const d = deltaE76Sq(lab, e.lab);
-    if (d < bestD) {
-      bestD = d;
-      best = e.color.name;
-    }
-  }
-  return best;
-}
-
 function entryFromPacked(rgb: number): Entry {
   const r = (rgb >> 16) & 255;
   const g = (rgb >> 8) & 255;
   const b = rgb & 255;
   const lab = rgbToLab(r, g, b);
-  return { color: { hex: rgbToHex(r, g, b), name: legoName(lab) }, lab };
+  const hex = rgbToHex(r, g, b);
+  return { color: { hex, name: describeColor(hex) }, lab };
 }
 
 /** Weighted k-means++ seeding: up to k initial centers drawn with `rand`. */

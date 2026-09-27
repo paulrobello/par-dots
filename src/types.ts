@@ -25,7 +25,7 @@ export const LAYOUT: Record<Aspect, { cols: number; rows: number }> = {
 export interface PaletteColor {
   /** Lowercase "#rrggbb". */
   hex: string;
-  /** Display name: the LEGO color name (free mode: the nearest LEGO color's). Not unique. */
+  /** LEGO name or descriptive Free color name. Older Free saves may contain approximate LEGO names. Not unique. */
   name: string;
 }
 
