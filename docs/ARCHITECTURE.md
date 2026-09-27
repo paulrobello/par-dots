@@ -70,7 +70,7 @@ graph TD
 | `src/game/` | Panel geometry (`geometry.ts`), per-panel rules and undo/redo (`panelSession.ts`), progress (`progress.ts`) | DOM-free; `PanelSession` mutates `save.placed` in place and emits events |
 | `src/render/` | `BoardRenderer` (one 16x16 panel), `OverviewRenderer` (the whole picture), offscreen mosaic images, building sheets and a minimal PDF writer (`pdf.ts`), sprites, layout math, shared canvas helpers | Knows nothing about screens; `render/color.ts` reuses `engine/color.ts` |
 | `src/storage/` | IndexedDB (`db.ts`), save validation and migration (`migrate.ts`), settings (`settings.ts`), id generation (`id.ts`) | `ui/` reaches `db.ts` only through `src/ui/saves.ts` |
-| `src/audio/` | Web Audio sounds and `navigator.vibrate` haptics (`sfx.ts`) | Reads settings on every call |
+| `src/audio/` | Web Audio sounds and `navigator.vibrate` haptics (`sfx.ts`), looping background music from `public/music/*.mp3` (`music.ts`) | Reads settings on every call; music starts on the first gesture and pauses while hidden |
 | `src/ui/` | Screens, DOM helpers, input handling, the save repository, navigation handoff state | The only layer that touches the document |
 
 ## New-Picture Pipeline
@@ -145,7 +145,7 @@ Game rules stay in `game/`: `ui/` never decides whether a dot is correct, it ask
 | --- | --- | --- |
 | IndexedDB `par-dots`, version 1, store `saves` | `src/storage/db.ts` | `PictureSave` records, keyPath `id` |
 | IndexedDB `par-dots`, store `images` | `src/storage/db.ts` | Uploaded image blobs, keyed by the save's `sourceImageId`; library pictures use `library:<slug>` and have no blob |
-| localStorage `par-dots:settings` | `src/storage/settings.ts` | `Settings` (sound, place sound, haptics, palette mode, max colors), cached in memory |
+| localStorage `par-dots:settings` | `src/storage/settings.ts` | `Settings` (sound, place sound, haptics, music and track, palette mode, max colors, dither, background), cached in memory |
 | localStorage `par-dots:install-prompt-dismissed` | `src/ui/install.ts` | Whether the one-time install prompt was shown |
 
 - `src/ui/saves.ts` is the save repository and the only persistence entry point for `ui/`. It keeps one in-memory object per save id, so the overview and panel play share the same `placed` array.
@@ -159,7 +159,7 @@ Game rules stay in `game/`: `ui/` never decides whether a dot is correct, it ask
 
 `vite-plugin-pwa` generates the service worker and manifest from `vite.config.ts`.
 
-- **Precache:** every built `html`, `css`, `js`, `svg`, `png`, `webp`, `json` and `webmanifest` file, which includes the bundled library in `public/library/` and its `manifest.json`, plus the favicons, the Apple touch icon and `CNAME`. After the first load, the app plays fully offline.
+- **Precache:** every built `html`, `css`, `js`, `svg`, `png`, `webp`, `json`, `webmanifest` and `mp3` file (the file-size cap is raised to 8 MB for the music), which includes the bundled library in `public/library/` and its `manifest.json`, plus the favicons, the Apple touch icon and `CNAME`. After the first load, the app plays fully offline.
 - **Registration:** `registerType: 'prompt'`, so a new deploy waits instead of reloading tabs on its own.
 - **Update checks:** `watchForUpdates()` in `src/ui/swUpdate.ts` calls `registration.update()` every 60 minutes (`UPDATE_CHECK_MS`) and whenever the page becomes visible.
 - **Applying an update:** `maybeApplyUpdate()` in `src/main.ts` asks `shouldApplyUpdate()` (`src/ui/pure.ts`). It activates a waiting worker, or reloads after another tab activated one, only when the page is hidden, or when it is on the gallery or overview with no sheet or dialog open. Mid-stroke play and setup state are never lost to a reload. On hide, the check waits one second so the panel's own save finishes first.

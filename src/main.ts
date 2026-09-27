@@ -5,6 +5,7 @@
  */
 
 import { registerSW } from 'virtual:pwa-register';
+import { initMusic } from './audio/music';
 import { initAudio } from './audio/sfx';
 import { getSettings } from './storage/settings';
 import { applyBackground } from './ui/background';
@@ -91,6 +92,7 @@ function maybeApplyUpdate(): void {
 
 window.addEventListener('hashchange', render);
 initAudio();
+initMusic();
 initInstall();
 applyBackground(getSettings().background);
 

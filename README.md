@@ -84,7 +84,7 @@ Everything runs on-device: uploads never leave your phone, progress is saved loc
 | Cmd/Ctrl+Z, Shift+Cmd/Ctrl+Z | Undo, redo |
 | Escape | Back to the overview |
 
-A panel is done when every stud holds the correct color. Finished pictures can be downloaded as a PNG from the finale, the overview, or the gallery. "Back up all" in the gallery saves every picture, with its progress and uploaded photo, to a `.pardots` file, and "Restore" loads one back on any browser or device. Sound, place sound and haptics are in the settings sheet (gear button on a panel).
+A panel is done when every stud holds the correct color. Finished pictures can be downloaded as a PNG from the finale, the overview, or the gallery. "Back up all" in the gallery saves every picture, with its progress and uploaded photo, to a `.pardots` file, and "Restore" loads one back on any browser or device. Sound, place sound, haptics and background music (Happy, Calm or Energy) are in the settings sheet (gear button on a panel).
 
 ## Development
 
@@ -127,7 +127,7 @@ src/
 scripts/          # library and icon builders, e2e smoke test
 tests/            # Vitest unit tests
 images/           # source photos for the bundled library
-public/           # static files copied into the build (CNAME, icons)
+public/           # static files copied into the build (CNAME, icons, music/)
 ```
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the layers fit together.

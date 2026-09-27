@@ -335,6 +335,19 @@ describe('settings', () => {
     expect(setSettings({ dither: false }).dither).toBe(false);
   });
 
+  it('defaults music on with the happy track and rejects unknown tracks', () => {
+    expect(getSettings().music).toBe(true);
+    expect(getSettings().musicTrack).toBe('happy');
+    storage.setItem(SETTINGS_KEY, JSON.stringify({ music: 'off', musicTrack: 'metal' }));
+    resetSettingsCache();
+    expect(getSettings().music).toBe(true);
+    expect(getSettings().musicTrack).toBe('happy');
+    expect(setSettings({ music: false, musicTrack: 'calm' })).toMatchObject({
+      music: false,
+      musicTrack: 'calm',
+    });
+  });
+
   it('clamps maxColors to the slider range', () => {
     storage.setItem(SETTINGS_KEY, JSON.stringify({ maxColors: 2 }));
     resetSettingsCache();

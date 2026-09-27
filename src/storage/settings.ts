@@ -10,6 +10,11 @@ export type PlaceSound = 'click' | 'snap' | 'pop' | 'tick' | 'blip';
 /** Place sounds in settings-sheet order; also the allowlist sanitize() accepts. */
 export const PLACE_SOUNDS: readonly PlaceSound[] = ['snap', 'click', 'pop', 'tick', 'blip'];
 
+/** Background music tracks (see audio/music.ts for their files). */
+export type MusicTrack = 'happy' | 'calm' | 'energy';
+/** Music tracks in settings-sheet order; also the allowlist sanitize() accepts. */
+export const MUSIC_TRACKS: readonly MusicTrack[] = ['happy', 'calm', 'energy'];
+
 /** App background presets (see ui/background.ts for their colors). */
 export type Background = 'gray' | 'blue' | 'green' | 'brown' | 'purple';
 /** Backgrounds in settings-sheet order; also the allowlist sanitize() accepts. */
@@ -31,6 +36,10 @@ export interface Settings {
   dither: boolean;
   /** App background preset. Default 'gray'. */
   background: Background;
+  /** Play background music. Default true. */
+  music: boolean;
+  /** Background music track. Default 'happy'. */
+  musicTrack: MusicTrack;
 }
 
 /** Settings used for any field that is missing or invalid. Frozen. */
@@ -42,6 +51,8 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   maxColors: MAX_COLORS,
   dither: false,
   background: 'gray',
+  music: true,
+  musicTrack: 'happy',
 });
 
 /** localStorage key holding the settings JSON. */
@@ -64,6 +75,9 @@ function sanitize(raw: unknown): Settings {
     if (typeof r.dither === 'boolean') s.dither = r.dither;
     if (r.paletteMode === 'lego' || r.paletteMode === 'free') s.paletteMode = r.paletteMode;
     if (BACKGROUNDS.includes(r.background as Background)) s.background = r.background as Background;
+    if (typeof r.music === 'boolean') s.music = r.music;
+    if (MUSIC_TRACKS.includes(r.musicTrack as MusicTrack))
+      s.musicTrack = r.musicTrack as MusicTrack;
   }
   return s;
 }

@@ -64,7 +64,9 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{html,css,js,svg,png,webp,json,webmanifest}'],
+        globPatterns: ['**/*.{html,css,js,svg,png,webp,json,webmanifest,mp3}'],
+        // Music tracks are a few MB each; the default 2 MiB cap would drop them from the precache.
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
       },
     }),
   ],

@@ -1,9 +1,11 @@
 /**
- * Settings bottom sheet: sound, place sound (with preview), haptics, background color, storage
+ * Settings bottom sheet: sound, place sound (with preview), haptics, background music and its
+ * track, background color, storage
  * usage (with Keep safe when not persistent), and Install app when
  * the app is not already installed. Changes are stored immediately.
  */
 
+import { MUSIC_LABELS, syncMusic } from '../audio/music';
 import { playPlaceSound } from '../audio/sfx';
 import {
   canRequestPersistence,
@@ -14,6 +16,7 @@ import {
 import {
   BACKGROUNDS,
   getSettings,
+  MUSIC_TRACKS,
   PLACE_SOUNDS,
   type PlaceSound,
   type Settings,
@@ -24,14 +27,15 @@ import { h, openSheet } from './dom';
 import { canOfferInstall, installApp } from './install';
 import { formatBytes } from './pure';
 
-/** Sound / haptics toggles in a bottom sheet. */
+/** Sound, haptics, music and appearance settings in a bottom sheet. */
 export function openSettingsSheet(onClose?: () => void): void {
-  const row = (key: 'sound' | 'haptics', label: string, note: string): HTMLElement => {
+  const row = (key: 'sound' | 'haptics' | 'music', label: string, note: string): HTMLElement => {
     const input = h('input', { type: 'checkbox', role: 'switch', class: 'switch' });
     input.checked = getSettings()[key];
     input.addEventListener('change', () => {
       const patch: Partial<Settings> = { [key]: input.checked };
       setSettings(patch);
+      if (key === 'music') syncMusic();
     });
     return h(
       'label',
@@ -72,6 +76,32 @@ export function openSettingsSheet(onClose?: () => void): void {
             el.classList.toggle('on', el === b);
           }
           playPlaceSound(kind);
+        });
+        return b;
+      }),
+    ),
+  );
+  const musicTrackRow = h(
+    'div',
+    { class: 'setting-row column' },
+    h('span', {}, h('strong', {}, 'Music track'), h('small', {}, 'Background music style')),
+    h(
+      'div',
+      { class: 'segmented', role: 'radiogroup', 'aria-label': 'Music track' },
+      ...MUSIC_TRACKS.map((track) => {
+        const on = getSettings().musicTrack === track;
+        const b = h(
+          'button',
+          { type: 'button', role: 'radio', class: on ? 'on' : '', 'aria-checked': String(on) },
+          MUSIC_LABELS[track],
+        );
+        b.addEventListener('click', () => {
+          setSettings({ musicTrack: track });
+          syncMusic();
+          for (const el of b.parentElement?.children ?? []) {
+            el.setAttribute('aria-checked', String(el === b));
+            el.classList.toggle('on', el === b);
+          }
         });
         return b;
       }),
@@ -153,6 +183,8 @@ export function openSettingsSheet(onClose?: () => void): void {
       row('sound', 'Sound', 'Clicks and chimes'),
       placeSoundRow,
       row('haptics', 'Haptics', 'Vibration where supported'),
+      row('music', 'Music', 'Background music while you play'),
+      musicTrackRow,
       backgroundRow,
       storageRow,
       ...(installRow ? [installRow] : []),
