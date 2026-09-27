@@ -25,7 +25,7 @@ import { canOfferInstall, installApp } from './install';
 import { formatBytes } from './pure';
 
 /** Sound / haptics toggles in a bottom sheet. */
-export function openSettingsSheet(): void {
+export function openSettingsSheet(onClose?: () => void): void {
   const row = (key: 'sound' | 'haptics', label: string, note: string): HTMLElement => {
     const input = h('input', { type: 'checkbox', role: 'switch', class: 'switch' });
     input.checked = getSettings()[key];
@@ -157,5 +157,6 @@ export function openSettingsSheet(): void {
       storageRow,
       ...(installRow ? [installRow] : []),
     ),
+    onClose,
   );
 }

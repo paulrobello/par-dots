@@ -22,6 +22,35 @@ describe('createPanelTimer', () => {
     expect(timer.flush()).toBe(750);
   });
 
+  it('does not accrue while paused, and resumes when unpaused', () => {
+    const c = clock();
+    const timer = createPanelTimer({ now: c.now, initialMs: 0, visible: true, locked: false });
+    c.tick(100);
+    timer.setPaused(true);
+    c.tick(10_000);
+    expect(timer.elapsed(false)).toBe(100);
+    timer.setPaused(false);
+    c.tick(50);
+    expect(timer.flush()).toBe(150);
+  });
+
+  it('stays stopped when unhidden while paused, and when unpaused while hidden', () => {
+    const c = clock();
+    const timer = createPanelTimer({ now: c.now, initialMs: 0, visible: true, locked: false });
+    timer.setPaused(true);
+    timer.setVisible(false);
+    timer.setVisible(true);
+    c.tick(1000);
+    expect(timer.elapsed(false)).toBe(0);
+    timer.setVisible(false);
+    timer.setPaused(false);
+    c.tick(1000);
+    expect(timer.elapsed(false)).toBe(0);
+    timer.setVisible(true);
+    c.tick(30);
+    expect(timer.flush()).toBe(30);
+  });
+
   it('pauses while hidden and resumes when visible', () => {
     const c = clock();
     const timer = createPanelTimer({ now: c.now, initialMs: 0, visible: true, locked: false });

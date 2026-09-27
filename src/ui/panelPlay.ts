@@ -123,7 +123,10 @@ export function mountPanelPlay(
       back: () => goBack(),
       prev: () => goToPanel(panel - 1),
       next: () => goToPanel(panel + 1),
-      settings: () => openSettingsSheet(),
+      settings: () => {
+        timer.setPaused(true);
+        openSettingsSheet(() => timer.setPaused(false));
+      },
     });
     const { boardCanvas, hintBtn, undoBtn, redoBtn, removeBtn, moveBtn, overlayBtn } = view;
     const trayView = createTrayView(view.tray, save, labels, (c) => select(c));

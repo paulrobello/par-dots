@@ -1,6 +1,6 @@
 /**
- * Visible-time accounting for one panel: time accrues only while the page is visible,
- * and never for a panel that was already complete when opened. DOM-free; `now` is injected.
+ * Visible-time accounting for one panel: time accrues only while the page is visible and the
+ * timer is not paused (e.g. a sheet is open), and never for a panel already complete when opened. DOM-free; `now` is injected.
  */
 
 export interface PanelTimerOptions {
@@ -19,13 +19,17 @@ export interface PanelTimer {
   /** Fold in-flight time into the recorded total and return that total. */
   flush(): number;
   setVisible(visible: boolean): void;
+  /** Pause while the player is not playing (a settings sheet is open). */
+  setPaused(paused: boolean): void;
   /** Flush and stop accruing. */
   stop(): number;
 }
 
 export function createPanelTimer(opts: PanelTimerOptions): PanelTimer {
   let recorded = opts.initialMs;
-  let visibleSince: number | null = opts.visible ? opts.now() : null;
+  let visible = opts.visible;
+  let paused = false;
+  let visibleSince: number | null = visible ? opts.now() : null;
 
   const flush = (): number => {
     if (visibleSince === null || opts.locked) return recorded;
@@ -35,18 +39,28 @@ export function createPanelTimer(opts: PanelTimerOptions): PanelTimer {
     return recorded;
   };
 
+  const update = (): void => {
+    const running = visible && !paused;
+    if (running && visibleSince === null) {
+      visibleSince = opts.now();
+    } else if (!running && visibleSince !== null) {
+      flush();
+      visibleSince = null;
+    }
+  };
+
   return {
     elapsed: (finished) =>
       recorded +
       (visibleSince !== null && !opts.locked && !finished ? opts.now() - visibleSince : 0),
     flush,
-    setVisible(visible) {
-      if (visible) {
-        visibleSince = opts.now();
-      } else {
-        flush();
-        visibleSince = null;
-      }
+    setVisible(v) {
+      visible = v;
+      update();
+    },
+    setPaused(p) {
+      paused = p;
+      update();
     },
     stop() {
       const total = flush();
