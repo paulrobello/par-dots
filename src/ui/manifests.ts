@@ -12,8 +12,14 @@ import { type Aspect, LAYOUT } from '../types';
 export const DOTS_PART_ID = '98138';
 /** Brick Special 16x16 x 1 1/3 with Pin Holes, black: the mosaic canvas, one per panel. */
 export const CANVAS_PART_ID = '65803';
-/** Technic Pin with friction ridges, black: joins two adjacent canvases. */
+/**
+ * Technic Pin with friction ridges, black: joins two adjacent canvases. Rebrickable
+ * catalogs the current mold as design 61332; BrickLink catalogs it as item 2780 and
+ * has no 61332 entry, and BrickLink's own 2780 is a different (slotted) pin.
+ */
 export const PIN_PART_ID = '61332';
+/** Same pin's item number in the BrickLink catalog. */
+export const PIN_BRICKLINK_PART_ID = '2780';
 /** Technic Panel 3x5 with Wall Mount Hole, black: picture hanger, two per picture. */
 export const HANGER_PART_ID = '67139';
 /** Brick 1x16, frame color: one perimeter layer of border bricks. */
@@ -138,6 +144,8 @@ export function rebrickableColorId(name: string): number | undefined {
 /** One wanted line: a part id, a LEGO color name, and the wanted quantity. */
 export interface ManifestItem {
   partId: string;
+  /** Item number BrickLink catalogs this part under, when it differs from partId. */
+  brickLinkPartId?: string;
   colorName: string;
   qty: number;
 }
@@ -175,7 +183,12 @@ export function framePerimeter(aspect: Aspect): number {
 export function mountingItems(aspect: Aspect, frameColor: FrameColor): ManifestItem[] {
   return [
     { partId: CANVAS_PART_ID, colorName: 'Black', qty: LAYOUT[aspect].cols * LAYOUT[aspect].rows },
-    { partId: PIN_PART_ID, colorName: 'Black', qty: PINS_PER_EDGE * sharedEdges(aspect) },
+    {
+      partId: PIN_PART_ID,
+      brickLinkPartId: PIN_BRICKLINK_PART_ID,
+      colorName: 'Black',
+      qty: PINS_PER_EDGE * sharedEdges(aspect),
+    },
     { partId: HANGER_PART_ID, colorName: 'Black', qty: 2 },
     { partId: FRAME_PART_ID, colorName: frameColor, qty: framePerimeter(aspect) },
   ];
@@ -191,7 +204,7 @@ export function wantedListXml(items: ManifestItem[]): string {
     .filter((it) => it.colorName in BL_COLOR_IDS && it.qty > 0)
     .map(
       (it) =>
-        `<ITEM><ITEMTYPE>P</ITEMTYPE><ITEMID>${it.partId}</ITEMID>` +
+        `<ITEM><ITEMTYPE>P</ITEMTYPE><ITEMID>${it.brickLinkPartId ?? it.partId}</ITEMID>` +
         `<COLOR>${BL_COLOR_IDS[it.colorName]}</COLOR><QTYFILLED>0</QTYFILLED>` +
         `<MINQTY>${it.qty}</MINQTY><NOTIFY>N</NOTIFY></ITEM>`,
     );

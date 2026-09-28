@@ -10,6 +10,7 @@ import {
   manifestItems,
   manifestStem,
   mountingItems,
+  PIN_BRICKLINK_PART_ID,
   PIN_PART_ID,
   PINS_PER_EDGE,
   rebrickableColorId,
@@ -45,6 +46,19 @@ describe('wantedListXml', () => {
   it('emits the part id per item, not just dots', () => {
     const xml = wantedListXml([{ partId: PIN_PART_ID, colorName: 'Black', qty: 60 }]);
     expect(xml).toContain(`<ITEMID>${PIN_PART_ID}</ITEMID>`);
+  });
+
+  it('uses the BrickLink item number when the catalog diverges', () => {
+    const xml = wantedListXml([
+      { partId: PIN_PART_ID, brickLinkPartId: PIN_BRICKLINK_PART_ID, colorName: 'Black', qty: 60 },
+    ]);
+    expect(xml).toContain(`<ITEMID>${PIN_BRICKLINK_PART_ID}</ITEMID>`);
+    expect(xml).not.toContain(PIN_PART_ID);
+    // Rebrickable keeps its own design id
+    const csv = rebrickableCsv([
+      { partId: PIN_PART_ID, brickLinkPartId: PIN_BRICKLINK_PART_ID, colorName: 'Black', qty: 60 },
+    ]);
+    expect(csv).toContain(`${PIN_PART_ID},0,60`);
   });
 
   it('skips unknown colors and non-positive quantities', () => {
@@ -89,7 +103,12 @@ describe('mountingItems', () => {
     const grid = LAYOUT['1:1'];
     expect(items).toEqual([
       { partId: CANVAS_PART_ID, colorName: 'Black', qty: grid.cols * grid.rows },
-      { partId: PIN_PART_ID, colorName: 'Black', qty: PINS_PER_EDGE * sharedEdges('1:1') },
+      {
+        partId: PIN_PART_ID,
+        brickLinkPartId: PIN_BRICKLINK_PART_ID,
+        colorName: 'Black',
+        qty: PINS_PER_EDGE * sharedEdges('1:1'),
+      },
       { partId: HANGER_PART_ID, colorName: 'Black', qty: 2 },
       { partId: FRAME_PART_ID, colorName: 'Black', qty: 2 * (grid.cols + grid.rows) },
     ]);
