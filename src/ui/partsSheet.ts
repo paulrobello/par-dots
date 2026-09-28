@@ -6,8 +6,9 @@
 
 import { colorCounts, panelColorCounts, panelCount, panelOrigin } from '../game';
 import { PANEL_SIZE, type PictureSave } from '../types';
-import { h, icon, openSheet, toast } from './dom';
+import { downloadBlob, h, icon, openSheet, toast } from './dom';
 import { exportAllSheets, exportPanelSheet } from './exportImage';
+import { manifestItems, manifestStem, rebrickableCsv, wantedListXml } from './manifests';
 import { paletteLabels } from './pure';
 
 /** Correctly placed dots per palette index, over the whole picture or one panel. */
@@ -60,6 +61,65 @@ export function openGuideSheet(save: PictureSave): void {
   openSheet('Guide', guideControls(save));
 }
 
+/** Buy-parts controls: wanted-list manifests for BrickLink and Rebrickable. Only offered
+ * in LEGO palette mode, where every color has a catalog ID; free shades cannot be bought. */
+function buyPartsControls(
+  save: PictureSave,
+  items: () => Array<{ c: number; count: number }>,
+): HTMLElement {
+  if (save.paletteMode !== 'lego') {
+    return h(
+      'p',
+      { class: 'muted small' },
+      'Part exports need LEGO palette mode (the colors must exist in the LEGO catalog).',
+    );
+  }
+  const download = (text: string, type: string, filename: string): void => {
+    downloadBlob(new Blob([text], { type }), filename);
+  };
+  const buildItems = (): ReturnType<typeof manifestItems> =>
+    manifestItems(
+      items().map(({ count }) => count),
+      items().map(({ c }) => save.palette[c].name),
+    );
+  const bricklink = h(
+    'button',
+    { type: 'button', class: 'btn ghost' },
+    icon('download'),
+    'BrickLink XML',
+  );
+  bricklink.addEventListener('click', () =>
+    download(
+      wantedListXml(buildItems()),
+      'text/xml',
+      `${manifestStem(save.name)}-bricklink-wanted.xml`,
+    ),
+  );
+  const rebrickable = h(
+    'button',
+    { type: 'button', class: 'btn ghost' },
+    icon('download'),
+    'Rebrickable CSV',
+  );
+  rebrickable.addEventListener('click', () =>
+    download(
+      rebrickableCsv(buildItems()),
+      'text/csv',
+      `${manifestStem(save.name)}-rebrickable.csv`,
+    ),
+  );
+  return h(
+    'div',
+    { class: 'guide' },
+    h(
+      'p',
+      { class: 'muted small' },
+      `Wanted list for 1x1 round tiles, by LEGO color. Upload the XML on BrickLink's Wanted List Mass Upload page, or import the CSV into a Rebrickable part list.`,
+    ),
+    h('div', { class: 'guide-row' }, bricklink, rebrickable),
+  );
+}
+
 /** Open the Parts sheet for a picture. */
 export function openPartsSheet(save: PictureSave): void {
   const labels = paletteLabels(save.palette, save.paletteMode);
@@ -75,6 +135,7 @@ export function openPartsSheet(save: PictureSave): void {
   const totalEl = h('strong', { class: 'parts-total' }, '');
   const colorsEl = h('strong', { class: 'parts-colors' }, '');
   let rows: Array<{ label: string; count: number }> = [];
+  let currentOrder: Array<{ c: number; count: number }> = [];
 
   const render = (): void => {
     const panel = scope.value === '' ? null : Number(scope.value);
@@ -85,6 +146,7 @@ export function openPartsSheet(save: PictureSave): void {
       .filter((r) => r.count > 0)
       .sort((a, b) => b.count - a.count || a.c - b.c);
     rows = order.map(({ c, count }) => ({ label: labels[c], count }));
+    currentOrder = order;
     tbody.replaceChildren(
       ...order.map(({ c, count }) =>
         h(
@@ -141,6 +203,8 @@ export function openPartsSheet(save: PictureSave): void {
       ),
       h('p', { class: 'parts-foot' }, totalEl, ' dots · ', colorsEl, ' colors'),
       copyBtn,
+      h('h3', { class: 'parts-guide-head' }, 'Buy parts'),
+      buyPartsControls(save, () => currentOrder),
       h('h3', { class: 'parts-guide-head' }, 'Guide'),
       guideControls(save),
     ),

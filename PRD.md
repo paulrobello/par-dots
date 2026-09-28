@@ -102,6 +102,7 @@ Targets: iOS Safari 17+, Android Chrome (latest two), desktop Chrome/Safari/Fire
 - Tap any panel (any order), or use the numbered panel buttons, to zoom into it with an animated zoom transition.
 - Shows overall progress %, total elapsed time, panel count and color count. A completed picture shows **View picture** (the finished mosaic in a sheet, with its own download) and **Download PNG** buttons.
 - **Guide** downloads printable building sheets: every panel as a PDF with one panel per US Letter page, or one chosen panel as a PNG.
+- **Parts** shows a per-color dot count (whole picture or one panel) with a tab-separated copy of the list. **Buy parts** exports a wanted list for 1x1 round tiles by LEGO color: BrickLink Wanted List Mass Upload XML or a Rebrickable part-list import CSV, for the scope shown. Only in LEGO palette mode; free shades have no catalog color.
 
 ### 5.5 Panel Play
 Layout (portrait phone, top to bottom):

@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Buy parts in the Parts sheet: download the picture's (or one panel's) dot counts as a BrickLink wanted-list XML or a Rebrickable part-list CSV for 1x1 round tiles, by LEGO color. LEGO palette mode only; free shades have no catalog color.
 - Google Analytics 4 measures visits and hash-route page views. The tag loads only in production and its script is allowlisted in the content-security policy.
 - Overlay marks each empty stud with its color's symbol, as on the building sheets, and shows the symbols on the tray dots while it is on.
 - View picture on the overview of a finished picture opens the finished mosaic in a sheet, next to Download PNG.

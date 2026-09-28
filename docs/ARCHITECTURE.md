@@ -73,6 +73,8 @@ graph TD
 | `src/audio/` | Web Audio sounds and `navigator.vibrate` haptics (`sfx.ts`), looping background music from `public/music/*.mp3` (`music.ts`) | Reads settings on every call; music starts on the first gesture and pauses while hidden |
 | `src/ui/` | Screens, DOM helpers, input handling, the save repository, navigation handoff state | The only layer that touches the document |
 
+The Parts sheet's Buy parts section builds its wanted-list manifests in DOM-free `src/ui/manifests.ts` (BrickLink wanted-list XML and Rebrickable part-list CSV, with the LEGO color name to BrickLink/Rebrickable color ID tables), so the builders are unit-tested without a DOM.
+
 ## New-Picture Pipeline
 
 A picture is created on two screens. The source screen decodes the chosen image; the setup screen crops, resamples and quantizes it, then writes the save.
