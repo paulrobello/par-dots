@@ -63,7 +63,8 @@ Everything runs on-device: uploads never leave your phone, progress is saved loc
 
 ### Building Tools
 - **Parts List**: Dot counts per color for the whole picture or a single panel
-- **Printable Building Sheets**: Per-panel guides with a symbol on every dot, usable in grayscale and by colorblind builders
+- **Buy Parts**: Export the dot colors and the physical build kit (16x16 pin-hole canvases, joining Technic pins, wall-mount panels and a 1x16 brick border frame) as a BrickLink wanted-list XML or a Rebrickable part-list CSV
+- **Printable Building Sheets**: Per-panel guides with a symbol on every dot, usable in grayscale and by colorblind builders, downloaded as a single PDF or one panel as a PNG
 - **Back Up and Restore**: Save every picture, its progress and uploaded photo to a `.pardots` file and restore it on any device
 
 ### Technical Excellence
@@ -98,7 +99,7 @@ Everything runs on-device: uploads never leave your phone, progress is saved loc
 | Cmd/Ctrl+Z, Shift+Cmd/Ctrl+Z | Undo, redo |
 | Escape | Back to the overview |
 
-A panel is done when every stud holds the correct color. Finished pictures can be downloaded as a PNG from the finale, the overview, or the gallery. "Back up all" in the gallery saves every picture, with its progress and uploaded photo, to a `.pardots` file, and "Restore" loads one back on any browser or device. Sound, place sound, haptics, background music (Happy, Calm or Energy) and separate effects and music volumes are in the settings sheet (gear button at the top right of every screen).
+A panel is done when every stud holds the correct color. Finished pictures can be downloaded as a PNG from the finale, the overview, or the gallery, and opened full size with **View picture** on the overview. The overview's Parts sheet also holds **Buy parts** exports (BrickLink wanted-list XML or Rebrickable part-list CSV, LEGO palette mode only) and **Guide** downloads of the building sheets. "Back up all" in the gallery saves every picture, with its progress and uploaded photo, to a `.pardots` file, and "Restore" loads one back on any browser or device. Sound, place sound, haptics, background music (Happy, Calm or Energy) and separate effects and music volumes are in the settings sheet (gear button at the top right of every screen).
 
 ## Development
 
@@ -196,11 +197,11 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the layers fit together
 
 ### Unreleased
 
-* **Building tools**: Parts list with dot counts per color, printable per-panel building sheets with color symbols
+* **Building tools**: Parts list with dot counts per color, printable per-panel building sheets with color symbols (all panels as one PDF or a single panel as a PNG), and buy-parts exports covering the dot colors plus the physical build kit (BrickLink wanted-list XML and Rebrickable part-list CSV)
 * **Play**: Previous/next panel navigation, right mouse button removes dots, the panel timer pauses while Settings is open
-* **Pictures**: Optional Floyd-Steinberg dithering for photo mosaics
+* **Pictures**: Optional Floyd-Steinberg dithering for photo mosaics; View picture shows a finished mosaic full size on the overview
 * **Data**: Back up and restore to `.pardots` files, persistent storage request with usage shown in Settings
-* **Settings**: Background color presets
+* **Settings**: Background color presets, background music with three looping tracks and separate effects and music volumes
 
 ### v0.1.0
 

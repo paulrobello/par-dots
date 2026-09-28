@@ -16,7 +16,7 @@ How par-dots is built, checked and published to GitHub Pages at https://dots.par
 
 ## Overview
 
-The app is a static site. `bun run build` generates the bundled picture library (`scripts/build-library.ts` writes `public/library/`) and then runs `vite build` into `dist/`. GitHub Actions publishes `dist/` to GitHub Pages. There is no server, database, API key or secret: every build input is in the repository.
+The app is a static site. `bun run build` generates the bundled picture library (`scripts/build-library.ts` writes `public/library/`) and then runs `vite build` into `dist/`. GitHub Actions publishes `dist/` to GitHub Pages. There is no server, database, API key or secret: every build input is in the repository. The production build injects a Content-Security-Policy `<meta>` tag (`vite.config.ts`) that allowlists the GA4 script (`www.googletagmanager.com`) and the Cloudflare beacon; the dev server omits it.
 
 ## Workflow
 

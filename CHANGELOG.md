@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Buy parts in the Parts sheet: download the picture's (or one panel's) dot counts, plus the build kit (black 16x16 pin-hole canvases, 5 Technic pins per joined edge, two wall-mount panels, a 1x16 brick border frame in black or white), as a BrickLink wanted-list XML or a Rebrickable part-list CSV. LEGO palette mode only; free shades have no catalog color.
-- Google Analytics 4 measures visits and hash-route page views. The tag loads only in production and its script is allowlisted in the content-security policy.
+- Google Analytics 4 measures visits and hash-route page views. The script is allowlisted in the production content-security policy; the dev server has no CSP.
 - Overlay marks each empty stud with its color's symbol, as on the building sheets, and shows the symbols on the tray dots while it is on.
 - View picture on the overview of a finished picture opens the finished mosaic in a sheet, next to Download PNG.
 - The overview lists the picture's color count next to its panel count.

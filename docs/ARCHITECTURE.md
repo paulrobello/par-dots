@@ -66,14 +66,14 @@ graph TD
 | Directory | Owns | Notes |
 | --- | --- | --- |
 | `src/types.ts` | `Mosaic`, `PictureSave`, `PaletteColor`, `LAYOUT`, `EMPTY`, color limits | The shared model every layer imports |
-| `src/engine/` | Image math: crop and area-average resample (`resample.ts`), quantization (`quantize.ts`), Lab color math (`color.ts`), the LEGO color table (`legoPalette.ts`), the quantize worker and its client | DOM-free; runs in a worker or on the main thread |
+| `src/engine/` | Image math: crop and area-average resample (`resample.ts`), quantization (`quantize.ts`), Lab color math (`color.ts`), the LEGO color table (`legoPalette.ts`), free-color shade names (`colorNames.ts`), the quantize worker and its client | DOM-free; runs in a worker or on the main thread |
 | `src/game/` | Panel geometry (`geometry.ts`), per-panel rules and undo/redo (`panelSession.ts`), progress (`progress.ts`) | DOM-free; `PanelSession` mutates `save.placed` in place and emits events |
 | `src/render/` | `BoardRenderer` (one 16x16 panel), `OverviewRenderer` (the whole picture), offscreen mosaic images, building sheets and a minimal PDF writer (`pdf.ts`), sprites, layout math, shared canvas helpers | Knows nothing about screens; `render/color.ts` reuses `engine/color.ts` |
-| `src/storage/` | IndexedDB (`db.ts`), save validation and migration (`migrate.ts`), settings (`settings.ts`), id generation (`id.ts`) | `ui/` reaches `db.ts` only through `src/ui/saves.ts` |
+| `src/storage/` | IndexedDB (`db.ts`), save validation and migration (`migrate.ts`), settings (`settings.ts`), storage persistence and quota (`quota.ts`), id generation (`id.ts`) | `ui/` reaches `db.ts` only through `src/ui/saves.ts` |
 | `src/audio/` | Web Audio sounds and `navigator.vibrate` haptics (`sfx.ts`), looping background music from `public/music/*.mp3` (`music.ts`) | Reads settings on every call; music starts on the first gesture and pauses while hidden |
 | `src/ui/` | Screens, DOM helpers, input handling, the save repository, navigation handoff state | The only layer that touches the document |
 
-The Parts sheet's Buy parts section builds its wanted-list manifests in DOM-free `src/ui/manifests.ts` (BrickLink wanted-list XML and Rebrickable part-list CSV, with the LEGO color name to BrickLink/Rebrickable color ID tables), so the builders are unit-tested without a DOM.
+The Parts sheet's Buy parts section builds its wanted-list manifests in DOM-free `src/ui/manifests.ts` (BrickLink wanted-list XML and Rebrickable part-list CSV, with the LEGO color name to BrickLink/Rebrickable color ID tables). Each export covers the colored dots plus the mounting kit — one black canvas per panel, Technic pins per shared edge, two wall-mount hangers and a 1x16 brick border frame — and is offered only in LEGO palette mode, where every color has a catalog ID. The builders are DOM-free, so they are unit-tested without a DOM.
 
 ## New-Picture Pipeline
 
@@ -168,8 +168,8 @@ Visual effects do not delay game-state updates. The renderer runs its animation 
 - **Precache:** every built `html`, `css`, `js`, `svg`, `png`, `webp`, `json`, `webmanifest` and `mp3` file (the file-size cap is raised to 8 MB for the music), which includes the bundled library in `public/library/` and its `manifest.json`, plus the favicons, the Apple touch icon and `CNAME`. After the first load, the app plays fully offline.
 - **Registration:** `registerType: 'prompt'`, so a new deploy waits instead of reloading tabs on its own.
 - **Update checks:** `watchForUpdates()` in `src/ui/swUpdate.ts` calls `registration.update()` every 60 minutes (`UPDATE_CHECK_MS`) and whenever the page becomes visible.
-- **Applying an update:** `maybeApplyUpdate()` in `src/main.ts` asks `shouldApplyUpdate()` (`src/ui/pure.ts`). It activates a waiting worker, or reloads after another tab activated one, only when the page is hidden, or when it is on the gallery or overview with no sheet or dialog open. Mid-stroke play and setup state are never lost to a reload. On hide, the check waits one second so the panel's own save finishes first.
-- **Content Security Policy:** the production build injects a CSP `<meta>` tag (`script-src 'self'`, `connect-src 'self' https:` for image links, `object-src 'none'`). The dev server omits it because Vite needs inline scripts and an HMR socket. `index.html` sets `referrer` to `no-referrer`.
+- **Applying an update:** `maybeApplyUpdate()` in `src/main.ts` asks `shouldApplyUpdate()` (`src/ui/pure.ts`). It activates a waiting worker, or reloads after another tab activated one, only when the page is hidden, or when it is on the gallery or overview with no sheet or dialog open. Mid-stroke play and setup state are never lost to a reload. On hide, the check waits for the panel's in-flight save writes to settle (`whenSaved()` in `src/ui/saves.ts`) before applying.
+- **Content Security Policy:** the production build injects a CSP `<meta>` tag. Everything is `'self'`; GA4 (`src/analytics.ts`) and the Cloudflare beacon are the only external scripts, so `script-src` additionally allows `*.googletagmanager.com` and `static.cloudflareinsights.com`, and `connect-src 'self' https:` covers the user's image links. The dev server omits it because Vite needs inline scripts and an HMR socket. `index.html` sets `referrer` to `no-referrer`.
 
 ## Conventions
 
