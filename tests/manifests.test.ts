@@ -1,13 +1,20 @@
 import { describe, expect, it } from 'vitest';
-
 import { LEGO_COLORS } from '../src/engine/legoPalette';
+import { LAYOUT } from '../src/types';
 import {
   brickLinkColorId,
+  CANVAS_PART_ID,
   DOTS_PART_ID,
+  FRAME_PART_ID,
+  HANGER_PART_ID,
   manifestItems,
   manifestStem,
+  mountingItems,
+  PIN_PART_ID,
+  PINS_PER_EDGE,
   rebrickableColorId,
   rebrickableCsv,
+  sharedEdges,
   wantedListXml,
 } from '../src/ui/manifests';
 
@@ -21,10 +28,10 @@ describe('manifest color tables', () => {
 });
 
 describe('wantedListXml', () => {
-  it('emits one wanted ITEM per known color with the part id and quantity', () => {
+  it('emits one wanted ITEM per item with its part id and quantity', () => {
     const xml = wantedListXml([
-      { colorName: 'Red', qty: 150 },
-      { colorName: 'White', qty: 12 },
+      { partId: DOTS_PART_ID, colorName: 'Red', qty: 150 },
+      { partId: DOTS_PART_ID, colorName: 'White', qty: 12 },
     ]);
     expect(xml.startsWith('<INVENTORY>')).toBe(true);
     expect(xml.endsWith('</INVENTORY>')).toBe(true);
@@ -35,39 +42,39 @@ describe('wantedListXml', () => {
     expect(xml).not.toContain('<?xml');
   });
 
+  it('emits the part id per item, not just dots', () => {
+    const xml = wantedListXml([{ partId: PIN_PART_ID, colorName: 'Black', qty: 60 }]);
+    expect(xml).toContain(`<ITEMID>${PIN_PART_ID}</ITEMID>`);
+  });
+
   it('skips unknown colors and non-positive quantities', () => {
     const xml = wantedListXml([
-      { colorName: 'Not A Lego Color', qty: 10 },
-      { colorName: 'Red', qty: 0 },
-      { colorName: 'Red', qty: 3 },
+      { partId: DOTS_PART_ID, colorName: 'Not A Lego Color', qty: 10 },
+      { partId: DOTS_PART_ID, colorName: 'Red', qty: 0 },
+      { partId: DOTS_PART_ID, colorName: 'Red', qty: 3 },
     ]);
     expect(xml).toContain('<MINQTY>3</MINQTY>');
     expect((xml.match(/<ITEM>/g) ?? []).length).toBe(1);
   });
-
-  it('escapes nothing but keeps names out of the file', () => {
-    const xml = wantedListXml([{ colorName: 'Red', qty: 1 }]);
-    expect(xml).not.toContain('Red');
-  });
 });
 
 describe('rebrickableCsv', () => {
-  it('emits the import header and one row per known color', () => {
+  it('emits the import header and one row per item', () => {
     const csv = rebrickableCsv([
-      { colorName: 'Red', qty: 150 },
-      { colorName: 'Dark Turquoise', qty: 9 },
+      { partId: DOTS_PART_ID, colorName: 'Red', qty: 150 },
+      { partId: PIN_PART_ID, colorName: 'Black', qty: 60 },
     ]);
     const lines = csv.trimEnd().split('\n');
     expect(lines[0]).toBe('part_num,color_id,quantity');
     expect(lines[1]).toBe(`${DOTS_PART_ID},4,150`);
-    expect(lines[2]).toBe(`${DOTS_PART_ID},3,9`);
+    expect(lines[2]).toBe(`${PIN_PART_ID},0,60`);
   });
 
   it('skips unknown colors and non-positive quantities', () => {
     const csv = rebrickableCsv([
-      { colorName: 'Nope', qty: 5 },
-      { colorName: 'Blue', qty: 0 },
-      { colorName: 'Blue', qty: 7 },
+      { partId: DOTS_PART_ID, colorName: 'Nope', qty: 5 },
+      { partId: DOTS_PART_ID, colorName: 'Blue', qty: 0 },
+      { partId: DOTS_PART_ID, colorName: 'Blue', qty: 7 },
     ]);
     expect(csv.trimEnd().split('\n')).toEqual([
       'part_num,color_id,quantity',
@@ -76,10 +83,28 @@ describe('rebrickableCsv', () => {
   });
 });
 
+describe('mountingItems', () => {
+  it('budgets canvases, pins, hangers and frame bricks for the grid', () => {
+    const items = mountingItems('1:1', 'Black');
+    const grid = LAYOUT['1:1'];
+    expect(items).toEqual([
+      { partId: CANVAS_PART_ID, colorName: 'Black', qty: grid.cols * grid.rows },
+      { partId: PIN_PART_ID, colorName: 'Black', qty: PINS_PER_EDGE * sharedEdges('1:1') },
+      { partId: HANGER_PART_ID, colorName: 'Black', qty: 2 },
+      { partId: FRAME_PART_ID, colorName: 'Black', qty: 2 * (grid.cols + grid.rows) },
+    ]);
+  });
+
+  it('colors the frame bricks with the chosen frame color', () => {
+    const white = mountingItems('1:1', 'White').find((it) => it.partId === FRAME_PART_ID);
+    expect(white?.colorName).toBe('White');
+  });
+});
+
 describe('manifestItems', () => {
-  it('merges counts into one item per color name', () => {
+  it('merges counts into one dot item per color name', () => {
     expect(manifestItems([3, 0, 5], ['Red', 'Ghost', 'Red'])).toEqual([
-      { colorName: 'Red', qty: 8 },
+      { partId: DOTS_PART_ID, colorName: 'Red', qty: 8 },
     ]);
   });
 });

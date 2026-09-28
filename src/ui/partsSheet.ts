@@ -8,7 +8,16 @@ import { colorCounts, panelColorCounts, panelCount, panelOrigin } from '../game'
 import { PANEL_SIZE, type PictureSave } from '../types';
 import { downloadBlob, h, icon, openSheet, toast } from './dom';
 import { exportAllSheets, exportPanelSheet } from './exportImage';
-import { manifestItems, manifestStem, rebrickableCsv, wantedListXml } from './manifests';
+import {
+  FRAME_COLORS,
+  type FrameColor,
+  type ManifestItem,
+  manifestItems,
+  manifestStem,
+  mountingItems,
+  rebrickableCsv,
+  wantedListXml,
+} from './manifests';
 import { paletteLabels } from './pure';
 
 /** Correctly placed dots per palette index, over the whole picture or one panel. */
@@ -77,11 +86,16 @@ function buyPartsControls(
   const download = (text: string, type: string, filename: string): void => {
     downloadBlob(new Blob([text], { type }), filename);
   };
-  const buildItems = (): ReturnType<typeof manifestItems> =>
+  const buildItems = (): ManifestItem[] =>
     manifestItems(
       items().map(({ count }) => count),
       items().map(({ c }) => save.palette[c].name),
-    );
+    ).concat(mountingItems(save.aspect, framePick.value as FrameColor));
+  const framePick = h(
+    'select',
+    { class: 'parts-scope', 'aria-label': 'Frame color' },
+    ...FRAME_COLORS.map((c) => h('option', { value: c }, `${c} frame`)),
+  );
   const bricklink = h(
     'button',
     { type: 'button', class: 'btn ghost' },
@@ -114,9 +128,9 @@ function buyPartsControls(
     h(
       'p',
       { class: 'muted small' },
-      `Wanted list for 1x1 round tiles, by LEGO color. Upload the XML on BrickLink's Wanted List Mass Upload page, or import the CSV into a Rebrickable part list.`,
+      `Wanted list for 1x1 round tiles by LEGO color, plus the build kit: black 16x16 canvases (one per panel), Technic pins (5 per joined edge), two wall-mount panels, and a 1x16 brick border frame in the color chosen here. Upload the XML on BrickLink's Wanted List Mass Upload page, or import the CSV into a Rebrickable part list.`,
     ),
-    h('div', { class: 'guide-row' }, bricklink, rebrickable),
+    h('div', { class: 'guide-row' }, framePick, bricklink, rebrickable),
   );
 }
 

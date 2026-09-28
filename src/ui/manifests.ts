@@ -1,13 +1,28 @@
 /**
- * Part manifest builders for buying the dots of a mosaic: the BrickLink Wanted List
- * Mass Upload XML and the Rebrickable part-list import CSV. DOM-free so the builders
- * are unit-testable; the Parts sheet wires them to `downloadBlob`.
- *
- * Both formats target the same physical piece: the 1x1 round tile (Dots).
+ * Part manifest builders for buying a mosaic as a physical build: the 1x1 round tiles
+ * by color, plus the black Dots/Art canvases, the Technic pins that join them, two
+ * wall-mount panels and a 1x16 brick border frame. Builders emit the BrickLink Wanted
+ * List Mass Upload XML and the Rebrickable part-list import CSV; DOM-free so they are
+ * unit-testable, with the Parts sheet wiring them to `downloadBlob`.
  */
+
+import { type Aspect, LAYOUT } from '../types';
 
 /** BrickLink catalog item no. for Tile, Round 1x1, the piece Dots mosaics are built from. */
 export const DOTS_PART_ID = '98138';
+/** Brick Special 16x16 x 1 1/3 with Pin Holes, black: the mosaic canvas, one per panel. */
+export const CANVAS_PART_ID = '65803';
+/** Technic Pin with friction ridges, black: joins two adjacent canvases. */
+export const PIN_PART_ID = '61332';
+/** Technic Panel 3x5 with Wall Mount Hole, black: picture hanger, two per picture. */
+export const HANGER_PART_ID = '67139';
+/** Brick 1x16, frame color: one perimeter layer of border bricks. */
+export const FRAME_PART_ID = '2465';
+/** Frame color choices for the border bricks. */
+export const FRAME_COLORS = ['Black', 'White'] as const;
+export type FrameColor = (typeof FRAME_COLORS)[number];
+/** Technic pins budgeted per shared edge between two canvases. */
+export const PINS_PER_EDGE = 5;
 
 /**
  * BrickLink Color Guide ID per LEGO color name. Names must match `legoPalette.ts`
@@ -120,19 +135,50 @@ export function rebrickableColorId(name: string): number | undefined {
   return REBRICKABLE_COLOR_IDS[name];
 }
 
-/** One wanted line: LEGO color name and how many dots of it the mosaic needs. */
+/** One wanted line: a part id, a LEGO color name, and the wanted quantity. */
 export interface ManifestItem {
+  partId: string;
   colorName: string;
   qty: number;
 }
 
-/** Merge per-palette-index counts into one item per color name. */
+/** Merge per-palette-index counts into dot items, one per color name. */
 export function manifestItems(counts: number[], names: string[]): ManifestItem[] {
   const totals = new Map<string, number>();
   for (let i = 0; i < counts.length; i++) {
     if (counts[i] > 0) totals.set(names[i], (totals.get(names[i]) ?? 0) + counts[i]);
   }
-  return [...totals].map(([colorName, qty]) => ({ colorName, qty }));
+  return [...totals].map(([colorName, qty]) => ({ partId: DOTS_PART_ID, colorName, qty }));
+}
+
+/** Panel grid columns and rows for an aspect. */
+function panelGrid(aspect: Aspect): { cols: number; rows: number } {
+  return LAYOUT[aspect];
+} /** Shared canvas edges in a cols x rows panel grid. */
+export function sharedEdges(aspect: Aspect): number {
+  const { cols, rows } = panelGrid(aspect);
+  return cols * (rows - 1) + rows * (cols - 1);
+}
+
+/** Perimeter of the panel grid in studs. */
+export function framePerimeter(aspect: Aspect): number {
+  const { cols, rows } = panelGrid(aspect);
+  return 2 * (cols + rows);
+}
+
+/**
+ * Everything the mosaic needs besides the colored dots: one black canvas per panel,
+ * Technic pins (5 per shared edge), two wall-mount hangers, and a 1x16 brick border
+ * frame in the chosen color. Black items only exist in the LEGO catalog, so this
+ * block is only offered in LEGO palette mode.
+ */
+export function mountingItems(aspect: Aspect, frameColor: FrameColor): ManifestItem[] {
+  return [
+    { partId: CANVAS_PART_ID, colorName: 'Black', qty: LAYOUT[aspect].cols * LAYOUT[aspect].rows },
+    { partId: PIN_PART_ID, colorName: 'Black', qty: PINS_PER_EDGE * sharedEdges(aspect) },
+    { partId: HANGER_PART_ID, colorName: 'Black', qty: 2 },
+    { partId: FRAME_PART_ID, colorName: frameColor, qty: framePerimeter(aspect) },
+  ];
 }
 
 /**
@@ -145,7 +191,7 @@ export function wantedListXml(items: ManifestItem[]): string {
     .filter((it) => it.colorName in BL_COLOR_IDS && it.qty > 0)
     .map(
       (it) =>
-        `<ITEM><ITEMTYPE>P</ITEMTYPE><ITEMID>${DOTS_PART_ID}</ITEMID>` +
+        `<ITEM><ITEMTYPE>P</ITEMTYPE><ITEMID>${it.partId}</ITEMID>` +
         `<COLOR>${BL_COLOR_IDS[it.colorName]}</COLOR><QTYFILLED>0</QTYFILLED>` +
         `<MINQTY>${it.qty}</MINQTY><NOTIFY>N</NOTIFY></ITEM>`,
     );
@@ -157,7 +203,7 @@ export function rebrickableCsv(items: ManifestItem[]): string {
   const lines = ['part_num,color_id,quantity'];
   for (const it of items) {
     const color = REBRICKABLE_COLOR_IDS[it.colorName];
-    if (color !== undefined && it.qty > 0) lines.push(`${DOTS_PART_ID},${color},${it.qty}`);
+    if (color !== undefined && it.qty > 0) lines.push(`${it.partId},${color},${it.qty}`);
   }
   return `${lines.join('\n')}\n`;
 }
