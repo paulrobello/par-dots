@@ -10,7 +10,7 @@ export const EMPTY = 255;
 /** Most colors a mosaic may use (the setup slider's maximum and the default). */
 export const MAX_COLORS = 32;
 /** Fewest colors a mosaic may use (the setup slider's minimum). */
-export const MIN_COLORS = 4;
+export const MIN_COLORS = 2;
 /** Current PictureSave record shape; bump with a migration in storage/migrate.ts. */
 export const SAVE_SCHEMA_VERSION = 1;
 

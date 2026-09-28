@@ -56,7 +56,7 @@ Everything runs on-device: uploads never leave your phone, progress is saved loc
 ### Core Capabilities
 - **Any Picture**: Start from a bundled picture, an uploaded photo, or an `https` image link
 - **Framing and Layout**: Drag and pinch to crop, then choose Square, Portrait or Landscape (9 or 12 panels of 16x16 studs)
-- **LEGO or Free Colors**: Match the official LEGO Dots palette or let the quantizer pick free colors, from 4 to 32, with optional dithering for photos
+- **LEGO or Free Colors**: Match the official LEGO Dots palette or let the quantizer pick free colors, from 2 to 32, with optional dithering for photos
 - **Panel Play**: A color tray with remaining counts, Remove and Move modes, Hint, Undo/Redo, pinch zoom, and a reference overlay
 - **Progress Overview**: Panel progress badges, a Ghost toggle, animated zoom into panels, and previous/next panel navigation
 - **Celebrations and Export**: Sounds, haptics and celebrations on completion, plus PNG download of finished pictures

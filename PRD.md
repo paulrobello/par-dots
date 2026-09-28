@@ -64,7 +64,7 @@ Targets: iOS Safari 17+, Android Chrome (latest two), desktop Chrome/Safari/Fire
   - Portrait 3:4 → 3 cols × 4 rows = **12 panels**, 48×64 studs.
   - Landscape 4:3 → 4 cols × 3 rows = **12 panels**, 64×48 studs.
 - **Panel:** a 16×16 stud baseplate section (256 studs). Every stud gets exactly one target color (no empty target cells).
-- **Palette:** at most `maxColors` colors for the whole picture (4 to 32, default 32). A panel uses a subset.
+- **Palette:** at most `maxColors` colors for the whole picture (2 to 32, default 32). A panel uses a subset.
 - **Stud state:** `empty` or `placed(colorIndex)`. A placed dot is correct if it equals the target.
 
 ## 5. User Flows
@@ -90,7 +90,7 @@ Targets: iOS Safari 17+, Android Chrome (latest two), desktop Chrome/Safari/Fire
 2. **Palette mode toggle:**
    - *LEGO colors:* up to `maxColors` colors chosen from the official LEGO solid color set (43 colors, table stored in code with its source cited).
    - *Free colors:* the best `maxColors` colors for the photo (seeded k-means in Lab space).
-3. **Max colors slider:** caps the palette from 4 (`MIN_COLORS`) to 32 (`MAX_COLORS`). The final palette can be smaller than the cap: the image may have fewer colors, and near-identical colors are merged (§8).
+3. **Max colors slider:** caps the palette from 2 (`MIN_COLORS`) to 32 (`MAX_COLORS`). The final palette can be smaller than the cap: the image may have fewer colors, and near-identical colors are merged (§8).
 4. **Live mosaic preview** updates as crop, palette mode or max colors change (debounced, worker-computed) and reports the stud size, panel count and color count.
 5. Palette mode and max colors are remembered as settings for the next picture.
 6. **Start** creates the save and opens the Overview.
@@ -160,7 +160,7 @@ Settings are stored in localStorage under `par-dots:settings`:
 | `placeSound` | `snap`, `click`, `pop`, `tick`, `blip` | `snap` | Settings sheet |
 | `haptics` | on/off | on | Settings sheet |
 | `paletteMode` | `lego`, `free` | `lego` | Setup screen |
-| `maxColors` | integer 4–32 | 32 | Setup screen |
+| `maxColors` | integer 2–32 | 32 | Setup screen |
 | `background` | `gray`, `blue`, `green`, `brown`, `purple` | `gray` | Settings sheet |
 | `music` | on/off | on | Settings sheet |
 | `musicTrack` | `happy`, `calm`, `energy` | `happy` | Settings sheet |
@@ -173,7 +173,7 @@ Settings are stored in localStorage under `par-dots:settings`:
 
 1. Decode, apply EXIF orientation, downscale.
 2. Crop to the chosen aspect, then resample to stud resolution (48×48, 48×64, or 64×48) with area averaging.
-3. Quantize to at most `maxColors` (4–32) colors. Transparent pixels are composited over white.
+3. Quantize to at most `maxColors` (2–32) colors. Transparent pixels are composited over white.
    - LEGO mode: choose up to `maxColors` entries from the LEGO color table that minimize weighted Lab ΔE (greedy selection, then swap refinement), then map pixels.
    - Free mode: k-means (k-means++ seeding with a fixed seed, deterministic) in Lab space; each color gets a descriptive name from its RGB hue, saturation, and lightness. Existing Free pictures derive those labels when displayed, so their stored colors and progress remain unchanged. Tray, Parts, and guide labels agree; duplicate names keep stable numeric suffixes. LEGO mode retains official names.
    - Minimum contrast: any two palette colors closer than ΔE 12 (CIE76, `MIN_DELTA_E`) are merged, keeping the one that covers more studs, so every tray color is tellable apart. The palette can end up smaller than `maxColors`.
@@ -193,7 +193,7 @@ export type PaletteMode = 'lego' | 'free';
 export const PANEL_SIZE = 16;
 export const EMPTY = 255; // placed value for a stud with no dot
 export const MAX_COLORS = 32;
-export const MIN_COLORS = 4;
+export const MIN_COLORS = 2;
 export const SAVE_SCHEMA_VERSION = 1;
 
 export interface PaletteColor {
