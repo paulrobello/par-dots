@@ -173,7 +173,7 @@ Settings are stored in localStorage under `par-dots:settings`:
 
 1. Decode, apply EXIF orientation, downscale.
 2. Crop to the chosen aspect, then resample to stud resolution (48×48, 48×64, or 64×48) with area averaging.
-3. Quantize to at most `maxColors` (2–32) colors. Transparent pixels are composited over white.
+3. Quantize to at most `maxColors` (2–32) colors. Transparent pixels are composited over a background color that defaults to black and is user-chosen on the setup screen when the source has transparency.
    - LEGO mode: choose up to `maxColors` entries from the LEGO color table that minimize weighted Lab ΔE (greedy selection, then swap refinement), then map pixels.
    - Free mode: k-means (k-means++ seeding with a fixed seed, deterministic) in Lab space; each color gets a descriptive name from its RGB hue, saturation, and lightness. Existing Free pictures derive those labels when displayed, so their stored colors and progress remain unchanged. Tray, Parts, and guide labels agree; duplicate names keep stable numeric suffixes. LEGO mode retains official names.
    - Minimum contrast: any two palette colors closer than ΔE 12 (CIE76, `MIN_DELTA_E`) are merged, keeping the one that covers more studs, so every tray color is tellable apart. The palette can end up smaller than `maxColors`.

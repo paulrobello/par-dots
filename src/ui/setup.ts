@@ -5,6 +5,7 @@
  */
 
 import { quantizeInWorker } from '../engine/client';
+import { hexToRgb } from '../engine/color';
 import { cropAndResample } from '../engine/resample';
 import { panelCountOf, studDims } from '../game';
 import { renderMosaicToCanvas } from '../render/mosaicImage';
@@ -29,6 +30,8 @@ import {
   clampCrop,
   cropRectFor,
   defaultCrop,
+  flattenAlpha,
+  hasTransparency,
   routeHash,
   userMessage,
 } from './pure';
@@ -43,6 +46,12 @@ const ASPECTS: Array<{ value: Aspect; label: string }> = [
   { value: '4:3', label: 'Landscape' },
 ];
 
+/** Quick background swatches shown when the source has transparency; the color input allows any color. */
+const BG_SWATCHES: Array<{ hex: string; label: string }> = [
+  { hex: '#000000', label: 'Black' },
+  { hex: '#ffffff', label: 'White' },
+];
+
 /**
  * Mounts the setup screen (route `#/setup`) for the pending source. The returned Cleanup stops
  * the crop-stage ResizeObserver, cancels a pending preview, and ignores in-flight previews.
@@ -54,6 +63,8 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
     return () => undefined;
   }
   const img = src.image;
+  const hasAlpha = hasTransparency(img.data);
+  let bgHex = '#000000';
   let aspect: Aspect = src.aspect;
   let mode: PaletteMode = getSettings().paletteMode;
   let maxColors = getSettings().maxColors;
@@ -81,7 +92,16 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
     queueMicrotask(() => navigate('#/new', { replace: true }));
     return () => undefined;
   }
-  sctx.putImageData(img, 0, 0);
+  // Re-composites the background behind transparent pixels; putImageData restores the original
+  // alpha on every call, so repainting stays idempotent.
+  const paintSource = (): void => {
+    sctx.putImageData(img, 0, 0);
+    sctx.globalCompositeOperation = 'destination-over';
+    sctx.fillStyle = bgHex;
+    sctx.fillRect(0, 0, img.width, img.height);
+    sctx.globalCompositeOperation = 'source-over';
+  };
+  paintSource();
 
   const stage = h('canvas', {
     class: 'crop-canvas',
@@ -188,6 +208,51 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
     ditherInput,
   );
 
+  const bgSwatches = h('div', {
+    class: 'swatches',
+    role: 'radiogroup',
+    'aria-label': 'Background',
+  });
+  const bgInput = h('input', {
+    type: 'color',
+    value: bgHex,
+    'aria-label': 'Custom background color',
+  });
+  const setBg = (hex: string): void => {
+    bgHex = hex;
+    bgInput.value = hex;
+    for (const el of bgSwatches.children) {
+      const on = el instanceof HTMLButtonElement && el.dataset.hex === hex;
+      el.setAttribute('aria-checked', String(on));
+      el.classList.toggle('on', on);
+    }
+    paintSource();
+    drawStage();
+    schedulePreview();
+  };
+  for (const { hex, label } of BG_SWATCHES) {
+    const b = h('button', {
+      type: 'button',
+      role: 'radio',
+      class: hex === bgHex ? 'swatch on' : 'swatch',
+      'aria-checked': String(hex === bgHex),
+      'aria-label': label,
+      title: label,
+    });
+    b.style.background = hex;
+    b.dataset.hex = hex;
+    b.addEventListener('click', () => setBg(hex));
+    bgSwatches.append(b);
+  }
+  bgInput.addEventListener('input', () => setBg(bgInput.value));
+  bgSwatches.append(bgInput);
+  const bgCtl = h(
+    'div',
+    { class: 'setting-row column' },
+    h('span', {}, h('strong', {}, 'Background'), h('small', {}, 'Behind transparent areas')),
+    bgSwatches,
+  );
+
   root.append(
     h(
       'div',
@@ -210,6 +275,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
           modeCtl,
           colorsCtl,
           ditherCtl,
+          ...(hasAlpha ? [bgCtl] : []),
           preview,
           previewNote,
           startBtn,
@@ -333,6 +399,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
     const dims = studDims(aspect);
     const rect = cropRectFor(img.width, img.height, aspect, crop);
     const pixels = cropAndResample(img, rect, dims.width, dims.height);
+    if (hasAlpha) flattenAlpha(pixels, hexToRgb(bgHex));
     return quantizeInWorker(pixels, dims.width, dims.height, mode, maxColors, dither);
   };
   const runPreview = (): void => {

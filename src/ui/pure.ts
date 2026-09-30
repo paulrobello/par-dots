@@ -273,6 +273,27 @@ export function nextSelection(tray: number[], previousTray: number[], current: n
   return tray[0];
 }
 
+/** Whether any pixel's alpha is below 255 (i.e. the source image has transparency). */
+export function hasTransparency(data: Uint8ClampedArray | Uint8Array): boolean {
+  for (let i = 3; i < data.length; i += 4) if (data[i] < 255) return true;
+  return false;
+}
+
+/** Composites RGBA pixels over an opaque RGB background, in place. */
+export function flattenAlpha(
+  pixels: Uint8ClampedArray,
+  bg: readonly [number, number, number],
+): Uint8ClampedArray {
+  for (let p = 0; p < pixels.length; p += 4) {
+    const a = pixels[p + 3] / 255;
+    pixels[p] = pixels[p] * a + bg[0] * (1 - a);
+    pixels[p + 1] = pixels[p + 1] * a + bg[1] * (1 - a);
+    pixels[p + 2] = pixels[p + 2] * a + bg[2] * (1 - a);
+    pixels[p + 3] = 255;
+  }
+  return pixels;
+}
+
 /**
  * Whether a waiting service-worker update may reload the page now: always when the page is
  * hidden, otherwise only on the gallery or overview with no overlay open (no stroke or setup

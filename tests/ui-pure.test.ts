@@ -6,9 +6,11 @@ import {
   cropSize,
   defaultCrop,
   fitWithin,
+  flattenAlpha,
   formatBytes,
   formatDuration,
   formatPercent,
+  hasTransparency,
   nameFromFile,
   nameFromUrl,
   nextSelection,
@@ -255,5 +257,33 @@ describe('panelZoomTransform', () => {
     expect(s).toBeCloseTo(3.68);
     expect(tx).toBeCloseTo(200 - 150 * 3.68);
     expect(ty).toBeCloseTo(150 - 75 * 3.68);
+  });
+});
+
+describe('hasTransparency', () => {
+  it('returns false for fully opaque pixels', () => {
+    const px = new Uint8ClampedArray([10, 20, 30, 255, 40, 50, 60, 255]);
+    expect(hasTransparency(px)).toBe(false);
+  });
+
+  it('returns true when any alpha is below 255', () => {
+    expect(hasTransparency(new Uint8ClampedArray([0, 0, 0, 254]))).toBe(true);
+    expect(hasTransparency(new Uint8ClampedArray([0, 0, 0, 0]))).toBe(true);
+  });
+});
+
+describe('flattenAlpha', () => {
+  it('composites alpha over the background and forces alpha to 255', () => {
+    const px = new Uint8ClampedArray([0, 0, 0, 0, 100, 100, 100, 128]);
+    flattenAlpha(px, [16, 32, 48]);
+    expect([...px.slice(0, 4)]).toEqual([16, 32, 48, 255]);
+    expect(px[4]).toBe(58); // 100 * 128/255 + 16 * 127/255, rounded
+    expect(px[7]).toBe(255);
+  });
+
+  it('leaves fully opaque pixels unchanged', () => {
+    const px = new Uint8ClampedArray([1, 2, 3, 255]);
+    flattenAlpha(px, [255, 0, 0]);
+    expect([...px]).toEqual([1, 2, 3, 255]);
   });
 });

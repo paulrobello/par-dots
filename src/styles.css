@@ -1156,6 +1156,26 @@ p {
     inset 0 -3px 0 rgba(0, 0, 0, 0.3);
 }
 
+.swatches input[type='color'] {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  flex: none;
+}
+
+.swatches input[type='color']::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.swatches input[type='color']::-webkit-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+
 .switch {
   appearance: none;
   width: 52px;

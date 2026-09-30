@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Uploaded images with transparency now composite over a chosen background color on the setup screen, defaulting to black instead of white, with black and white swatches plus a custom color picker.
+
 ### Changed
 
 - Free color names now describe the actual shade, including burgundy, rust, and peach, instead of borrowing the nearest LEGO name. Existing pictures show the corrected names in the tray, Parts, and building guides without changing their colors or progress. LEGO mode retains official names.
