@@ -2368,6 +2368,11 @@ export function mountDrawCreate({ root, navigate }: ScreenContext): Cleanup {
         h('div', { class: 'field' }, h('span', {}, 'Name'), nameInput),
         aspectCtl,
         modeCtl,
+        h(
+          'p',
+          { class: 'muted small' },
+          'Parts lists for buying bricks (BrickLink, Rebrickable) are only available in LEGO colors.',
+        ),
         bgWrap,
         createBtn,
       ),
