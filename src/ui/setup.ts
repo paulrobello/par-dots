@@ -273,6 +273,11 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
           'div',
           { class: 'setup-side' },
           modeCtl,
+          h(
+            'p',
+            { class: 'muted small' },
+            'Parts lists for buying bricks (BrickLink, Rebrickable) are only available in LEGO colors.',
+          ),
           colorsCtl,
           ditherCtl,
           ...(hasAlpha ? [bgCtl] : []),
