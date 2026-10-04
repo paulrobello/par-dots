@@ -267,6 +267,7 @@ export function colorCounts(save: PictureSave): number[] {
   }
   return counts;
 }
+```
 
 ```ts
 export function panelColorCounts(save: PictureSave, panelIndex: number): number[] {
