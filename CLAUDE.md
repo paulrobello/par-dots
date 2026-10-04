@@ -11,7 +11,8 @@ Bun is the package manager and runner (version pinned in `package.json` `package
 ```bash
 make install     # bun install
 make dev         # dev server on http://localhost:4231 (builds public/library/ first if missing)
-make checkall    # lint + typecheck + test + build — the gate to run before committing
+make checkall    # lint + typecheck + test + build — the fast local gate
+make checkall-ci # checkall + the e2e smoke CI runs on every push — the CI-parity gate; needs Chromium (bunx playwright install chromium)
 make test        # Vitest unit tests
 make lint        # biome check .
 make fmt         # biome format --write .
