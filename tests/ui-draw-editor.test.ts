@@ -23,8 +23,8 @@ const ctxStub = new Proxy(
 HTMLCanvasElement.prototype.getContext = (() =>
   ctxStub) as unknown as typeof HTMLCanvasElement.prototype.getContext;
 // Fixed geometry so the board lays out real cells and hit tests map client points to studs.
-HTMLCanvasElement.prototype.getBoundingClientRect = function (): DOMRect {
-  return {
+HTMLCanvasElement.prototype.getBoundingClientRect = (): DOMRect =>
+  ({
     x: 0,
     y: 0,
     top: 0,
@@ -34,10 +34,13 @@ HTMLCanvasElement.prototype.getBoundingClientRect = function (): DOMRect {
     width: 536,
     height: 536,
     toJSON: () => ({}),
-  } as DOMRect;
-};
+  }) as DOMRect;
+
+vi.mock('../src/audio/sfx', () => ({ play: vi.fn(), haptic: vi.fn() }));
 
 const { loadSave, persistSave } = await import('../src/ui/saves');
+const { play } = await import('../src/audio/sfx');
+const { DrawBoard } = await import('../src/render/drawBoard');
 const { mountDrawEditor } = await import('../src/ui/drawEditor');
 
 import { EMPTY, type PictureSave, SAVE_SCHEMA_VERSION } from '../src/types';
@@ -76,7 +79,7 @@ function makeCtx(): { ctx: import('../src/ui/screen').ScreenContext; calls: stri
 async function addColorViaSheet(): Promise<void> {
   (document.querySelector('[aria-label="Add color"]') as HTMLButtonElement).click();
   const red = [...document.querySelectorAll<HTMLButtonElement>('.sheet button')].find(
-    (b) => b.getAttribute('title') === 'Red',
+    (b) => b.getAttribute('data-tip') === 'Red',
   ) as HTMLButtonElement;
   red.click();
 }
@@ -214,5 +217,55 @@ describe('mountDrawEditor', () => {
     raf.mockRestore();
     canvas.dispatchEvent(new PointerEvent('pointerup', { ...opts, clientX: 200, clientY: 200 }));
     cleanup();
+  });
+
+  it('plays the place sound for a painted stroke but not for undo', async () => {
+    const save = drawnSave();
+    vi.mocked(loadSave).mockResolvedValue(save);
+    const { ctx } = makeCtx();
+    const cleanup = mountDrawEditor(ctx, save.id);
+    await vi.waitFor(() =>
+      expect(document.querySelector<HTMLCanvasElement>('.draw-canvas')).toBeTruthy(),
+    );
+    const canvas = document.querySelector<HTMLCanvasElement>('.draw-canvas') as HTMLCanvasElement;
+    vi.mocked(play).mockClear();
+    const opts = { pointerId: 1, button: 0, pointerType: 'mouse', bubbles: true } as const;
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { ...opts, clientX: 50, clientY: 50 }));
+    canvas.dispatchEvent(new PointerEvent('pointerup', { ...opts, clientX: 50, clientY: 50 }));
+    expect(play).toHaveBeenCalledWith('place');
+    vi.mocked(play).mockClear();
+    (
+      document.querySelector<HTMLButtonElement>('button[aria-label="Undo"]') as HTMLButtonElement
+    ).click();
+    expect(play).not.toHaveBeenCalled();
+    cleanup();
+  });
+
+  it('shows a round size-3 (plus-shaped) hover ghost for the brush', async () => {
+    const save = drawnSave();
+    vi.mocked(loadSave).mockResolvedValue(save);
+    const spy = vi.spyOn(DrawBoard.prototype, 'setPreview');
+    const { ctx } = makeCtx();
+    const cleanup = mountDrawEditor(ctx, save.id);
+    await vi.waitFor(() =>
+      expect(document.querySelector<HTMLCanvasElement>('.draw-canvas')).toBeTruthy(),
+    );
+    const canvas = document.querySelector<HTMLCanvasElement>('.draw-canvas') as HTMLCanvasElement;
+    document.querySelector<HTMLButtonElement>('[data-size="3"]')?.click();
+    spy.mockClear();
+    canvas.dispatchEvent(
+      new PointerEvent('pointermove', {
+        pointerId: 1,
+        pointerType: 'mouse',
+        buttons: 0,
+        bubbles: true,
+        clientX: 200,
+        clientY: 200,
+      }),
+    );
+    const cells = spy.mock.calls.at(-1)?.[0];
+    expect(cells).toHaveLength(5);
+    cleanup();
+    spy.mockRestore();
   });
 });

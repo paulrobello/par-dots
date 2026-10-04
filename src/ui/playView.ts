@@ -79,7 +79,8 @@ export function renderPlayView(
   });
   const boardWrap = h('div', { class: 'board-wrap' }, boardCanvas);
   const removeBtn = toolButton('eraser', 'Remove tool', 'Remove');
-  removeBtn.title = 'Remove dots. Tip: right-click removes a dot without changing tools or colors.';
+  removeBtn.dataset.tip =
+    'Remove dots. Tip: right-click removes a dot without changing tools or colors.';
   const moveBtn = toolButton('move', 'Move tool: drag to pan', 'Move');
   const hintBtn = toolButton('bulb', 'Hint: show wrong dots', 'Hint', false);
   const undoBtn = toolButton('undo', 'Undo', 'Undo', false);
@@ -229,7 +230,7 @@ export function createTrayView(
         role: 'radio',
         'aria-checked': 'false',
         'aria-label': labels[c],
-        title: labels[c],
+        'data-tip': labels[c],
         'data-color': c,
         style: `--c:${hex};--count-ink:${luminance(hex) > 0.45 ? '#1b1b1b' : '#fff'}`,
       },

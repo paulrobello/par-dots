@@ -23,6 +23,7 @@ import type { Cleanup, Navigate, ScreenContext } from './ui/screen';
 import { mountSetup } from './ui/setup';
 import { mountSource } from './ui/source';
 import { applyWhenHidden, watchForUpdates } from './ui/swUpdate';
+import { initTooltips } from './ui/tooltips';
 
 const app = document.getElementById('app');
 if (!app) throw new Error('#app missing');
@@ -105,6 +106,7 @@ initAnalytics();
 initAudio();
 initMusic();
 initInstall();
+initTooltips();
 applyBackground(getSettings().background);
 
 // iOS Safari ignores user-scalable=no; cancel its pinch gestures to lock page zoom.

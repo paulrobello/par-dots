@@ -27,6 +27,7 @@ export {
 } from './drawTools';
 export {
   aspectOf,
+  assemblyPlanOf,
   panelCount,
   panelCountOf,
   panelFractions,

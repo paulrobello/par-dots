@@ -51,6 +51,27 @@ export function panelIndexOf(aspect: Aspect, x: number, y: number): number {
 }
 
 /**
+ * Physical build plan for a picture: rows of panels joined with black connectors and
+ * hanging hooks on the top row. Counts derive from the panel grid alone.
+ */
+export function assemblyPlanOf(aspect: Aspect): {
+  cols: number;
+  rows: number;
+  rowJoints: number;
+  joinConnectors: number;
+  hooks: number;
+} {
+  const { cols, rows } = LAYOUT[aspect];
+  return {
+    cols,
+    rows,
+    rowJoints: (cols - 1) * rows,
+    joinConnectors: (rows - 1) * cols,
+    hooks: 2,
+  };
+}
+
+/**
  * Per-panel fraction of studs whose placed value equals the target (0..1), row-major
  * panel order. `placed` may be shorter than target; missing entries count as empty.
  */

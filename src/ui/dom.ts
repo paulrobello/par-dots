@@ -39,6 +39,7 @@ const ICONS = {
   eraser:
     'M7 21h13M5.5 14.5l8-8a2 2 0 0 1 2.8 0l2.2 2.2a2 2 0 0 1 0 2.8L12 18H8.5l-3-3a0 0 0 0 1 0 0z',
   move: 'M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3',
+  swap: 'M8 3L4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4',
   bulb: 'M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z',
   plus: 'M12 5v14M5 12h14',
   upload: 'M12 16V4M7 9l5-5 5 5M5 20h14',
@@ -86,7 +87,7 @@ export function iconButton(
   onClick: (ev: MouseEvent) => void,
   cls = 'icon-btn',
 ): HTMLButtonElement {
-  const b = h('button', { type: 'button', class: cls, 'aria-label': label, title: label });
+  const b = h('button', { type: 'button', class: cls, 'aria-label': label, 'data-tip': label });
   b.append(icon(name));
   b.addEventListener('click', onClick as EventListener);
   return b;

@@ -5,7 +5,7 @@
 
 import { panelColorCounts, panelCount } from '../game';
 import { renderMosaicToCanvas } from '../render/mosaicImage';
-import { renderPanelSheet } from '../render/panelSheet';
+import { renderAssemblySheet, renderGuideOverview, renderPanelSheet } from '../render/panelSheet';
 import { buildImagePdf } from '../render/pdf';
 import type { PictureSave } from '../types';
 import { downloadBlob, toast } from './dom';
@@ -38,15 +38,21 @@ export function exportPanelSheet(save: PictureSave, i: number): void {
   downloadCanvas(panelSheet(save, i), `${safeFileStem(save.name)}-panel-${i + 1}.png`);
 }
 
-/** Download every panel's sheet as one PDF, one panel per US Letter page. */
+/** Download every panel's sheet as one PDF: overview, assembly, then one panel per US Letter page. */
 export async function exportAllSheets(save: PictureSave): Promise<void> {
   try {
-    const pages = await Promise.all(
-      Array.from({ length: panelCount(save) }, async (_, i) => {
+    const front = [renderGuideOverview(save), renderAssemblySheet(save)];
+    const pages = await Promise.all([
+      ...front.map(async (sheet) => ({
+        jpeg: await canvasJpeg(sheet),
+        width: sheet.width,
+        height: sheet.height,
+      })),
+      ...Array.from({ length: panelCount(save) }, async (_, i) => {
         const sheet = panelSheet(save, i);
         return { jpeg: await canvasJpeg(sheet), width: sheet.width, height: sheet.height };
       }),
-    );
+    ]);
     const pdf = buildImagePdf(pages);
     downloadBlob(
       new Blob([pdf as BlobPart], { type: 'application/pdf' }),

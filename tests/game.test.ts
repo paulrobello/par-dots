@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   aspectOf,
+  assemblyPlanOf,
   colorCounts,
   effectiveCells,
   MAX_HISTORY,
@@ -583,6 +584,30 @@ describe('aspect-keyed panel geometry', () => {
   it('panels are numbered row-major', () => {
     expect(panelOriginOf('4:3', 5)).toEqual({ x: 16, y: 16 });
     expect(panelOriginOf('3:4', 11)).toEqual({ x: 32, y: 48 });
+  });
+
+  it('plans the physical assembly per aspect', () => {
+    expect(assemblyPlanOf('1:1')).toEqual({
+      cols: 3,
+      rows: 3,
+      rowJoints: 6,
+      joinConnectors: 6,
+      hooks: 2,
+    });
+    expect(assemblyPlanOf('4:3')).toEqual({
+      cols: 4,
+      rows: 3,
+      rowJoints: 9,
+      joinConnectors: 8,
+      hooks: 2,
+    });
+    expect(assemblyPlanOf('3:4')).toEqual({
+      cols: 3,
+      rows: 4,
+      rowJoints: 8,
+      joinConnectors: 9,
+      hooks: 2,
+    });
   });
 
   it('indexes panels row-major for every layout', () => {

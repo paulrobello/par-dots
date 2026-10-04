@@ -116,14 +116,13 @@ export class DrawBoard {
   }
 
   /** Redraw the given cells, then the preview, seams and grid overlay above them. */
-  drawCells(cells: Iterable<GridCell>): void {
+  drawCells(_cells: Iterable<GridCell>): void {
     if (this.destroyed || !this.save || this.layout.cell <= 0) return;
-    for (const c of cells) {
-      if (this.inGrid(c.x, c.y)) this.paintCell(c.x, c.y);
-    }
-    this.paintPreview();
-    this.drawSeams();
-    this.drawGridOverlay();
+    // Full repaint. Partial repaints stack translucent seam/grid layers over the touched
+    // region - seams brighten with every use and reverted cells leave hairline gaps - so
+    // a drawCells call redraws the same sequence as draw(). Grids here are <= 4096 studs,
+    // where a full sprite pass is cheap.
+    this.draw();
   }
 
   /** Schedule one coalesced full redraw on the next animation frame. */

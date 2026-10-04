@@ -31,6 +31,10 @@ export interface DrawInputOptions {
   panMode: BoardGesturesOptions['panMode'];
   onStroke: (intent: StrokeIntent) => void;
   onDoubleTap: (x: number, y: number) => void;
+  /** Mouse moved over the board with no button down (client coords). */
+  onHover?: (x: number, y: number) => void;
+  /** The pointer left the board. */
+  onHoverEnd?: () => void;
 }
 
 /** Returns a cleanup that detaches listeners and drops any pending touch. */
@@ -118,19 +122,43 @@ export function bindDrawInput(
     type: e.pointerType === 'touch' || e.pointerType === 'pen' ? e.pointerType : 'mouse',
     erase: e.pointerType === 'mouse' && e.button === 2,
   });
+  // Shift + left-drag pans without touching the gesture model, so it never starts a stroke.
+  let shiftPan: { id: number; lastX: number; lastY: number } | null = null;
   const onDown = (e: PointerEvent): void => {
     try {
       canvas.setPointerCapture(e.pointerId);
     } catch {
       // Synthetic pointers may not be capturable.
     }
+    if (e.shiftKey && e.button === 0) {
+      shiftPan = { id: e.pointerId, lastX: e.clientX, lastY: e.clientY };
+      opts.onHoverEnd?.();
+      return;
+    }
     gestures.down(toPointer(e));
   };
   const onMove = (e: PointerEvent): void => {
+    if (shiftPan && shiftPan.id === e.pointerId) {
+      const vp = board.getViewport();
+      const dx = e.clientX - shiftPan.lastX;
+      const dy = e.clientY - shiftPan.lastY;
+      clampVp(vp.scale, vp.offsetX + dx, vp.offsetY + dy);
+      shiftPan.lastX = e.clientX;
+      shiftPan.lastY = e.clientY;
+      return;
+    }
+    if (e.buttons === 0 && e.pointerType === 'mouse') opts.onHover?.(e.clientX, e.clientY);
     const coalesced = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : [];
     gestures.move(toPointer(e), coalesced.map(toPointer));
   };
-  const onUp = (e: PointerEvent): void => gestures.up(toPointer(e), e.type !== 'pointerup');
+  const onUp = (e: PointerEvent): void => {
+    if (shiftPan && shiftPan.id === e.pointerId) {
+      shiftPan = null;
+      return;
+    }
+    gestures.up(toPointer(e), e.type !== 'pointerup');
+  };
+  const onLeave = (): void => opts.onHoverEnd?.();
   const onContextMenu = (e: MouseEvent): void => e.preventDefault();
   const onWheel = (e: WheelEvent): void => {
     e.preventDefault();
@@ -141,6 +169,7 @@ export function bindDrawInput(
   canvas.addEventListener('pointermove', onMove);
   canvas.addEventListener('pointerup', onUp);
   canvas.addEventListener('pointercancel', onUp);
+  canvas.addEventListener('pointerleave', onLeave);
   canvas.addEventListener('wheel', onWheel, { passive: false });
   canvas.addEventListener('contextmenu', onContextMenu);
 
@@ -151,6 +180,7 @@ export function bindDrawInput(
     canvas.removeEventListener('pointermove', onMove);
     canvas.removeEventListener('pointerup', onUp);
     canvas.removeEventListener('pointercancel', onUp);
+    canvas.removeEventListener('pointerleave', onLeave);
     canvas.removeEventListener('wheel', onWheel);
     canvas.removeEventListener('contextmenu', onContextMenu);
   };

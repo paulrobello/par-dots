@@ -4,11 +4,14 @@
  * flushed on cleanup, hide, and pagehide, so no stroke is lost to navigation or reload.
  */
 
+import { haptic, play } from '../audio/sfx';
 import {
+  brushCells,
   type DrawCellChange,
   type DrawEvent,
   DrawSession,
   type DrawTool,
+  type GridCell,
   lineCells,
 } from '../game';
 import { DrawBoard } from '../render/drawBoard';
@@ -24,6 +27,8 @@ import type { Cleanup, ScreenContext } from './screen';
 import { settingsButton } from './settingsSheet';
 
 const PERSIST_MS = 500;
+const SOUND_GAP_MS = 45;
+
 type EditorTool = DrawTool | 'pan' | 'eraser';
 
 const TOOLS: Array<{ id: DrawTool; icon: Parameters<typeof iconButton>[0]; label: string }> = [
@@ -176,8 +181,19 @@ export function mountDrawEditor({ root, navigate }: ScreenContext, id: string): 
       schedulePersist();
     };
 
+    let lastSound = 0;
+    const placeFeedback = (): void => {
+      const t = performance.now();
+      if (t - lastSound < SOUND_GAP_MS) return;
+      lastSound = t;
+      play('place');
+      haptic('place');
+    };
     const onEvent = (e: DrawEvent): void => {
-      if (e.type === 'cells') board.drawCells(e.changes);
+      if (e.type === 'cells') {
+        board.drawCells(e.changes);
+        if (e.cause === 'draw') placeFeedback();
+      }
       tray.refresh();
       syncCount();
       syncHistoryButtons();
@@ -192,7 +208,8 @@ export function mountDrawEditor({ root, navigate }: ScreenContext, id: string): 
       label: string,
       icon: Parameters<typeof iconButton>[0],
     ): void => {
-      const b = iconButton(icon, label, () => setTool(t));
+      const b = iconButton(icon, label, () => setTool(t), 'icon-btn tool');
+      b.setAttribute('aria-pressed', 'false');
       toolBtns.set(t, b);
       toolbar.append(b);
     };
@@ -225,7 +242,7 @@ export function mountDrawEditor({ root, navigate }: ScreenContext, id: string): 
           h(
             'p',
             { class: 'muted small' },
-            'One finger draws, two fingers pan and pinch-zoom, and a double-tap switches between fit-to-screen and full size. Mirror buttons paint the opposite side as you draw.',
+            'One finger draws, two fingers pan and pinch-zoom, and a double-tap switches between fit-to-screen and full size. Mirror buttons paint the opposite side as you draw. With a mouse, shift-drag pans and hovering shows what the tool will paint.',
           ),
         ),
       );
@@ -450,6 +467,25 @@ export function mountDrawEditor({ root, navigate }: ScreenContext, id: string): 
       panMode: () => tool === 'pan',
       onStroke,
       onDoubleTap,
+      onHover: (x, y) => {
+        if (session.strokeActive || session.shapeActive) return;
+        const c = hit(x, y);
+        let cells: GridCell[] | null = null;
+        if (c) {
+          if (tool === 'brush' || tool === 'eraser') {
+            cells = brushCells(c.x, c.y, session.brushSize, session.brushTip);
+          } else if (tool === 'line' || tool === 'rect' || tool === 'ellipse' || tool === 'poly') {
+            cells = [c];
+          }
+        }
+        board.setPreview(cells);
+        board.requestDraw();
+      },
+      onHoverEnd: () => {
+        if (session.strokeActive || session.shapeActive) return;
+        board.setPreview(null);
+        board.requestDraw();
+      },
     });
 
     // ---- keyboard -----------------------------------------------------------

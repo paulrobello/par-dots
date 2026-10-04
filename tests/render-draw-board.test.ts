@@ -1,7 +1,23 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DrawBoard } from '../src/render/drawBoard';
 import { EMPTY, type PictureSave, SAVE_SCHEMA_VERSION } from '../src/types';
+
+// Sprite sheets need real 2D contexts; the paint path under test is mocked away.
+vi.mock('../src/render/sprites', () => {
+  class SpriteCache {
+    stud(): unknown {
+      return { canvas: {} };
+    }
+
+    dot(): unknown {
+      return { canvas: {} };
+    }
+
+    clear(): void {}
+  }
+  return { SpriteCache, PLATE_GREEN: '#4a7d4e' };
+});
 
 // happy-dom has no 2D context; a recording proxy keeps constructor/draw calls harmless.
 const ctxStub = new Proxy(
@@ -60,5 +76,20 @@ describe('DrawBoard', () => {
     const board = new DrawBoard(canvas);
     board.setData(drawnSave(), 0);
     expect(board.oneToOneScale()).toBeGreaterThanOrEqual(1);
+  });
+
+  it('drawCells repaints fully via draw()', () => {
+    // Partial repaints stack translucent seam/grid layers and leave hairline gaps around
+    // reverted cells; drawCells must delegate to the full draw() path.
+    const canvas = document.createElement('canvas');
+    canvas.getContext = (() => ctxStub) as unknown as typeof canvas.getContext;
+    Object.defineProperty(canvas, 'clientWidth', { value: 480 });
+    Object.defineProperty(canvas, 'clientHeight', { value: 640 });
+    const board = new DrawBoard(canvas);
+    board.setData(drawnSave(), 0);
+    board.resize();
+    const spy = vi.spyOn(board, 'draw');
+    board.drawCells([{ x: 0, y: 0 }]);
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 });

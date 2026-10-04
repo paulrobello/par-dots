@@ -1,10 +1,19 @@
 /**
- * Printable building sheet for one panel: a numbered 16x16 grid of flat cell colors (the
- * target for photo saves, the placed dots for drawn ones), each cell carrying its palette
- * symbol, empty cells left blank, and a legend mapping symbol to color name and count.
+ * Printable building sheets: one numbered 16x16 grid page per panel (the target for photo
+ * saves, the placed dots for drawn ones), each cell carrying its palette symbol, empty
+ * cells left blank, with a legend mapping symbol to color name and count. The full guide
+ * export also composes an overview page (the whole picture with panel seams and numbers)
+ * and an assembly page (rows with black connectors, joining rows, hanging hooks).
  */
 
-import { effectiveCells, panelCount, panelOrigin } from '../game';
+import {
+  assemblyPlanOf,
+  effectiveCells,
+  panelCount,
+  panelGridOf,
+  panelOrigin,
+  studDims,
+} from '../game';
 import { EMPTY, PANEL_SIZE, type PictureSave } from '../types';
 import { luminance } from './color';
 
@@ -145,6 +154,241 @@ export function renderPanelSheet(
     ctx.font = countFont;
     ctx.fillText(String(e.count), lx + colW - gap * 2, cy);
   });
+
+  return canvas;
+}
+
+/**
+ * Guide overview page: the whole picture at a glance with the panel seams drawn in and
+ * every panel region carrying the number of its building sheet, so the builder can map
+ * sheets to positions before building.
+ */
+export function renderGuideOverview(save: PictureSave, cellPx = 8): HTMLCanvasElement {
+  const cell = Math.max(2, Math.round(cellPx));
+  const margin = Math.round(cell * 2);
+  const gutter = cell * 2;
+  const titleSize = Math.round(cell * 4.5);
+  const subSize = Math.round(cell * 2.6);
+  const header = titleSize + subSize + Math.round(cell * 2);
+  const { cols, rows } = panelGridOf(save.aspect);
+  const { width: studsW, height: studsH } = studDims(save.aspect);
+  const picW = studsW * cell;
+  const picH = studsH * cell;
+  const gx = margin + gutter;
+  const gy = margin + header;
+  const labelSize = Math.round(cell * 3.2);
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2D canvas context unavailable');
+  canvas.width = margin * 2 + gutter * 2 + picW;
+  canvas.height = gy + picH + Math.round(cell * 6);
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.textBaseline = 'middle';
+
+  ctx.fillStyle = INK;
+  ctx.textAlign = 'left';
+  ctx.font = `bold ${titleSize}px ${FONT}`;
+  ctx.fillText(save.name, margin, margin + titleSize / 2);
+  ctx.font = `${subSize}px ${FONT}`;
+  ctx.fillStyle = '#555';
+  ctx.fillText('Overview', margin, margin + titleSize + subSize / 2);
+
+  // The picture as flat cells (crisp at print size); EMPTY stays the white page.
+  const cells = effectiveCells(save);
+  for (let y = 0; y < studsH; y++) {
+    for (let x = 0; x < studsW; x++) {
+      const idx = cells[y * save.width + x];
+      if (idx === EMPTY) continue;
+      ctx.fillStyle = save.palette[idx].hex;
+      ctx.fillRect(gx + x * cell, gy + y * cell, cell, cell);
+    }
+  }
+
+  // Border box, then seams only between panels.
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(gx, gy, picW, picH);
+  ctx.lineWidth = 1.5;
+  for (let k = 1; k < cols; k++) {
+    const x = gx + k * PANEL_SIZE * cell;
+    ctx.beginPath();
+    ctx.moveTo(x, gy);
+    ctx.lineTo(x, gy + picH);
+    ctx.stroke();
+  }
+  for (let k = 1; k < rows; k++) {
+    const y = gy + k * PANEL_SIZE * cell;
+    ctx.beginPath();
+    ctx.moveTo(gx, y);
+    ctx.lineTo(gx + picW, y);
+    ctx.stroke();
+  }
+
+  // Panel-number badges at each panel center; 1x1 grids get exactly one badge and no
+  // internal seams (the seam loops above simply do not run).
+  for (let p = 0; p < cols * rows; p++) {
+    const o = panelOrigin(save, p);
+    const cx = gx + (o.x + PANEL_SIZE / 2) * cell;
+    const cy = gy + (o.y + PANEL_SIZE / 2) * cell;
+    const half = labelSize * 0.75;
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillRect(cx - half, cy - half, half * 2, half * 2);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(cx - half, cy - half, half * 2, half * 2);
+    ctx.fillStyle = INK;
+    ctx.textAlign = 'center';
+    ctx.font = `bold ${labelSize}px ${FONT}`;
+    ctx.fillText(String(p + 1), cx, cy);
+  }
+
+  return canvas;
+}
+
+/**
+ * Assembly page: how the built panels become a hangable picture — build rows of panels
+ * joined with black connectors, join the rows the same way, then attach the hanging
+ * hooks. Counts come from assemblyPlanOf; connector bars are drawn on the schematics.
+ */
+export function renderAssemblySheet(save: PictureSave, cellPx = 40): HTMLCanvasElement {
+  const c = Math.max(8, Math.round(cellPx));
+  const margin = Math.round(c * 0.5);
+  const titleSize = Math.round(c * 0.6);
+  const subSize = Math.round(c * 0.4);
+  const stepFont = `bold ${Math.round(c * 0.42)}px ${FONT}`;
+  const textFont = `${Math.round(c * 0.4)}px ${FONT}`;
+  const plan = assemblyPlanOf(save.aspect);
+  const box = Math.round(c * 1.4);
+  const bar = Math.round(c * 0.3);
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2D canvas context unavailable');
+  const contentW = margin * 2 + c * 16; // same width as a panel sheet
+  canvas.width = contentW;
+  canvas.height = Math.round(c * 19);
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.textBaseline = 'middle';
+
+  ctx.fillStyle = INK;
+  ctx.textAlign = 'left';
+  ctx.font = `bold ${titleSize}px ${FONT}`;
+  ctx.fillText(save.name, margin, margin + titleSize / 2);
+  ctx.font = `${subSize}px ${FONT}`;
+  ctx.fillStyle = '#555';
+  ctx.fillText('Assembly', margin, margin + titleSize + subSize / 2);
+
+  const bodyTop = margin + titleSize + subSize + c;
+
+  // Step 1: build rows joined with black connectors.
+  ctx.font = stepFont;
+  ctx.fillStyle = INK;
+  ctx.fillText('1.', margin, bodyTop);
+  ctx.fillText(`Build ${plan.rows} rows of ${plan.cols} panels`, margin + c * 0.7, bodyTop);
+  ctx.font = textFont;
+  ctx.fillStyle = '#555';
+  ctx.fillText(
+    `Connect the panels back-to-back with black connectors - ${plan.cols - 1} per row,`,
+    margin,
+    bodyTop + c * 0.9,
+  );
+  ctx.fillText(`${plan.rowJoints} black connectors in all.`, margin, bodyTop + c * 1.7);
+
+  // Schematic: one row of panel squares with black connector bars between them.
+  const rowY = bodyTop + c * 2.6;
+  ctx.fillStyle = INK;
+  for (let i = 0; i < plan.cols - 1; i++) {
+    const bx = margin + (i + 1) * box + i * bar;
+    ctx.fillRect(bx, rowY + box / 2 - bar, bar, bar * 2);
+  }
+  for (let i = 0; i < plan.cols; i++) {
+    const px = margin + i * (box + bar);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(px, rowY, box, box);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px + 1, rowY + 1, box - 2, box - 2);
+    ctx.fillStyle = INK;
+    ctx.font = stepFont;
+    ctx.textAlign = 'center';
+    ctx.fillText(String(i + 1), px + box / 2, rowY + box / 2);
+    ctx.textAlign = 'left';
+  }
+
+  // Step 2: join the rows with black connectors at every panel seam.
+  const s2y = rowY + box + c;
+  ctx.font = stepFont;
+  ctx.fillStyle = INK;
+  ctx.fillText('2.', margin, s2y);
+  ctx.fillText('Join the rows', margin + c * 0.7, s2y);
+  ctx.font = textFont;
+  ctx.fillStyle = '#555';
+  ctx.fillText(
+    `Join the rows with ${plan.joinConnectors} black connectors - one at each seam.`,
+    margin,
+    s2y + c * 0.9,
+  );
+
+  // Schematic: two stacked rows with a black connector at each column boundary.
+  const gapY = s2y + c * 1.8;
+  for (let i = 0; i < plan.cols; i++) {
+    const bx = margin + i * (box + bar) + (i > 0 ? bar : 0) + box / 2 - bar / 2;
+    ctx.fillStyle = INK;
+    ctx.fillRect(bx, gapY + box * 0.55, bar, box * 0.9);
+  }
+  for (const ry of [gapY, gapY + box * 0.9 + bar]) {
+    for (let i = 0; i < plan.cols; i++) {
+      const px = margin + i * (box + bar);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(px, ry, box, box * 0.55);
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(px + 1, ry + 1, box - 2, box * 0.55 - 2);
+    }
+  }
+
+  // Step 3: hanging hooks on the top row.
+  const s3y = gapY + box * 0.9 + bar + box * 0.55 + c;
+  ctx.font = stepFont;
+  ctx.fillStyle = INK;
+  ctx.fillText('3.', margin, s3y);
+  ctx.fillText('Hang it', margin + c * 0.7, s3y);
+  ctx.font = textFont;
+  ctx.fillStyle = '#555';
+  ctx.fillText(
+    `Attach ${plan.hooks} hanging hooks to the top edge of the top row`,
+    margin,
+    s3y + c * 0.9,
+  );
+  ctx.fillText('(e.g. two sawtooth picture hangers, one near each end).', margin, s3y + c * 1.7);
+
+  // Schematic: top-row panel with two hook marks above its top edge.
+  const hookY = s3y + c * 2.5;
+  ctx.fillStyle = INK;
+  for (const hx of [margin + bar / 2, margin + (plan.cols - 1) * (box + bar) + box / 2]) {
+    ctx.fillRect(hx, hookY - bar * 2, bar * 3, bar);
+  }
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(margin, hookY, box, box * 0.55);
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(margin + 1, hookY + 1, box - 2, box * 0.55 - 2);
+
+  // Connectors and hooks are generic parts outside the palette; the exports stay
+  // palette-only by decision (card 01a1091d803d) - say so on the page.
+  ctx.fillStyle = '#555';
+  ctx.font = textFont;
+  ctx.fillText(
+    'Black connectors and hooks are generic LEGO parts, not part of the color palette -',
+    margin,
+    hookY + box + c,
+  );
+  ctx.fillText('order them separately.', margin, hookY + box + c * 1.8);
 
   return canvas;
 }

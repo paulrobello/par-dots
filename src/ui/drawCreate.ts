@@ -107,7 +107,7 @@ export function mountDrawCreate({ root, navigate }: ScreenContext): Cleanup {
         class: background === hex ? 'swatch on' : 'swatch',
         'aria-checked': String(background === hex),
         'aria-label': label,
-        title: label,
+        'data-tip': label,
       });
       if (hex) b.style.background = hex;
       b.addEventListener('click', () => {

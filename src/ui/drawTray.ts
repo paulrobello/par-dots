@@ -30,7 +30,7 @@ export function createDrawTray(
       type: 'button',
       class: primary ? 'slot primary' : 'slot',
       'aria-label': `${label} color`,
-      title: `${label} color`,
+      'data-tip': `${label} color`,
       style: `--c:${hex};background:${hex}`,
     });
     b.addEventListener('click', () => onPick(index));
@@ -61,7 +61,7 @@ export function createDrawTray(
           'aria-checked': String(i === session.primary),
           class: i === session.primary ? 'swatch on' : 'swatch',
           'aria-label': `${entry.name}, ${usage[i]} dots`,
-          title: `${entry.name} (${usage[i]})`,
+          'data-tip': `${entry.name} (${usage[i]})`,
           style: `--c:${entry.hex};background:${entry.hex};--count-ink:${
             isLight(entry.hex) ? '#1b1b1b' : '#fff'
           }`,
@@ -88,7 +88,7 @@ export function createDrawTray(
     );
     tray.replaceChildren(
       slot(session.primary, 'Primary', true),
-      iconButton('move', 'Swap colors', swap, 'icon-btn swap'),
+      iconButton('swap', 'Swap colors', swap, 'icon-btn swap'),
       slot(session.secondary, 'Secondary', false),
       row,
     );
@@ -127,7 +127,7 @@ export function createDrawTray(
           type: 'button',
           class: 'swatch',
           'aria-label': c.name,
-          title: c.name,
+          'data-tip': c.name,
           style: `--c:${c.hex};background:${c.hex}`,
         });
         b.addEventListener('click', () => apply(paletteEntryFor('lego', c.hex)));
@@ -153,7 +153,7 @@ export function createDrawTray(
     if (recolor) {
       const remove = h('button', { type: 'button', class: 'btn ghost' }, 'Remove color');
       remove.disabled = usage[index] > 0;
-      remove.title = remove.disabled ? 'Erase this color’s dots first' : '';
+      if (remove.disabled) remove.dataset.tip = 'Erase this color’s dots first';
       remove.addEventListener('click', () => {
         try {
           session.removeColor(index);

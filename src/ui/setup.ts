@@ -237,7 +237,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
       class: hex === bgHex ? 'swatch on' : 'swatch',
       'aria-checked': String(hex === bgHex),
       'aria-label': label,
-      title: label,
+      'data-tip': label,
     });
     b.style.background = hex;
     b.dataset.hex = hex;

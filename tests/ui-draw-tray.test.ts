@@ -75,7 +75,7 @@ describe('createDrawTray', () => {
     const sheet = document.querySelector('.sheet') as HTMLElement;
     expect(sheet).toBeTruthy();
     const red = [...sheet.querySelectorAll<HTMLButtonElement>('button')].find(
-      (b) => b.getAttribute('title') === 'Red',
+      (b) => b.getAttribute('data-tip') === 'Red',
     ) as HTMLButtonElement;
     red.click();
     expect(session.save.palette).toHaveLength(3);

@@ -161,7 +161,7 @@ export function openSettingsSheet(onClose?: () => void): void {
           class: on ? 'swatch on' : 'swatch',
           'aria-checked': String(on),
           'aria-label': BACKGROUND_COLORS[bg].label,
-          title: BACKGROUND_COLORS[bg].label,
+          'data-tip': BACKGROUND_COLORS[bg].label,
         });
         b.style.background = BACKGROUND_COLORS[bg].a;
         b.addEventListener('click', () => {

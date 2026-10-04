@@ -10,9 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Draw-your-own mode: create a blank mosaic (aspect, palette mode, background) and paint it with brush, line, box, ellipse, polygon, fill, eyedropper and eraser tools, mirror painting, a 50-move undo history, an editable palette, and — in LEGO mode — the same parts exports as photo pictures.
+- Guide PDFs open with an overview page — the assembled picture with panel seams and every panel numbered to match its building sheet — and an assembly page (rows joined with black connectors, rows joined to each other, hanging hooks) whose connector and hook counts derive from the panel layout.
+- Draw mode plays the same dot-placement sounds and haptics as panel play, hovering shows a ghost of the cells the next stroke will paint, and Shift+drag pans.
+- Fast styled tooltips replace native `title` tooltips throughout the app.
 - Uploaded images with transparency now composite over a chosen background color on the setup screen, defaulting to black instead of white, with black and white swatches plus a custom color picker.
 
 ### Changed
+
+- The palette swap button has its own arrows icon instead of the pan tool's.
+
+### Fixed
+
+- Draw-editor partial repaints no longer stack seam and grid lines, which made white seams appear after undo and the grid brighten with every tool use.
 
 - Free color names now describe the actual shade, including burgundy, rust, and peach, instead of borrowing the nearest LEGO name. Existing pictures show the corrected names in the tray, Parts, and building guides without changing their colors or progress. LEGO mode retains official names.
 - Softer background studs, tactile dot placement with a brief highlight, smooth tray selection and count feedback, and reversible reference-overlay fades.

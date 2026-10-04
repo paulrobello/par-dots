@@ -101,7 +101,7 @@ Targets: iOS Safari 17+, Android Chrome (latest two), desktop Chrome/Safari/Fire
 - Each panel shows a small completion badge (%, check mark when done). When every panel is done, the badges and panel seams are replaced by one green frame around the picture.
 - Tap any panel (any order), or use the numbered panel buttons, to zoom into it with an animated zoom transition.
 - Shows overall progress %, total elapsed time, panel count and color count. A completed picture shows **View picture** (the finished mosaic in a sheet, with its own download) and **Download PNG** buttons.
-- **Guide** downloads printable building sheets: every panel as a PDF with one panel per US Letter page, or one chosen panel as a PNG.
+- **Guide** downloads printable building sheets: every panel as a PDF with one panel per US Letter page, or one chosen panel as a PNG. The PDF opens with an overview page — the whole picture with panel seams and every panel numbered to match its sheet — and an assembly page: build rows of panels joined with black connectors, join the rows the same way, attach two hanging hooks, with counts derived from the layout. Connectors and hooks are generic parts, ordered separately; they are not in the parts exports.
 - **Parts** shows a per-color dot count (whole picture or one panel) with a tab-separated copy of the list. **Buy parts** exports a wanted list for 1x1 round tiles by LEGO color plus the build kit — one black 16x16 canvas with pin holes per panel, five Technic pins per shared canvas edge, two black wall-mount panels, and a 1x16 brick border frame in the chosen frame color (black or white) — as a BrickLink Wanted List Mass Upload XML or a Rebrickable part-list import CSV, for the scope shown. Only in LEGO palette mode; free shades have no catalog color.
 
 ### 5.5 Panel Play
@@ -142,9 +142,11 @@ Interaction:
 A "Make my own" card on the New Picture screen opens a create form (name, aspect, palette
 mode, background: None, black, white, or any color in Free mode). Creating opens the draw
 editor: one continuous mosaic across all panels with visible seams, pan/zoom (drag, pinch,
-double-tap), and brush, line, box, ellipse, polygon, fill, eyedropper and eraser tools with
+double-tap, Shift+drag), and brush, line, box, ellipse, polygon, fill, eyedropper and eraser tools with
 undo/redo to 50 moves, per-color usage counts, an editable palette (add, recolor, remove
-unused), and optional mirror painting.
+unused), and optional mirror painting. Placing dots plays the same sounds and haptics as
+panel play, and hovering shows a ghost of the cells the next stroke will paint. The swap
+button has its own arrows icon and the selected tool stays highlighted.
 
 Drawn pictures never complete: no progress bar, no timer, no done badge. The gallery lists
 them under "My drawings" with their dot count. In LEGO mode a drawing exports parts lists,
