@@ -20,6 +20,7 @@ import {
   StorageFullError,
 } from '../src/storage/db';
 import { newId } from '../src/storage/id';
+import { migrateSave } from '../src/storage/migrate';
 import {
   canRequestPersistence,
   isPersisted,
@@ -34,7 +35,7 @@ import {
   SETTINGS_KEY,
   setSettings,
 } from '../src/storage/settings';
-import { EMPTY, MAX_COLORS, MIN_COLORS, type PictureSave } from '../src/types';
+import { EMPTY, MAX_COLORS, MIN_COLORS, type PictureSave, SAVE_SCHEMA_VERSION } from '../src/types';
 import { createSave } from '../src/ui/saves';
 
 class MemoryStorage {
@@ -66,6 +67,7 @@ function makeSave(overrides: Partial<PictureSave> = {}): PictureSave {
     sourceImageId: 'library:lighthouse',
     aspect: '1:1',
     paletteMode: 'lego',
+    origin: 'photo',
     palette: Array.from({ length: 5 }, (_, i) => ({ hex: '#ff0000', name: `c${i}` })),
     width: 48,
     height: 48,
@@ -158,11 +160,11 @@ describe('db', () => {
     await expect(deleteSave('missing')).resolves.toBeUndefined();
   });
 
-  it('loads a record without schemaVersion as version 1', async () => {
+  it('loads a record without schemaVersion as legacy v1', async () => {
     const { schemaVersion: _, ...legacy } = makeSave({ id: 'legacy' });
     await putSave(legacy as PictureSave);
-    expect((await getSave('legacy'))?.schemaVersion).toBe(1);
-    expect((await listSaves()).map((s) => s.schemaVersion)).toEqual([1]);
+    expect((await getSave('legacy'))?.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect((await listSaves()).map((s) => s.schemaVersion)).toEqual([SAVE_SCHEMA_VERSION]);
   });
 
   it('skips records that fail validation or come from a newer build', async () => {
@@ -559,5 +561,57 @@ describe('audio + haptics', () => {
     setSettings({ haptics: true });
     vi.stubGlobal('navigator', {});
     expect(() => haptic('place')).not.toThrow();
+  });
+});
+
+describe('migrateSave schema v2', () => {
+  const base = {
+    id: 's1',
+    createdAt: 1,
+    updatedAt: 1,
+    name: 'p',
+    sourceImageId: '',
+    aspect: '1:1',
+    paletteMode: 'lego',
+    palette: [
+      { hex: '#05131d', name: 'Black' },
+      { hex: '#ffffff', name: 'White' },
+    ],
+    width: 48,
+    height: 48,
+    target: new Uint8Array(48 * 48),
+    placed: new Uint8Array(48 * 48),
+    panelElapsedMs: [],
+  };
+
+  it('stamps origin photo on v1 saves', () => {
+    const out = migrateSave({ ...base, target: new Uint8Array(48 * 48).fill(0) });
+    expect(out?.origin).toBe('photo');
+    expect(out?.schemaVersion).toBe(SAVE_SCHEMA_VERSION);
+    expect(out?.drawBackground).toBeUndefined();
+  });
+
+  it('accepts a drawn save with EMPTY target and drawBackground', () => {
+    const out = migrateSave({
+      ...base,
+      origin: 'drawn',
+      drawBackground: '#05131d',
+      target: new Uint8Array(48 * 48).fill(EMPTY),
+      placed: new Uint8Array(48 * 48).fill(0),
+    });
+    expect(out?.origin).toBe('drawn');
+    expect(out?.drawBackground).toBe('#05131d');
+  });
+
+  it('rejects a bad drawBackground and an unknown origin', () => {
+    expect(migrateSave({ ...base, origin: 'drawn', drawBackground: 'red' })).toBeUndefined();
+    expect(migrateSave({ ...base, origin: 'photo' })).toBeDefined();
+    expect(migrateSave({ ...base, origin: 'sketch' })).toBeUndefined();
+  });
+
+  it('still rejects out-of-range target values other than EMPTY', () => {
+    const target = new Uint8Array(48 * 48);
+    target[0] = MAX_COLORS; // far past palette.length (2)
+    expect(migrateSave({ ...base, target })).toBeUndefined();
   });
 });

@@ -9,7 +9,7 @@ import {
 } from '../src/storage/backup';
 import { closeDb, getImage, listSaves, putSave, putSaveWithImage } from '../src/storage/db';
 import { newId } from '../src/storage/id';
-import { EMPTY, type PictureSave } from '../src/types';
+import { EMPTY, type PictureSave, SAVE_SCHEMA_VERSION } from '../src/types';
 
 function makeSave(overrides: Partial<PictureSave> = {}): PictureSave {
   const target = new Uint8Array(48 * 48).map((_, i) => i % 5);
@@ -24,6 +24,7 @@ function makeSave(overrides: Partial<PictureSave> = {}): PictureSave {
     sourceImageId: 'library:lighthouse',
     aspect: '1:1',
     paletteMode: 'lego',
+    origin: 'photo',
     width: 48,
     height: 48,
     palette: [
@@ -116,4 +117,49 @@ describe('backup files', () => {
       parseBackup(JSON.stringify({ format: 'par-dots-backup', version: 1, saves })),
     ).rejects.toBeInstanceOf(BackupFormatError);
   });
+});
+
+function drawnBackupSave(): PictureSave {
+  return {
+    schemaVersion: SAVE_SCHEMA_VERSION,
+    id: 'd1',
+    createdAt: 1,
+    updatedAt: 1,
+    name: 'doodle',
+    sourceImageId: '',
+    aspect: '1:1',
+    paletteMode: 'lego',
+    origin: 'drawn',
+    drawBackground: '#05131d',
+    palette: [
+      { hex: '#05131d', name: 'Black' },
+      { hex: '#ffffff', name: 'White' },
+    ],
+    width: 48,
+    height: 48,
+    target: new Uint8Array(48 * 48).fill(EMPTY),
+    placed: new Uint8Array(48 * 48).fill(0),
+    panelElapsedMs: [0, 0, 0, 0, 0, 0, 0, 0, 0],
+  };
+}
+
+it('round-trips a drawn save through a backup without an image', async () => {
+  const blob = await buildBackup([drawnBackupSave()], async () => undefined);
+  const entries = await parseBackup(await blob.text());
+  expect(entries).toHaveLength(1);
+  expect(entries[0].image).toBeUndefined();
+  expect(entries[0].save.origin).toBe('drawn');
+  expect(entries[0].save.drawBackground).toBe('#05131d');
+});
+
+it('still requires an image for uploaded photo saves', async () => {
+  const photo = {
+    ...drawnBackupSave(),
+    origin: 'photo' as const,
+    drawBackground: undefined,
+    sourceImageId: 'img-1',
+  };
+  const blob = await buildBackup([photo], async () => undefined);
+  const entries = await parseBackup(await blob.text());
+  expect(entries).toHaveLength(0);
 });

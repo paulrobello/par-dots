@@ -4,8 +4,8 @@
  * that download printable building sheets.
  */
 
-import { colorCounts, panelColorCounts, panelCount, panelOrigin } from '../game';
-import { PANEL_SIZE, type PictureSave } from '../types';
+import { colorCounts, effectiveCells, panelColorCounts, panelCount, panelOrigin } from '../game';
+import { EMPTY, PANEL_SIZE, type PictureSave } from '../types';
 import { downloadBlob, h, icon, openSheet, toast } from './dom';
 import { exportAllSheets, exportPanelSheet } from './exportImage';
 import {
@@ -20,12 +20,13 @@ import {
 } from './manifests';
 import { paletteLabels } from './pure';
 
-/** Correctly placed dots per palette index, over the whole picture or one panel. */
+/** Correctly placed dots per palette index; for drawn saves every placed dot is done. */
 function doneCounts(save: PictureSave, panelIndex: number | null): number[] {
+  const cells = effectiveCells(save);
   const done = new Array<number>(save.palette.length).fill(0);
   const count = (i: number): void => {
-    const t = save.target[i];
-    if (save.placed[i] === t) done[t]++;
+    const c = cells[i];
+    if (c !== EMPTY && save.placed[i] === c) done[c]++;
   };
   if (panelIndex === null) {
     for (let i = 0; i < save.width * save.height; i++) count(i);

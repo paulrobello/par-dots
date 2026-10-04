@@ -86,6 +86,15 @@ export async function restartSave(save: PictureSave): Promise<void> {
   await persistSave(save);
 }
 
+/** Reset a drawn save to its background fill (or an empty grid) and persist. */
+export async function restartDrawnSave(save: PictureSave): Promise<void> {
+  const bgIndex = save.drawBackground
+    ? save.palette.findIndex((c) => c.hex === save.drawBackground)
+    : -1;
+  save.placed.fill(bgIndex >= 0 ? bgIndex : EMPTY);
+  await persistSave(save);
+}
+
 /** Encode saves, with their uploaded images, as a `.pardots` backup blob. */
 export function backupSaves(saves: PictureSave[]): Promise<Blob> {
   return buildBackup(saves, db.getImage);

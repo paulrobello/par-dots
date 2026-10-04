@@ -79,6 +79,8 @@ The Parts sheet's Buy parts section builds its wanted-list manifests in DOM-free
 
 A picture is created on two screens. The source screen decodes the chosen image; the setup screen crops, resamples and quantizes it, then writes the save. When the decoded image has transparency, the setup screen also offers a background color (default black) that transparent pixels are composited over before quantization.
 
+Draw mode bypasses this pipeline: the "Make my own" card on the source screen opens `ui/drawCreate.ts` (name, aspect, palette mode, background), which writes a save with `origin: 'drawn'`, `target` all-empty, and an optional `drawBackground`. The editor screen `ui/drawEditor.ts` renders the whole mosaic with `render/drawBoard.ts` (seams, grid overlay, shape preview) and binds pointer input through `ui/drawInput.ts`; DOM-free siblings `game/drawTools.ts` (rasterizers) and `game/drawSession.ts` (tool state, palette editing, undo/redo to 50, usage counts) own the rules, so `PanelSession`, `trayModel` and play rules are untouched. The editor persists on a 500 ms debounce flushed on cleanup, hide, and `pagehide`. Cross-links: `#/draw/:photoId` redirects to the overview; `#/play/:drawnId` redirects to the editor.
+
 ```mermaid
 %%{init: {'theme':'base','themeVariables':{'background':'#1E1E1E','primaryColor':'#1E1E1E','primaryTextColor':'#E6E6E6','primaryBorderColor':'#2196F3','lineColor':'#E6E6E6','actorBkg':'#1E1E1E','actorBorder':'#2196F3','actorTextColor':'#E6E6E6','signalColor':'#E6E6E6','signalTextColor':'#E6E6E6','noteBkgColor':'#1E1E1E','noteTextColor':'#E6E6E6','noteBorderColor':'#FFC107','activationBkgColor':'#1E1E1E','activationBorderColor':'#4CAF50'}}}%%
 sequenceDiagram
@@ -119,6 +121,8 @@ sequenceDiagram
 | `#/` | `gallery` | `mountGallery` | `src/ui/gallery.ts` |
 | `#/new` | `new` | `mountSource` | `src/ui/source.ts` |
 | `#/setup` | `setup` | `mountSetup` | `src/ui/setup.ts` |
+| `#/draw/new` | `drawNew` | `mountDrawCreate` | `src/ui/drawCreate.ts` |
+| `#/draw/:id` | `drawEditor` | `mountDrawEditor` | `src/ui/drawEditor.ts` |
 | `#/play/:id` | `overview` | `mountOverview` | `src/ui/overview.ts` |
 | `#/play/:id/:panel` | `panel` | `mountPanelPlay` | `src/ui/panelPlay.ts` |
 

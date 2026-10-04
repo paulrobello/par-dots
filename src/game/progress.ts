@@ -42,20 +42,36 @@ export function panelProgress(save: PictureSave, panelIndex: number): Progress {
   return { correct, total, percent: pct(correct, total) };
 }
 
-/** Target dot count per palette index for the whole picture (length = palette.length). */
+/**
+ * The cells exports and counting read: the target for photo saves, the placed dots for
+ * drawn ones (a drawn save's target is all EMPTY).
+ */
+export function effectiveCells(save: PictureSave): ArrayLike<number> {
+  return save.origin === 'drawn' ? save.placed : save.target;
+}
+
+/** Dot count per palette index for the whole picture (length = palette.length); skips EMPTY. */
 export function colorCounts(save: PictureSave): number[] {
+  const cells = effectiveCells(save);
   const counts = new Array<number>(save.palette.length).fill(0);
-  for (let i = 0; i < save.width * save.height; i++) counts[save.target[i]]++;
+  for (let i = 0; i < save.width * save.height; i++) {
+    const c = cells[i];
+    if (c !== EMPTY) counts[c]++;
+  }
   return counts;
 }
 
-/** Target dot count per palette index within one panel (length = palette.length). */
+/** Dot count per palette index within one panel (length = palette.length); skips EMPTY. */
 export function panelColorCounts(save: PictureSave, panelIndex: number): number[] {
+  const cells = effectiveCells(save);
   const counts = new Array<number>(save.palette.length).fill(0);
   const o = panelOrigin(save, panelIndex);
   for (let y = 0; y < PANEL_SIZE; y++) {
     const row = (o.y + y) * save.width + o.x;
-    for (let x = 0; x < PANEL_SIZE; x++) counts[save.target[row + x]]++;
+    for (let x = 0; x < PANEL_SIZE; x++) {
+      const c = cells[row + x];
+      if (c !== EMPTY) counts[c]++;
+    }
   }
   return counts;
 }
@@ -68,6 +84,13 @@ export function panelComplete(save: PictureSave, panelIndex: number): boolean {
 export function pictureComplete(save: PictureSave): boolean {
   for (let i = 0; i < panelCount(save); i++) if (!panelComplete(save, i)) return false;
   return true;
+}
+
+/** Number of placed dots (non-EMPTY entries in `placed`). */
+export function placedCount(save: PictureSave): number {
+  let n = 0;
+  for (let i = 0; i < save.placed.length; i++) if (save.placed[i] !== EMPTY) n++;
+  return n;
 }
 
 /** Next incomplete panel after `from` in row-major order, wrapping; null when every panel is complete. */

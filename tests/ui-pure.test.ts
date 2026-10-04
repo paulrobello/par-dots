@@ -35,6 +35,17 @@ describe('router', () => {
     expect(parseRoute('#/play/abc/7')).toEqual({ name: 'panel', id: 'abc', panel: 7 });
   });
 
+  it('parses the draw-new route', () => {
+    expect(parseRoute('#/draw/new')).toEqual({ name: 'drawNew' });
+    expect(parseRoute('#/draw/new/')).toEqual({ name: 'drawNew' });
+  });
+
+  it('parses the draw editor route', () => {
+    expect(parseRoute('#/draw/abc')).toEqual({ name: 'drawEditor', id: 'abc' });
+    expect(parseRoute('#/draw')).toEqual({ name: 'gallery' });
+    expect(parseRoute('#/draw/%E0')).toEqual({ name: 'gallery' });
+  });
+
   it('falls back to the gallery on junk', () => {
     expect(parseRoute('#/nope')).toEqual({ name: 'gallery' });
     expect(parseRoute('#/play')).toEqual({ name: 'gallery' });
@@ -45,7 +56,15 @@ describe('router', () => {
   });
 
   it('round-trips through routeHash', () => {
-    for (const h of ['#/', '#/new', '#/setup', '#/play/a%20b', '#/play/id-1/11']) {
+    for (const h of [
+      '#/',
+      '#/new',
+      '#/setup',
+      '#/draw/new',
+      '#/draw/abc',
+      '#/play/a%20b',
+      '#/play/id-1/11',
+    ]) {
       expect(routeHash(parseRoute(h))).toBe(h);
     }
   });

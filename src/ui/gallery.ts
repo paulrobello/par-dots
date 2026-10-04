@@ -1,10 +1,10 @@
 /**
  * Gallery screen (`#/`): the New Picture button, Back up all and Restore (`.pardots` files),
- * and a card per save with progress, time, and Continue, Download PNG, Back up, Restart and
- * Delete actions.
+ * and per-save cards split by origin — photo saves show progress and time; drawn saves show
+ * a dot count and Continue, Download PNG, Back up, Restart and Delete.
  */
 
-import { overallProgress, pictureComplete } from '../game';
+import { overallProgress, pictureComplete, placedCount } from '../game';
 import { renderMosaicToCanvas } from '../render/mosaicImage';
 import type { PictureSave } from '../types';
 import { asThumb, confirmDialog, downloadBlob, h, icon, toast } from './dom';
@@ -15,6 +15,7 @@ import {
   listSaves,
   MAX_BACKUP_FILE_BYTES,
   removeSave,
+  restartDrawnSave,
   restartSave,
   restoreBackup,
 } from './saves';
@@ -137,6 +138,8 @@ export function mountGallery({ root, navigate }: ScreenContext): Cleanup {
       return;
     }
     if (!alive) return;
+    const photos = saves.filter((s) => s.origin !== 'drawn');
+    const drawn = saves.filter((s) => s.origin === 'drawn');
     if (saves.length === 0) {
       list.replaceChildren(
         h(
@@ -149,7 +152,131 @@ export function mountGallery({ root, navigate }: ScreenContext): Cleanup {
       );
       return;
     }
-    list.replaceChildren(...saves.map((s) => card(s)));
+    list.replaceChildren(
+      h('div', { class: 'save-grid-inner' }, ...photos.map((s) => card(s))),
+      ...(photos.length === 0 ? [h('p', { class: 'muted' }, 'No pictures yet.')] : []),
+      h('h2', { class: 'section-title' }, 'My drawings'),
+      ...(drawn.length === 0
+        ? [h('p', { class: 'muted' }, 'No drawings yet. Tap Make my own to start one.')]
+        : [h('div', { class: 'save-grid-inner' }, ...drawn.map((s) => drawnCard(s)))]),
+    );
+  };
+
+  const drawnCard = (save: PictureSave): HTMLElement => {
+    const cellPx = Math.max(2, Math.round(192 / Math.max(save.width, save.height)));
+    const thumb = asThumb(
+      renderMosaicToCanvas(save, cellPx * (window.devicePixelRatio > 1 ? 2 : 1), 'dots', {
+        cells: save.placed,
+      }),
+      `${save.name} preview`,
+    );
+    const open = (): void => navigate(routeHash({ name: 'drawEditor', id: save.id }));
+    const restart = async (): Promise<void> => {
+      const ok = await confirmDialog(
+        'Restart drawing?',
+        `Everything drawn in "${save.name}" will be removed.`,
+        'Restart',
+      );
+      if (!ok) return;
+      try {
+        await restartDrawnSave(save);
+      } catch (err) {
+        console.error(err);
+        toast(`Could not restart: ${userMessage(err)}`);
+      }
+      void render();
+    };
+    const del = async (): Promise<void> => {
+      const ok = await confirmDialog(
+        'Delete drawing?',
+        `"${save.name}" will be deleted. This cannot be undone.`,
+        'Delete',
+      );
+      if (!ok) return;
+      try {
+        await removeSave(save.id);
+      } catch (err) {
+        console.error(err);
+        toast(`Could not delete: ${userMessage(err)}`);
+      }
+      void render();
+    };
+    return h(
+      'article',
+      { class: 'save-card' },
+      h(
+        'button',
+        {
+          type: 'button',
+          class: 'save-thumb',
+          'aria-label': `Continue ${save.name}`,
+          on: { click: open },
+        },
+        thumb,
+      ),
+      h(
+        'div',
+        { class: 'save-meta' },
+        h('h3', {}, save.name),
+        h('p', { class: 'muted small' }, `${placedCount(save)} dots`),
+      ),
+      h(
+        'div',
+        { class: 'save-actions' },
+        h(
+          'button',
+          { type: 'button', class: 'btn primary', on: { click: open } },
+          icon('play'),
+          'Continue',
+        ),
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'icon-btn',
+            'aria-label': `Download ${save.name} as PNG`,
+            title: 'Download PNG',
+            on: { click: () => exportPng(save) },
+          },
+          icon('download'),
+        ),
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'icon-btn',
+            'aria-label': `Back up ${save.name}`,
+            title: 'Back up',
+            on: {
+              click: () => void downloadBackup([save], `${safeFileStem(save.name)}.pardots`),
+            },
+          },
+          icon('backup'),
+        ),
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'icon-btn',
+            'aria-label': `Restart ${save.name}`,
+            title: 'Restart',
+            on: { click: () => void restart() },
+          },
+          icon('restart'),
+        ),
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'icon-btn',
+            'aria-label': `Delete ${save.name}`,
+            title: 'Delete',
+            on: { click: () => void del() },
+          },
+          icon('trash'),
+        ),
+      ),
+    );
   };
 
   const card = (save: PictureSave): HTMLElement => {

@@ -61,6 +61,10 @@ export function mountPanelPlay(
         navigate('#/', { replace: true });
         return;
       }
+      if (save.origin === 'drawn') {
+        navigate(routeHash({ name: 'drawEditor', id: save.id }), { replace: true });
+        return;
+      }
       if (!Number.isInteger(panel) || panel < 0 || panel >= panelCount(save)) {
         navigate(routeHash({ name: 'overview', id }), { replace: true });
         return;

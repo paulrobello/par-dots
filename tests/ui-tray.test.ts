@@ -74,6 +74,7 @@ function makeSave(colors = 3): PictureSave {
     sourceImageId: 'library:test',
     aspect: '1:1',
     paletteMode: 'free',
+    origin: 'photo',
     palette: Array.from({ length: colors }, (_, i) => ({ hex: '#000000', name: `c${i}` })),
     width,
     height,

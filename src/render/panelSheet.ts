@@ -1,10 +1,11 @@
 /**
- * Printable building sheet for one panel: a numbered 16x16 grid of flat target colors, each
- * cell carrying its palette symbol, and a legend mapping symbol to color name and count.
+ * Printable building sheet for one panel: a numbered 16x16 grid of flat cell colors (the
+ * target for photo saves, the placed dots for drawn ones), each cell carrying its palette
+ * symbol, empty cells left blank, and a legend mapping symbol to color name and count.
  */
 
-import { panelCount, panelOrigin } from '../game/geometry';
-import { PANEL_SIZE, type PictureSave } from '../types';
+import { effectiveCells, panelCount, panelOrigin } from '../game';
+import { EMPTY, PANEL_SIZE, type PictureSave } from '../types';
 import { luminance } from './color';
 
 const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
@@ -94,10 +95,12 @@ export function renderPanelSheet(
 
   // Cells with symbols.
   const o = panelOrigin(save, panelIndex);
+  const cells = effectiveCells(save);
   ctx.font = `bold ${Math.round(c * 0.45)}px ${FONT}`;
   for (let y = 0; y < PANEL_SIZE; y++) {
     for (let x = 0; x < PANEL_SIZE; x++) {
-      const idx = save.target[(o.y + y) * save.width + o.x + x];
+      const idx = cells[(o.y + y) * save.width + o.x + x];
+      if (idx === EMPTY) continue;
       const hex = save.palette[idx].hex;
       ctx.fillStyle = hex;
       ctx.fillRect(gx + x * c, gy + y * c, c, c);

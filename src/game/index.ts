@@ -1,8 +1,30 @@
 /**
- * Public API of the game layer: panel geometry, PanelSession, and progress. The one barrel
- * in src/ (see docs/ARCHITECTURE.md, Conventions).
+ * Public API of the game layer: draw tools and sessions, panel geometry, PanelSession, and
+ * progress. The one barrel in src/ (see docs/ARCHITECTURE.md, Conventions).
  */
 
+export {
+  type DrawCause,
+  type DrawCellChange,
+  type DrawEvent,
+  type DrawListener,
+  DrawSession,
+  type DrawTool,
+  MAX_DRAW_HISTORY,
+  type Symmetry,
+} from './drawSession';
+export {
+  type BrushTip,
+  brushCells,
+  ellipseCells,
+  floodCells,
+  type GridCell,
+  lineCells,
+  polygonCells,
+  rectCells,
+  SNAP_TOLERANCE_DEG,
+  snapLine,
+} from './drawTools';
 export {
   aspectOf,
   panelCount,
@@ -25,6 +47,7 @@ export {
 } from './panelSession';
 export {
   colorCounts,
+  effectiveCells,
   isCorrect,
   nextUnfinishedPanel,
   overallProgress,
@@ -33,4 +56,5 @@ export {
   panelComplete,
   panelProgress,
   pictureComplete,
+  placedCount,
 } from './progress';

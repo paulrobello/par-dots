@@ -68,6 +68,7 @@ try {
               height: 48,
               aspect: '1:1',
               paletteMode: mode,
+              origin: 'photo',
               sourceImageId: 'library:lighthouse',
               createdAt: 1,
               updatedAt: 2,

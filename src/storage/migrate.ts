@@ -8,7 +8,11 @@ import {
   PANEL_SIZE,
   type PictureSave,
   SAVE_SCHEMA_VERSION,
+  type SaveOrigin,
 } from '../types';
+
+/** A valid drawn-save background: lowercase "#rrggbb". */
+const HEX_RE = /^#[0-9a-f]{6}$/;
 
 function isPaletteColor(c: unknown): boolean {
   return (
@@ -46,8 +50,18 @@ export function migrateSave(raw: unknown): PictureSave | undefined {
   const cells = width * height;
   if (!(target instanceof Uint8Array) || target.length !== cells) return undefined;
   if (!(placed instanceof Uint8Array) || placed.length !== cells) return undefined;
+  if (
+    r.drawBackground !== undefined &&
+    (typeof r.drawBackground !== 'string' || !HEX_RE.test(r.drawBackground))
+  ) {
+    return undefined;
+  }
+  if (r.origin !== undefined && r.origin !== 'photo' && r.origin !== 'drawn') {
+    return undefined;
+  }
+  const origin: SaveOrigin = r.origin === 'drawn' ? 'drawn' : 'photo';
   for (let i = 0; i < cells; i++) {
-    if (target[i] >= palette.length) return undefined;
+    if (target[i] !== EMPTY && target[i] >= palette.length) return undefined;
     if (placed[i] !== EMPTY && placed[i] >= palette.length) return undefined;
   }
 
@@ -58,5 +72,10 @@ export function migrateSave(raw: unknown): PictureSave | undefined {
     return typeof v === 'number' && Number.isFinite(v) ? v : 0;
   });
 
-  return { ...(r as unknown as PictureSave), schemaVersion: SAVE_SCHEMA_VERSION, panelElapsedMs };
+  return {
+    ...(r as unknown as PictureSave),
+    origin,
+    schemaVersion: SAVE_SCHEMA_VERSION,
+    panelElapsedMs,
+  };
 }

@@ -205,6 +205,12 @@ export function mountSource({ root, navigate }: ScreenContext): Cleanup {
         'div',
         { class: 'scroll' },
         h(
+          'button',
+          { type: 'button', class: 'upload-card', on: { click: () => navigate('#/draw/new') } },
+          icon('brush'),
+          h('span', {}, h('strong', {}, 'Make my own'), h('small', {}, 'Draw a mosaic freehand')),
+        ),
+        h(
           'label',
           { class: 'upload-card', for: 'upload-input' },
           icon('upload'),

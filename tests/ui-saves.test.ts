@@ -31,3 +31,47 @@ describe('whenSaved', () => {
     expect(settled).toBe(true);
   });
 });
+
+describe('restartDrawnSave', () => {
+  it('refills placed with the background index and persists', async () => {
+    const { restartDrawnSave } = await import('../src/ui/saves');
+    const save = {
+      id: 'd1',
+      aspect: '1:1',
+      origin: 'drawn',
+      drawBackground: '#ffffff',
+      palette: [
+        { hex: '#05131d', name: 'Black' },
+        { hex: '#ffffff', name: 'White' },
+      ],
+      width: 48,
+      height: 48,
+      placed: new Uint8Array(48 * 48).fill(0),
+    } as unknown as Parameters<typeof restartDrawnSave>[0];
+    save.placed[7] = 1;
+    const write = restartDrawnSave(save);
+    finishPut(); // the shared db mock's putSave promise resolves only via finishPut
+    await write;
+    expect(save.placed.every((v: number) => v === 1)).toBe(true); // white background index
+  });
+
+  it('clears to EMPTY when there is no background', async () => {
+    const { restartDrawnSave } = await import('../src/ui/saves');
+    const save = {
+      id: 'd2',
+      aspect: '1:1',
+      origin: 'drawn',
+      palette: [
+        { hex: '#05131d', name: 'Black' },
+        { hex: '#ffffff', name: 'White' },
+      ],
+      width: 48,
+      height: 48,
+      placed: new Uint8Array(48 * 48).fill(0),
+    } as unknown as Parameters<typeof restartDrawnSave>[0];
+    const write = restartDrawnSave(save);
+    finishPut(); // the shared db mock's putSave promise resolves only via finishPut
+    await write;
+    expect(save.placed.every((v: number) => v === 255)).toBe(true);
+  });
+});

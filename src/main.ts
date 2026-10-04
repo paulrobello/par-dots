@@ -11,6 +11,8 @@ import { initAudio } from './audio/sfx';
 import { getSettings } from './storage/settings';
 import { applyBackground } from './ui/background';
 import { closeAllOverlays, isOverlayOpen } from './ui/dom';
+import { mountDrawCreate } from './ui/drawCreate';
+import { mountDrawEditor } from './ui/drawEditor';
 import { mountGallery } from './ui/gallery';
 import { initInstall } from './ui/install';
 import { mountOverview } from './ui/overview';
@@ -58,6 +60,12 @@ function render(): void {
       break;
     case 'setup':
       cleanup = mountSetup(ctx);
+      break;
+    case 'drawNew':
+      cleanup = mountDrawCreate(ctx);
+      break;
+    case 'drawEditor':
+      cleanup = mountDrawEditor(ctx, route.id);
       break;
     case 'overview':
       cleanup = mountOverview(ctx, route.id);

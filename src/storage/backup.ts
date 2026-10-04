@@ -113,6 +113,9 @@ function decodeEntry(raw: unknown): BackupEntry | undefined {
   if (!Number.isFinite(save.updatedAt)) save.updatedAt = now;
   if (save.sourceImageId.startsWith(LIBRARY_PREFIX)) return { save };
 
+  // Drawn saves carry no image at all.
+  if (save.sourceImageId === '') return { save };
+
   if (typeof image !== 'object' || image === null) return undefined;
   const { type, data } = image as Record<string, unknown>;
   if (typeof type !== 'string' || typeof data !== 'string') return undefined;

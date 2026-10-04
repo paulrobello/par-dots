@@ -183,6 +183,10 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
         navigate('#/', { replace: true });
         return;
       }
+      if (save.origin === 'drawn') {
+        navigate(routeHash({ name: 'drawEditor', id: save.id }), { replace: true });
+        return;
+      }
       title.textContent = save.name;
       const prog = overallProgress(save);
       const total = save.panelElapsedMs.reduce((a, b) => a + b, 0);

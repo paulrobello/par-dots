@@ -137,6 +137,19 @@ Interaction:
 - **Picture complete:** after the last panel, a finale animation, final stats (panels, dots, total time), and **Download PNG** that renders the finished mosaic in the dot style.
 - **PNG download** is available from the finale, from the Overview of a completed picture, and from the gallery card of a completed picture. The file is named `<picture-name>-dots.png`.
 
+### 5.8 Draw Your Own
+
+A "Make my own" card on the New Picture screen opens a create form (name, aspect, palette
+mode, background: None, black, white, or any color in Free mode). Creating opens the draw
+editor: one continuous mosaic across all panels with visible seams, pan/zoom (drag, pinch,
+double-tap), and brush, line, box, ellipse, polygon, fill, eyedropper and eraser tools with
+undo/redo to 50 moves, per-color usage counts, an editable palette (add, recolor, remove
+unused), and optional mirror painting.
+
+Drawn pictures never complete: no progress bar, no timer, no done badge. The gallery lists
+them under "My drawings" with their dot count. In LEGO mode a drawing exports parts lists,
+BrickLink wanted lists and printable panel instructions exactly like a photo picture.
+
 ## 6. Visual Design (2D with 3D look)
 
 - **Baseplate:** colored plastic plate with a stud on every cell; each stud has a top highlight, rim, and drop shadow (radial gradients) to read as raised. The surrounding background retains the stud texture at lower contrast so the playable board stands out.
@@ -194,7 +207,7 @@ export const PANEL_SIZE = 16;
 export const EMPTY = 255; // placed value for a stud with no dot
 export const MAX_COLORS = 32;
 export const MIN_COLORS = 2;
-export const SAVE_SCHEMA_VERSION = 1;
+export const SAVE_SCHEMA_VERSION = 2;
 
 export interface PaletteColor {
   hex: string; // "#rrggbb"
@@ -214,6 +227,8 @@ export interface PictureSave extends Mosaic {
   createdAt: number; // epoch ms
   updatedAt: number;
   name: string;
+  origin: SaveOrigin; // 'photo' | 'drawn' (schema v2)
+  drawBackground?: string; // drawn saves: hex background, absent when None
   sourceImageId: string; // key into the images store, or "library:<slug>"
   aspect: Aspect;
   paletteMode: PaletteMode;
@@ -224,6 +239,7 @@ export interface PictureSave extends Mosaic {
 ```
 
 - Database `par-dots`, version 1. Store `saves` (keyPath `id`) holds `PictureSave` records; store `images` holds uploaded image blobs keyed by the save's `sourceImageId`. Library pictures store only `library:<slug>` and have no image blob.
+- Every save carries `origin: 'photo' | 'drawn'` (schema v2, stamped by `migrateSave` on read). Drawn saves keep `target` all-empty forever, never set `completedAt`, and store the artwork in `placed`; the draw editor persists on a 500 ms debounce, flushed when leaving the editor, when the page is hidden, and on `pagehide`.
 - Saves are validated and migrated on read (`migrateSave`); records that are malformed or come from a newer build are skipped.
 - A new upload's image and save are written in one transaction, so a failure leaves neither behind. Deleting a save deletes its uploaded image.
 - Board state is saved at the end of each stroke, after undo/redo, when the page is hidden, when leaving the panel, and when a panel completes.

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Draw-your-own mode: create a blank mosaic (aspect, palette mode, background) and paint it with brush, line, box, ellipse, polygon, fill, eyedropper and eraser tools, mirror painting, a 50-move undo history, an editable palette, and — in LEGO mode — the same parts exports as photo pictures.
 - Uploaded images with transparency now composite over a chosen background color on the setup screen, defaulting to black instead of white, with black and white swatches plus a custom color picker.
 
 ### Changed

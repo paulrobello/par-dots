@@ -460,6 +460,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
         sourceImageId: src.kind === 'library' ? `library:${src.slug}` : '',
         aspect,
         paletteMode: mode,
+        origin: 'photo',
         palette: m.palette,
         width: m.width,
         height: m.height,

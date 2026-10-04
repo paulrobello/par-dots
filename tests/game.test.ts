@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   aspectOf,
   colorCounts,
+  effectiveCells,
   MAX_HISTORY,
   nextUnfinishedPanel,
   overallProgress,
@@ -18,11 +19,19 @@ import {
   panelOriginOf,
   panelProgress,
   pictureComplete,
+  placedCount,
   studDims,
   studIndex,
 } from '../src/game';
 import { fitGrid, IDENTITY_VIEWPORT, screenToCell } from '../src/render/layout';
-import { type Aspect, EMPTY, LAYOUT, PANEL_SIZE, type PictureSave } from '../src/types';
+import {
+  type Aspect,
+  EMPTY,
+  LAYOUT,
+  PANEL_SIZE,
+  type PictureSave,
+  SAVE_SCHEMA_VERSION,
+} from '../src/types';
 
 /** Target color = (x + y) % colors, so every panel uses all colors. */
 function makeSave(aspect: Aspect = '1:1', colors = 3): PictureSave {
@@ -41,6 +50,7 @@ function makeSave(aspect: Aspect = '1:1', colors = 3): PictureSave {
     sourceImageId: 'library:test',
     aspect,
     paletteMode: 'free',
+    origin: 'photo',
     palette: Array.from({ length: colors }, (_, i) => ({ hex: '#000000', name: `c${i}` })),
     width,
     height,
@@ -727,5 +737,62 @@ describe('PanelSession dot supply', () => {
     s.beginStroke('paint', c);
     expect(s.applyAt(0, 0)).toBe(true);
     s.endStroke();
+  });
+});
+
+function drawnSaveFixture(): PictureSave {
+  return {
+    schemaVersion: SAVE_SCHEMA_VERSION,
+    id: 'd1',
+    createdAt: 1,
+    updatedAt: 1,
+    name: 'd',
+    sourceImageId: '',
+    aspect: '1:1',
+    paletteMode: 'lego',
+    origin: 'drawn',
+    palette: [
+      { hex: '#05131d', name: 'Black' },
+      { hex: '#ffffff', name: 'White' },
+    ],
+    width: 48,
+    height: 48,
+    target: new Uint8Array(48 * 48).fill(EMPTY),
+    placed: new Uint8Array(48 * 48),
+    panelElapsedMs: [0, 0, 0, 0, 0, 0, 0, 0, 0],
+  };
+}
+
+describe('effectiveCells (drawn saves)', () => {
+  it('counts placed dots for a drawn save and skips EMPTY', () => {
+    const save = drawnSaveFixture();
+    save.placed[0] = 1;
+    save.placed[1] = 1;
+    expect(colorCounts(save)).toEqual([2302, 2]);
+    expect(effectiveCells(save)).toBe(save.placed);
+  });
+
+  it('counts target for a photo save', () => {
+    const save = drawnSaveFixture();
+    save.origin = 'photo';
+    save.target.fill(0); // a photo save's target is quantized: EMPTY never appears
+    save.target[0] = 1;
+    expect(colorCounts(save)).toEqual([2303, 1]);
+  });
+
+  it('panelColorCounts reads placed dots for drawn saves', () => {
+    const save = drawnSaveFixture();
+    save.placed[0] = 1;
+    expect(panelColorCounts(save, 0)).toEqual([255, 1]);
+  });
+});
+
+describe('placedCount', () => {
+  it('counts non-empty placed cells', () => {
+    const save = makeSave();
+    expect(placedCount(save)).toBe(0);
+    save.placed[0] = 1;
+    save.placed[5] = 2;
+    expect(placedCount(save)).toBe(2);
   });
 });

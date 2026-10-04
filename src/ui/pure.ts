@@ -1,12 +1,26 @@
 /** DOM-free UI helpers: routing, labels, stroke interpolation, crop math, formatting. */
 
 import { describeColor } from '../engine/colorNames';
-import type { Aspect, CropRect, NormalizedCrop, PaletteColor, PaletteMode } from '../types';
+import { LEGO_COLORS } from '../engine/legoPalette';
+import { panelCountOf, studDims } from '../game';
+import { newId } from '../storage/id';
+import {
+  type Aspect,
+  type CropRect,
+  EMPTY,
+  type NormalizedCrop,
+  type PaletteColor,
+  type PaletteMode,
+  type PictureSave,
+  SAVE_SCHEMA_VERSION,
+} from '../types';
 
 export type Route =
   | { name: 'gallery' }
   | { name: 'new' }
   | { name: 'setup' }
+  | { name: 'drawNew' }
+  | { name: 'drawEditor'; id: string }
   | { name: 'overview'; id: string }
   | { name: 'panel'; id: string; panel: number };
 
@@ -17,6 +31,14 @@ export function parseRoute(hash: string): Route {
   if (parts.length === 0) return { name: 'gallery' };
   if (parts[0] === 'new' && parts.length === 1) return { name: 'new' };
   if (parts[0] === 'setup' && parts.length === 1) return { name: 'setup' };
+  if (parts[0] === 'draw' && parts.length === 2) {
+    if (parts[1] === 'new') return { name: 'drawNew' };
+    try {
+      return { name: 'drawEditor', id: decodeURIComponent(parts[1]) };
+    } catch {
+      return { name: 'gallery' };
+    }
+  }
   if (parts[0] === 'play' && parts.length >= 2) {
     let id: string;
     try {
@@ -41,11 +63,80 @@ export function routeHash(route: Route): string {
       return '#/new';
     case 'setup':
       return '#/setup';
+    case 'drawNew':
+      return '#/draw/new';
+    case 'drawEditor':
+      return `#/draw/${encodeURIComponent(route.id)}`;
     case 'overview':
       return `#/play/${encodeURIComponent(route.id)}`;
     case 'panel':
       return `#/play/${encodeURIComponent(route.id)}/${route.panel}`;
   }
+}
+
+/**
+ * Validate a color for the mode: LEGO mode accepts only LEGO table hexes (names and
+ * catalog IDs must stay valid for parts exports); Free mode names the shade.
+ */
+export function paletteEntryFor(mode: PaletteMode, hex: string): PaletteColor {
+  if (mode === 'lego') {
+    const hit = LEGO_COLORS.find((c) => c.hex === hex.toLowerCase());
+    if (!hit) throw new Error('Choose a LEGO color');
+    return { hex: hit.hex, name: hit.name };
+  }
+  return { hex: hex.toLowerCase(), name: describeColor(hex) };
+}
+
+/** Seeded two-color palette for a new drawing: the LEGO table's black and white, or pure ones. */
+export function seededPalette(mode: PaletteMode): PaletteColor[] {
+  if (mode === 'lego') {
+    return [{ ...LEGO_COLORS[0] }, { ...LEGO_COLORS[1] }];
+  }
+  return [
+    { hex: '#000000', name: 'Black' },
+    { hex: '#ffffff', name: 'White' },
+  ];
+}
+
+/** Build a new drawn save: empty target, seeded palette, background pre-placed. */
+export function buildDrawnSave(opts: {
+  name: string;
+  aspect: Aspect;
+  mode: PaletteMode;
+  /** Background hex ("#rrggbb") or null for None. */
+  background: string | null;
+}): PictureSave {
+  const { width, height } = studDims(opts.aspect);
+  const palette = seededPalette(opts.mode);
+  let fill = EMPTY;
+  if (opts.background) {
+    const hit = palette.findIndex((c) => c.hex === opts.background);
+    if (hit >= 0) {
+      fill = hit;
+    } else {
+      fill = palette.length;
+      palette.push({ hex: opts.background, name: describeColor(opts.background) });
+    }
+  }
+  const nowMs = Date.now();
+  return {
+    schemaVersion: SAVE_SCHEMA_VERSION,
+    id: newId(),
+    createdAt: nowMs,
+    updatedAt: nowMs,
+    name: opts.name,
+    sourceImageId: '',
+    aspect: opts.aspect,
+    paletteMode: opts.mode,
+    origin: 'drawn',
+    ...(opts.background ? { drawBackground: opts.background } : {}),
+    palette,
+    width,
+    height,
+    target: new Uint8Array(width * height).fill(EMPTY),
+    placed: new Uint8Array(width * height).fill(fill),
+    panelElapsedMs: new Array<number>(panelCountOf(opts.aspect)).fill(0),
+  };
 }
 
 /**
@@ -77,36 +168,7 @@ export function paletteSymbols(n: number): string[] {
   });
 }
 
-/** Cells on the Bresenham line from (x0, y0) to (x1, y1), inclusive of both ends. */
-export function cellLine(
-  x0: number,
-  y0: number,
-  x1: number,
-  y1: number,
-): Array<{ x: number; y: number }> {
-  const out: Array<{ x: number; y: number }> = [];
-  const dx = Math.abs(x1 - x0);
-  const dy = -Math.abs(y1 - y0);
-  const sx = x0 < x1 ? 1 : -1;
-  const sy = y0 < y1 ? 1 : -1;
-  let err = dx + dy;
-  let x = x0;
-  let y = y0;
-  for (;;) {
-    out.push({ x, y });
-    if (x === x1 && y === y1) break;
-    const e2 = 2 * err;
-    if (e2 >= dy) {
-      err += dy;
-      x += sx;
-    }
-    if (e2 <= dx) {
-      err += dx;
-      y += sy;
-    }
-  }
-  return out;
-}
+export { lineCells as cellLine } from '../game/drawTools';
 
 /** Width / height ratio of an aspect. */
 export function aspectRatio(aspect: Aspect): number {

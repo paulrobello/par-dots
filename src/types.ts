@@ -3,6 +3,9 @@ export type Aspect = '1:1' | '3:4' | '4:3';
 /** 'lego' picks colors from LEGO_COLORS; 'free' derives colors from the image with k-means. */
 export type PaletteMode = 'lego' | 'free';
 
+/** Where a picture came from: quantized from a photo, or drawn freehand in the app. */
+export type SaveOrigin = 'photo' | 'drawn';
+
 /** Panel edge in studs; every panel is PANEL_SIZE x PANEL_SIZE. */
 export const PANEL_SIZE = 16;
 /** `placed` value for a stud with no dot. Palette indices are always below it. */
@@ -12,7 +15,7 @@ export const MAX_COLORS = 32;
 /** Fewest colors a mosaic may use (the setup slider's minimum). */
 export const MIN_COLORS = 2;
 /** Current PictureSave record shape; bump with a migration in storage/migrate.ts. */
-export const SAVE_SCHEMA_VERSION = 1;
+export const SAVE_SCHEMA_VERSION = 2;
 
 /** Panel grid (cols x rows) per aspect. */
 export const LAYOUT: Record<Aspect, { cols: number; rows: number }> = {
@@ -59,6 +62,10 @@ export interface PictureSave extends Mosaic {
   aspect: Aspect;
   /** Palette mode the picture was quantized with. */
   paletteMode: PaletteMode;
+  /** How the picture was made: 'photo' quantized, or 'drawn' freehand (target stays all EMPTY). */
+  origin: SaveOrigin;
+  /** Drawn saves: background hex the eraser paints, absent when the background is None. */
+  drawBackground?: string;
   /** Per stud, row-major like `target`: EMPTY, or the palette index of the dot placed there. */
   placed: Uint8Array;
   /** Visible play time per panel in milliseconds, indexed by row-major panel number. */

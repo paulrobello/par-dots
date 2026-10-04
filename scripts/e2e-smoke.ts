@@ -447,6 +447,57 @@ async function main(): Promise<void> {
   await page.waitForURL(/#\/new/);
   console.log('setup without source redirected to #/new');
 
+  // Draw-your-own: create, paint, reload mid-session, reopen from My drawings.
+  await page.goto(`${base}#/new`);
+  await page.getByRole('button', { name: 'Make my own' }).click();
+  await page.waitForURL(/#\/draw\/new$/);
+  await shot(page, '23-draw-create');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await page.waitForURL(/#\/draw\/[^/]+$/);
+  await page.locator('.draw-canvas').waitFor();
+  const dbox = await page.locator('.draw-canvas').boundingBox();
+  if (!dbox) throw new Error('no draw canvas');
+  const dcx = dbox.x + dbox.width / 2;
+  const dcy = dbox.y + dbox.height / 2;
+  await page.mouse.move(dcx - 40, dcy);
+  await page.mouse.down();
+  await page.mouse.move(dcx + 40, dcy, { steps: 4 });
+  await page.mouse.up();
+  await page.waitForTimeout(650); // the 500 ms persist debounce must fire before reload
+  const dots1 = await page.locator('.draw-count').textContent();
+  if (dots1 === '0 dots') throw new Error('brush stroke placed no dots');
+  console.log('draw dots after stroke:', dots1);
+  // Reload mid-session: the debounced persist must have saved the stroke.
+  await page.reload();
+  await page.locator('.draw-canvas').waitFor();
+  const dots2 = await page.locator('.draw-count').textContent();
+  if (dots2 !== dots1) throw new Error(`dots lost on reload: ${dots1} -> ${dots2}`);
+  console.log('draw dots persisted across reload:', dots2);
+  // History is session-only: undo must be empty after a reload (no phantom undo state).
+  if (await page.getByRole('button', { name: 'Undo' }).isEnabled()) {
+    throw new Error('undo enabled right after reload');
+  }
+  // The editor still works after the reload.
+  await page.mouse.move(dcx - 40, dcy + 40);
+  await page.mouse.down();
+  await page.mouse.move(dcx + 40, dcy + 40, { steps: 4 });
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+  const dots3 = await page.locator('.draw-count').textContent();
+  if (Number.parseInt(dots3 ?? '0', 10) <= Number.parseInt(dots2 ?? '0', 10)) {
+    throw new Error(`second stroke did not add dots: ${dots2} -> ${dots3}`);
+  }
+  await shot(page, '23b-draw-reopened');
+  await page.getByRole('button', { name: 'Back to gallery' }).click();
+  await page.getByText('My drawings').waitFor();
+  const drawnCard = page.locator('.save-card', { hasText: 'My drawing' });
+  await drawnCard.waitFor();
+  const cardText = (await drawnCard.textContent()) ?? '';
+  if (!cardText.includes(dots3 ?? '')) {
+    throw new Error(`drawn card count ${cardText} does not match editor count ${dots3}`);
+  }
+  await shot(page, '23c-gallery-drawings');
+
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
   );

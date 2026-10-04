@@ -14,6 +14,7 @@ function makeSave(): PictureSave {
     sourceImageId: 'library:tray-view',
     aspect: '1:1',
     paletteMode: 'free',
+    origin: 'photo',
     palette: [
       { hex: '#111111', name: 'Black' },
       { hex: '#eeeeee', name: 'White' },
