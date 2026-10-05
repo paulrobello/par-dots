@@ -38,8 +38,19 @@ export function migrateSave(raw: unknown): PictureSave | undefined {
   if (typeof r.id !== 'string') return undefined;
   if (typeof r.aspect !== 'string' || !Object.hasOwn(LAYOUT, r.aspect)) return undefined;
   const { cols, rows } = LAYOUT[r.aspect as Aspect];
-  const width = cols * PANEL_SIZE;
-  const height = rows * PANEL_SIZE;
+  if (
+    typeof r.width !== 'number' ||
+    !Number.isInteger(r.width) ||
+    typeof r.height !== 'number' ||
+    !Number.isInteger(r.height)
+  ) {
+    return undefined;
+  }
+  const base = cols * PANEL_SIZE;
+  const scale = r.width / base;
+  if (!Number.isInteger(scale) || scale < 1) return undefined;
+  const width = base * scale;
+  const height = rows * PANEL_SIZE * scale;
   if (r.width !== width || r.height !== height) return undefined;
 
   const { palette, target, placed } = r;
@@ -65,7 +76,7 @@ export function migrateSave(raw: unknown): PictureSave | undefined {
     if (placed[i] !== EMPTY && placed[i] >= palette.length) return undefined;
   }
 
-  const panels = cols * rows;
+  const panels = cols * rows * scale * scale;
   const elapsed = Array.isArray(r.panelElapsedMs) ? r.panelElapsedMs : [];
   const panelElapsedMs = Array.from({ length: panels }, (_, i) => {
     const v = elapsed[i];

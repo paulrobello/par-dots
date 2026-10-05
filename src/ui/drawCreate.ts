@@ -3,8 +3,9 @@
  * drawing, then creates the drawn save and opens the editor. No source image involved.
  */
 
+import { panelCountOf, studDims } from '../game';
 import { getSettings, setSettings } from '../storage/settings';
-import type { Aspect, PaletteMode } from '../types';
+import { type Aspect, type PaletteMode, SIZE_OPTIONS } from '../types';
 import { h, icon, iconButton, toast } from './dom';
 import { buildDrawnSave, routeHash, userMessage } from './pure';
 import { createSave } from './saves';
@@ -20,6 +21,7 @@ const ASPECTS: Array<{ value: Aspect; label: string }> = [
 /** Mounts the draw-create screen (route `#/draw/new`). */
 export function mountDrawCreate({ root, navigate }: ScreenContext): Cleanup {
   let aspect: Aspect = '1:1';
+  let scale = 1;
   let mode: PaletteMode = getSettings().paletteMode;
   let background: string | null = null;
   let creating = false;
@@ -67,8 +69,24 @@ export function mountDrawCreate({ root, navigate }: ScreenContext): Cleanup {
     () => aspect,
     (v) => {
       aspect = v;
+      syncSizeHint();
     },
   );
+  const sizeHint = h('p', { class: 'muted small' }, '');
+  const syncSizeHint = (): void => {
+    const dims = studDims(aspect, scale);
+    sizeHint.textContent = `${panelCountOf(aspect, scale)} panels · ${dims.width}×${dims.height} studs`;
+  };
+  const sizeCtl = segmented<'1' | '2' | '3'>(
+    'Size',
+    SIZE_OPTIONS.map((o) => ({ value: `${o.scale}` as '1' | '2' | '3', label: o.label })),
+    () => `${scale}` as '1' | '2' | '3',
+    (v) => {
+      scale = Number(v);
+      syncSizeHint();
+    },
+  );
+  syncSizeHint();
   const modeCtl = segmented<PaletteMode>(
     'Palette',
     [
@@ -151,6 +169,7 @@ export function mountDrawCreate({ root, navigate }: ScreenContext): Cleanup {
         aspect,
         mode,
         background,
+        scale,
       });
       await createSave(save);
       if (!alive) return;
@@ -181,6 +200,8 @@ export function mountDrawCreate({ root, navigate }: ScreenContext): Cleanup {
         { class: 'scroll' },
         h('div', { class: 'field' }, h('span', {}, 'Name'), nameInput),
         aspectCtl,
+        sizeCtl,
+        sizeHint,
         modeCtl,
         h(
           'p',

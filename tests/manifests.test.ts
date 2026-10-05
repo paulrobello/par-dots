@@ -114,6 +114,15 @@ describe('mountingItems', () => {
     expect(items.slice(3)).toEqual(frameItems('1:1', 'Black'));
   });
 
+  it('scales canvases, pins and the frame for a bigger grid', () => {
+    const items = mountingItems('1:1', 'Black', 2);
+    expect(items[0]).toEqual({ partId: CANVAS_PART_ID, colorName: 'Black', qty: 36 });
+    expect(items[1].qty).toBe(PINS_PER_EDGE * sharedEdges('1:1', 2));
+    expect(items.slice(3)).toEqual(frameItems('1:1', 'Black', 2));
+    const backing = items.find((it) => it.partId === '91405');
+    expect(backing?.qty).toBe(36);
+  });
+
   it('colors the frame parts with the chosen frame color', () => {
     for (const it of mountingItems('1:1', 'White').slice(3)) {
       expect(it.colorName).toBe('White');

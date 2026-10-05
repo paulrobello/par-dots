@@ -614,4 +614,20 @@ describe('migrateSave schema v2', () => {
     target[0] = MAX_COLORS; // far past palette.length (2)
     expect(migrateSave({ ...base, target })).toBeUndefined();
   });
+
+  it('accepts a size-scaled save and rejects non-grid dims', () => {
+    const cells = 96 * 96;
+    const out = migrateSave({
+      ...base,
+      width: 96,
+      height: 96,
+      target: new Uint8Array(cells),
+      placed: new Uint8Array(cells),
+    });
+    expect(out?.width).toBe(96);
+    expect(out?.height).toBe(96);
+    expect(out?.panelElapsedMs).toHaveLength(36);
+    expect(migrateSave({ ...base, width: 50, height: 50 })).toBeUndefined();
+    expect(migrateSave({ ...base, width: 96, height: 48 })).toBeUndefined();
+  });
 });

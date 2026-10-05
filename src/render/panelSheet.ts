@@ -12,7 +12,7 @@ import {
   panelCount,
   panelGridOf,
   panelOrigin,
-  studDims,
+  panelScaleOf,
 } from '../game';
 import { EMPTY, PANEL_SIZE, type PictureSave } from '../types';
 import { luminance } from './color';
@@ -170,8 +170,10 @@ export function renderGuideOverview(save: PictureSave, cellPx = 8): HTMLCanvasEl
   const titleSize = Math.round(cell * 4.5);
   const subSize = Math.round(cell * 2.6);
   const header = titleSize + subSize + Math.round(cell * 2);
-  const { cols, rows } = panelGridOf(save.aspect);
-  const { width: studsW, height: studsH } = studDims(save.aspect);
+  const scale = panelScaleOf(save.aspect, save.width);
+  const { cols, rows } = panelGridOf(save.aspect, scale);
+  const studsW = save.width;
+  const studsH = save.height;
   const picW = studsW * cell;
   const picH = studsH * cell;
   const gx = margin + gutter;
@@ -261,7 +263,7 @@ export function renderAssemblySheet(save: PictureSave, cellPx = 40): HTMLCanvasE
   const subSize = Math.round(c * 0.4);
   const stepFont = `bold ${Math.round(c * 0.42)}px ${FONT}`;
   const textFont = `${Math.round(c * 0.4)}px ${FONT}`;
-  const plan = assemblyPlanOf(save.aspect);
+  const plan = assemblyPlanOf(save.aspect, panelScaleOf(save.aspect, save.width));
   const box = Math.round(c * 1.4);
   const bar = Math.round(c * 0.3);
 

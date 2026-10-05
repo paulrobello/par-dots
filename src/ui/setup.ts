@@ -7,7 +7,7 @@
 import { quantizeInWorker } from '../engine/client';
 import { hexToRgb } from '../engine/color';
 import { cropAndResample } from '../engine/resample';
-import { panelCountOf, studDims } from '../game';
+import { panelCountOf, panelGridOf, studDims } from '../game';
 import { renderMosaicToCanvas } from '../render/mosaicImage';
 import { devicePixelRatioSafe } from '../render/motion';
 import { newId } from '../storage/id';
@@ -15,13 +15,13 @@ import { getSettings, setSettings } from '../storage/settings';
 import {
   type Aspect,
   EMPTY,
-  LAYOUT,
   MAX_COLORS,
   MIN_COLORS,
   type Mosaic,
   type PaletteMode,
   type PictureSave,
   SAVE_SCHEMA_VERSION,
+  SIZE_OPTIONS,
 } from '../types';
 import { h, icon, iconButton, toast } from './dom';
 import {
@@ -66,6 +66,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
   const hasAlpha = hasTransparency(img.data);
   let bgHex = '#000000';
   let aspect: Aspect = src.aspect;
+  let sizeScale = 1;
   let mode: PaletteMode = getSettings().paletteMode;
   let maxColors = getSettings().maxColors;
   let dither = getSettings().dither;
@@ -152,6 +153,16 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
     (v) => {
       aspect = v;
       crop = clampCrop(img.width, img.height, aspect, crop);
+      drawStage();
+      schedulePreview();
+    },
+  );
+  const sizeCtl = segmented<'1' | '2' | '3'>(
+    'Size',
+    SIZE_OPTIONS.map((o) => ({ value: `${o.scale}` as '1' | '2' | '3', label: o.label })),
+    () => `${sizeScale}` as '1' | '2' | '3',
+    (v) => {
+      sizeScale = Number(v);
       drawStage();
       schedulePreview();
     },
@@ -268,7 +279,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
       h(
         'div',
         { class: 'setup-body' },
-        h('div', { class: 'setup-crop' }, stageWrap, aspectCtl),
+        h('div', { class: 'setup-crop' }, stageWrap, aspectCtl, sizeCtl),
         h(
           'div',
           { class: 'setup-side' },
@@ -332,7 +343,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
     ctx.lineWidth = 2;
     ctx.strokeRect(frame.x, frame.y, frame.w, frame.h);
     // Panel grid guides.
-    const { cols, rows } = LAYOUT[aspect];
+    const { cols, rows } = panelGridOf(aspect, sizeScale);
     ctx.strokeStyle = 'rgba(255,255,255,0.35)';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -401,7 +412,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
 
   // ---- preview ------------------------------------------------------------
   const computeMosaic = (): Promise<Mosaic> => {
-    const dims = studDims(aspect);
+    const dims = studDims(aspect, sizeScale);
     const rect = cropRectFor(img.width, img.height, aspect, crop);
     const pixels = cropAndResample(img, rect, dims.width, dims.height);
     if (hasAlpha) flattenAlpha(pixels, hexToRgb(bgHex));
@@ -423,7 +434,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
       canvas.setAttribute('role', 'img');
       canvas.setAttribute('aria-label', 'Mosaic preview');
       preview.replaceChildren(canvas);
-      previewNote.textContent = `${m.width}×${m.height} studs · ${panelCountOf(aspect)} panels · ${m.palette.length} colors`;
+      previewNote.textContent = `${m.width}×${m.height} studs · ${panelCountOf(aspect, sizeScale)} panels · ${m.palette.length} colors`;
       startBtn.disabled = false;
     }).catch((err: unknown) => {
       if (!alive || my !== token) return;
@@ -466,7 +477,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
         height: m.height,
         target: m.target,
         placed: new Uint8Array(m.width * m.height).fill(EMPTY),
-        panelElapsedMs: new Array<number>(panelCountOf(aspect)).fill(0),
+        panelElapsedMs: new Array<number>(panelCountOf(aspect, sizeScale)).fill(0),
       };
       await createSave(save, src.kind === 'upload' ? src.blob : undefined);
       setPendingSource(null);

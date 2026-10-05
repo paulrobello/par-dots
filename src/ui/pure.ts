@@ -105,8 +105,11 @@ export function buildDrawnSave(opts: {
   mode: PaletteMode;
   /** Background hex ("#rrggbb") or null for None. */
   background: string | null;
+  /** Panel-grid size scale; 1 = the base grid. */
+  scale?: number;
 }): PictureSave {
-  const { width, height } = studDims(opts.aspect);
+  const scale = opts.scale ?? 1;
+  const { width, height } = studDims(opts.aspect, scale);
   const palette = seededPalette(opts.mode);
   let fill = EMPTY;
   if (opts.background) {
@@ -135,7 +138,7 @@ export function buildDrawnSave(opts: {
     height,
     target: new Uint8Array(width * height).fill(EMPTY),
     placed: new Uint8Array(width * height).fill(fill),
-    panelElapsedMs: new Array<number>(panelCountOf(opts.aspect)).fill(0),
+    panelElapsedMs: new Array<number>(panelCountOf(opts.aspect, scale)).fill(0),
   };
 }
 

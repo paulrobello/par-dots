@@ -35,6 +35,7 @@ export {
   panelIndexOf,
   panelOrigin,
   panelOriginOf,
+  panelScaleOf,
   studDims,
   studIndex,
 } from './geometry';

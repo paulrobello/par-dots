@@ -77,6 +77,27 @@ describe('mountDrawCreate', () => {
     expect(save.placed.every((v) => v === 2)).toBe(true);
   });
 
+  it('creates a bigger grid when a larger size is chosen', async () => {
+    const { ctx } = makeCtx();
+    mountDrawCreate(ctx);
+    const medium = must(
+      [...document.querySelectorAll<HTMLButtonElement>('[role="radio"]')].find(
+        (b) => b.textContent === 'Medium',
+      ),
+    );
+    medium.click();
+    const hint = must(document.querySelector<HTMLParagraphElement>('p.muted.small'));
+    expect(hint.textContent).toBe('36 panels · 96×96 studs');
+    (
+      document.querySelector<HTMLButtonElement>('button.btn.primary.big') as HTMLButtonElement
+    ).click();
+    await vi.waitFor(() => expect(createSave).toHaveBeenCalledTimes(1));
+    const save = vi.mocked(createSave).mock.calls[0][0] as PictureSave;
+    expect(save.width).toBe(96);
+    expect(save.height).toBe(96);
+    expect(save.panelElapsedMs).toHaveLength(36);
+  });
+
   it('keeps the LEGO background choices to seeded LEGO colors', () => {
     const { ctx } = makeCtx();
     mountDrawCreate(ctx);

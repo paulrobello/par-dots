@@ -22,11 +22,11 @@ function drawnSave(): PictureSave {
       { hex: '#05131d', name: 'Black' },
       { hex: '#ffffff', name: 'White' },
     ],
-    width: 16,
-    height: 16,
-    target: new Uint8Array(16 * 16).fill(EMPTY),
-    placed: new Uint8Array(16 * 16).fill(EMPTY),
-    panelElapsedMs: [0],
+    width: 48,
+    height: 48,
+    target: new Uint8Array(48 * 48).fill(EMPTY),
+    placed: new Uint8Array(48 * 48).fill(EMPTY),
+    panelElapsedMs: new Array<number>(9).fill(0),
   };
 }
 

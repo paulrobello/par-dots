@@ -19,6 +19,7 @@ import {
   panelOrigin,
   panelOriginOf,
   panelProgress,
+  panelScaleOf,
   pictureComplete,
   placedCount,
   studDims,
@@ -653,6 +654,69 @@ describe('aspect-keyed panel geometry', () => {
     expect(c[0]).toBe(1);
     expect(c[1]).toBeCloseTo(1 / 256);
     expect(c[8]).toBe(0);
+  });
+});
+
+describe('size scales', () => {
+  it('scales grids, counts and stud dims', () => {
+    expect(panelGridOf('1:1', 2)).toEqual({ cols: 6, rows: 6 });
+    expect(panelCountOf('3:4', 2)).toBe(48);
+    expect(panelCountOf('4:3', 3)).toBe(108);
+    expect(studDims('3:4', 2)).toEqual({ width: 96, height: 128 });
+  });
+
+  it('derives the scale from a picture width', () => {
+    expect(panelScaleOf('1:1', 96)).toBe(2);
+    expect(() => panelScaleOf('1:1', 50)).toThrow(RangeError);
+  });
+
+  it('maps scaled stud dims back to their aspect', () => {
+    expect(aspectOf(96, 96)).toBe('1:1');
+    expect(aspectOf(96, 128)).toBe('3:4');
+    expect(aspectOf(128, 96)).toBe('4:3');
+    expect(() => aspectOf(0, 0)).toThrow(RangeError);
+  });
+
+  it('tiles a scaled grid row-major', () => {
+    expect(panelOriginOf('1:1', 0, 2)).toEqual({ x: 0, y: 0 });
+    expect(panelOriginOf('1:1', 5, 2)).toEqual({ x: 80, y: 0 });
+    expect(panelOriginOf('1:1', 6, 2)).toEqual({ x: 0, y: 16 });
+    expect(panelOriginOf('1:1', 35, 2)).toEqual({ x: 80, y: 80 });
+    expect(panelIndexOf('1:1', 80, 80, 2)).toBe(35);
+    expect(panelIndexOf('1:1', 95, 95, 2)).toBe(35);
+    expect(panelIndexOf('1:1', 96, 0, 2)).toBe(-1);
+    expect(() => panelOriginOf('1:1', 36, 2)).toThrow(RangeError);
+    expect(assemblyPlanOf('1:1', 2)).toEqual({
+      cols: 6,
+      rows: 6,
+      rowJoints: 90,
+      joinConnectors: 90,
+      hooks: 2,
+    });
+  });
+
+  it('computes per-panel completion on a scaled grid', () => {
+    const w = 96;
+    const target = new Uint8Array(w * w).fill(3);
+    const placed = new Uint8Array(w * w).fill(EMPTY);
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) placed[y * w + x] = 3;
+    }
+    const c = panelFractions('1:1', w, target, placed);
+    expect(c).toHaveLength(36);
+    expect(c[0]).toBe(1);
+    expect(c[35]).toBe(0);
+  });
+
+  it('derives wrapper counts and origins from scaled save dims', () => {
+    const save = makeSave('1:1', 2);
+    save.width = 96;
+    save.height = 96;
+    save.target = new Uint8Array(96 * 96);
+    save.placed = new Uint8Array(96 * 96);
+    expect(panelCount(save)).toBe(36);
+    expect(panelOrigin(save, 7)).toEqual({ x: 16, y: 16 });
+    expect(studIndex(save, 7, 1, 1)).toBe(17 * 96 + 17);
   });
 });
 

@@ -24,6 +24,13 @@ export const LAYOUT: Record<Aspect, { cols: number; rows: number }> = {
   '4:3': { cols: 4, rows: 3 },
 };
 
+/** Picture size choices offered at creation time: grid scale multiplier and display label. */
+export const SIZE_OPTIONS: ReadonlyArray<{ scale: number; label: string }> = [
+  { scale: 1, label: 'Small' },
+  { scale: 2, label: 'Medium' },
+  { scale: 3, label: 'Large' },
+];
+
 /** One palette entry. */
 export interface PaletteColor {
   /** Lowercase "#rrggbb". */

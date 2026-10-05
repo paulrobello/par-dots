@@ -4,7 +4,14 @@
  * that download printable building sheets.
  */
 
-import { colorCounts, effectiveCells, panelColorCounts, panelCount, panelOrigin } from '../game';
+import {
+  colorCounts,
+  effectiveCells,
+  panelColorCounts,
+  panelCount,
+  panelOrigin,
+  panelScaleOf,
+} from '../game';
 import { EMPTY, PANEL_SIZE, type PictureSave } from '../types';
 import { downloadBlob, h, icon, openSheet, toast } from './dom';
 import { exportAllSheets, exportPanelSheet } from './exportImage';
@@ -91,7 +98,13 @@ function buyPartsControls(
     manifestItems(
       items().map(({ count }) => count),
       items().map(({ c }) => save.palette[c].name),
-    ).concat(mountingItems(save.aspect, (framePick.value as FrameColor) || null));
+    ).concat(
+      mountingItems(
+        save.aspect,
+        (framePick.value as FrameColor) || null,
+        panelScaleOf(save.aspect, save.width),
+      ),
+    );
   const framePick = h(
     'select',
     { class: 'parts-scope', 'aria-label': 'Frame' },

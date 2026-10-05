@@ -59,10 +59,10 @@ Targets: iOS Safari 17+, Android Chrome (latest two), desktop Chrome/Safari/Fire
 ## 4. Core Concepts
 
 - **Picture:** a source image processed into a target mosaic, a palette, and panel layout.
-- **Aspect / layout:**
-  - Square 1:1 → 3×3 = **9 panels**, 48×48 studs.
-  - Portrait 3:4 → 3 cols × 4 rows = **12 panels**, 48×64 studs.
-  - Landscape 4:3 → 4 cols × 3 rows = **12 panels**, 64×48 studs.
+- **Aspect / layout:** each aspect has a base grid; a size choice at creation (Small, Medium, Large) scales it 1×, 2× or 3×.
+  - Square 1:1 → base 3×3 = **9 panels**, 48×48 studs; Medium 6×6 = 36 panels (96×96); Large 9×9 = 81 panels (144×144).
+  - Portrait 3:4 → base 3×4 = **12 panels**, 48×64 studs; Medium 6×8 = 48 panels (96×128); Large 9×12 = 108 panels (144×192).
+  - Landscape 4:3 → base 4×3 = **12 panels**, 64×48 studs; Medium 8×6 = 48 panels (128×96); Large 12×9 = 108 panels (192×144).
 - **Panel:** a 16×16 stud baseplate section (256 studs). Every stud gets exactly one target color (no empty target cells).
 - **Palette:** at most `maxColors` colors for the whole picture (2 to 32, default 32). A panel uses a subset.
 - **Stud state:** `empty` or `placed(colorIndex)`. A placed dot is correct if it equals the target.
@@ -86,7 +86,7 @@ Targets: iOS Safari 17+, Android Chrome (latest two), desktop Chrome/Safari/Fire
 - Uploads are stored on the device with the save; library pictures are referenced by slug and never copied.
 
 ### 5.3 New Picture — Setup
-1. **Crop editor:** aspect picker (1:1, 3:4, 4:3); pan and pinch-zoom the image under a fixed crop frame. Bundled photos default to their native aspect but can be re-cropped.
+1. **Crop editor:** aspect picker (1:1, 3:4, 4:3) and size picker (Small, Medium, Large); pan and pinch-zoom the image under a fixed crop frame. Bundled photos default to their native aspect but can be re-cropped. The size picker scales the panel grid (§4); the crop frame's ratio always follows the chosen aspect.
 2. **Palette mode toggle:**
    - *LEGO colors:* up to `maxColors` colors chosen from the official LEGO solid color set (43 colors, table stored in code with its source cited).
    - *Free colors:* the best `maxColors` colors for the photo (seeded k-means in Lab space).
@@ -140,8 +140,8 @@ Interaction:
 
 ### 5.8 Draw Your Own
 
-A "Make my own" card on the New Picture screen opens a create form (name, aspect, palette
-mode, background: None, black, white, or any color in Free mode). Creating opens the draw
+A "Make my own" card on the New Picture screen opens a create form (name, aspect, size,
+palette mode, background: None, black, white, or any color in Free mode). Creating opens the draw
 editor: one continuous mosaic across all panels with visible seams, pan/zoom (drag, pinch,
 double-tap, Shift+drag), and brush, line, box, ellipse, polygon, fill, eyedropper and eraser tools with
 undo/redo to 50 moves, per-color usage counts, an editable palette (add, recolor, remove
@@ -189,7 +189,7 @@ Settings are stored in localStorage under `par-dots:settings`:
 ## 8. Image Processing
 
 1. Decode, apply EXIF orientation, downscale.
-2. Crop to the chosen aspect, then resample to stud resolution (48×48, 48×64, or 64×48) with area averaging.
+2. Crop to the chosen aspect, then resample to stud resolution (the aspect's base grid scaled by the chosen size, e.g. 48×48, 96×128) with area averaging.
 3. Quantize to at most `maxColors` (2–32) colors. Transparent pixels are composited over a background color that defaults to black and is user-chosen on the setup screen when the source has transparency.
    - LEGO mode: choose up to `maxColors` entries from the LEGO color table that minimize weighted Lab ΔE (greedy selection, then swap refinement), then map pixels.
    - Free mode: k-means (k-means++ seeding with a fixed seed, deterministic) in Lab space; each color gets a descriptive name from its RGB hue, saturation, and lightness. Existing Free pictures derive those labels when displayed, so their stored colors and progress remain unchanged. Tray, Parts, and guide labels agree; duplicate names keep stable numeric suffixes. LEGO mode retains official names.
@@ -260,7 +260,7 @@ export interface PictureSave extends Mosaic {
 ## 11. Acceptance Criteria
 
 - AC1. A bundled photo and an uploaded photo can each be started in all three aspects.
-- AC2. Square pictures produce 9 panels, portrait and landscape produce 12, each 16×16 studs.
+- AC2. At the default Small size, square pictures produce 9 panels, portrait and landscape produce 12, each 16×16 studs. Medium doubles and Large triples the panel grid per axis; parts lists, guides and progress scale with it.
 - AC3. Palette never exceeds the chosen max colors (at most 32) in either mode; LEGO mode uses only LEGO table colors; no two palette colors are closer than ΔE 12.
 - AC4. The tray lists exactly the colors not yet fully and correctly placed in the current panel, and updates on place, remove, undo, and redo.
 - AC5. Incorrect dots can be placed; Hint highlights exactly the incorrect dots of the current panel.

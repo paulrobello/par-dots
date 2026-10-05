@@ -6,7 +6,8 @@
  * unit-testable, with the Parts sheet wiring them to `downloadBlob`.
  */
 
-import { type Aspect, LAYOUT } from '../types';
+import { panelGridOf } from '../game';
+import type { Aspect } from '../types';
 
 /** BrickLink catalog item no. for Tile, Round 1x1, the piece Dots mosaics are built from. */
 export const DOTS_PART_ID = '98138';
@@ -172,12 +173,9 @@ export function manifestItems(counts: number[], names: string[]): ManifestItem[]
   return [...totals].map(([colorName, qty]) => ({ partId: DOTS_PART_ID, colorName, qty }));
 }
 
-/** Panel grid columns and rows for an aspect. */
-function panelGrid(aspect: Aspect): { cols: number; rows: number } {
-  return LAYOUT[aspect];
-} /** Shared canvas edges in a cols x rows panel grid. */
-export function sharedEdges(aspect: Aspect): number {
-  const { cols, rows } = panelGrid(aspect);
+/** Shared canvas edges in a cols x rows panel grid. */
+export function sharedEdges(aspect: Aspect, scale = 1): number {
+  const { cols, rows } = panelGridOf(aspect, scale);
   return cols * (rows - 1) + rows * (cols - 1);
 }
 
@@ -203,8 +201,8 @@ function runPieces(run: number, lengths: readonly number[]): number[] {
  * plate corners stay studded for bonding and hangers. Ring runs are [W, W, D-4, D-4]
  * for W = 16*cols+2, D = 16*rows+2, so the greedy pieces always sum exactly.
  */
-export function frameItems(aspect: Aspect, colorName: FrameColor): ManifestItem[] {
-  const { cols, rows } = LAYOUT[aspect];
+export function frameItems(aspect: Aspect, colorName: FrameColor, scale = 1): ManifestItem[] {
+  const { cols, rows } = panelGridOf(aspect, scale);
   const width = 16 * cols + 2;
   const depth = 16 * rows + 2;
   const runs = [width, width, depth - 4, depth - 4];
@@ -232,19 +230,24 @@ export function frameItems(aspect: Aspect, colorName: FrameColor): ManifestItem[
  * null — the raised frame's parts in the chosen color. Black items only exist in the
  * LEGO catalog, so this block is only offered in LEGO palette mode.
  */
-export function mountingItems(aspect: Aspect, frameColor: FrameColor | null): ManifestItem[] {
+export function mountingItems(
+  aspect: Aspect,
+  frameColor: FrameColor | null,
+  scale = 1,
+): ManifestItem[] {
+  const { cols, rows } = panelGridOf(aspect, scale);
   const items: ManifestItem[] = [
-    { partId: CANVAS_PART_ID, colorName: 'Black', qty: LAYOUT[aspect].cols * LAYOUT[aspect].rows },
+    { partId: CANVAS_PART_ID, colorName: 'Black', qty: cols * rows },
     {
       partId: PIN_PART_ID,
       brickLinkPartId: PIN_BRICKLINK_PART_ID,
       colorName: 'Black',
-      qty: PINS_PER_EDGE * sharedEdges(aspect),
+      qty: PINS_PER_EDGE * sharedEdges(aspect, scale),
     },
     { partId: HANGER_PART_ID, colorName: 'Black', qty: 2 },
   ];
   if (frameColor) {
-    items.push(...frameItems(aspect, frameColor));
+    items.push(...frameItems(aspect, frameColor, scale));
   }
   return items;
 }
