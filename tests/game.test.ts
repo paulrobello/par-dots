@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  aspectOf,
   assemblyPlanOf,
   colorCounts,
   effectiveCells,
+  gridOfDims,
   MAX_HISTORY,
   nextUnfinishedPanel,
   overallProgress,
@@ -15,11 +15,10 @@ import {
   panelCountOf,
   panelFractions,
   panelGridOf,
-  panelIndexOf,
+  panelIndexOfDims,
   panelOrigin,
   panelOriginOf,
   panelProgress,
-  panelScaleOf,
   pictureComplete,
   placedCount,
   studDims,
@@ -547,21 +546,13 @@ describe('aspect-keyed panel geometry', () => {
     expect(studDims('4:3')).toEqual({ width: 64, height: 48 });
   });
 
-  it('maps stud dims back to their aspect', () => {
-    for (const aspect of ASPECTS) {
-      const { width, height } = studDims(aspect);
-      expect(aspectOf(width, height)).toBe(aspect);
-    }
-    expect(() => aspectOf(50, 48)).toThrow(RangeError);
-  });
-
   for (const aspect of ASPECTS) {
     it(`${aspect}: origin and index are inverse and tile the picture`, () => {
       const { width, height } = studDims(aspect);
       const counts = new Array(panelCountOf(aspect)).fill(0);
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
-          const p = panelIndexOf(aspect, x, y);
+          const p = panelIndexOfDims(width, height, x, y);
           counts[p]++;
           const o = panelOriginOf(aspect, p);
           expect(x - o.x).toBeGreaterThanOrEqual(0);
@@ -573,11 +564,11 @@ describe('aspect-keyed panel geometry', () => {
       for (const c of counts) expect(c).toBe(PANEL_SIZE * PANEL_SIZE);
       for (let p = 0; p < panelCountOf(aspect); p++) {
         const o = panelOriginOf(aspect, p);
-        expect(panelIndexOf(aspect, o.x, o.y)).toBe(p);
+        expect(panelIndexOfDims(width, height, o.x, o.y)).toBe(p);
       }
-      expect(panelIndexOf(aspect, -1, 0)).toBe(-1);
-      expect(panelIndexOf(aspect, width, 0)).toBe(-1);
-      expect(panelIndexOf(aspect, 0, height)).toBe(-1);
+      expect(panelIndexOfDims(width, height, -1, 0)).toBe(-1);
+      expect(panelIndexOfDims(width, height, width, 0)).toBe(-1);
+      expect(panelIndexOfDims(width, height, 0, height)).toBe(-1);
       expect(() => panelOriginOf(aspect, panelCountOf(aspect))).toThrow(RangeError);
     });
   }
@@ -614,11 +605,13 @@ describe('aspect-keyed panel geometry', () => {
   it('indexes panels row-major for every layout', () => {
     for (const aspect of ASPECTS) {
       const { cols, rows } = LAYOUT[aspect];
+      const w = cols * 16;
+      const h = rows * 16;
       expect(panelGridOf(aspect)).toEqual({ cols, rows });
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-          expect(panelIndexOf(aspect, c * 16, r * 16)).toBe(r * cols + c);
-          expect(panelIndexOf(aspect, c * 16 + 15, r * 16 + 15)).toBe(r * cols + c);
+          expect(panelIndexOfDims(w, h, c * 16, r * 16)).toBe(r * cols + c);
+          expect(panelIndexOfDims(w, h, c * 16 + 15, r * 16 + 15)).toBe(r * cols + c);
         }
       }
     }
@@ -635,7 +628,7 @@ describe('aspect-keyed panel geometry', () => {
         const sy = L.originY + (Math.floor(p / cols) * 16 + 8) * L.cell;
         const cell = screenToCell(L, IDENTITY_VIEWPORT, sx, sy);
         expect(cell).not.toBeNull();
-        if (cell) expect(panelIndexOf(aspect, cell.x, cell.y)).toBe(p);
+        if (cell) expect(panelIndexOfDims(w, h, cell.x, cell.y)).toBe(p);
       }
       expect(screenToCell(L, IDENTITY_VIEWPORT, L.originX - 1, L.originY)).toBeNull();
     }
@@ -649,7 +642,7 @@ describe('aspect-keyed panel geometry', () => {
     for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) placed[y * w + x] = 2;
     placed[16] = 2; // one correct stud in panel 1
     placed[17] = 3; // a wrong stud does not count
-    const c = panelFractions('1:1', w, target, placed);
+    const c = panelFractions(w, h, target, placed);
     expect(c).toHaveLength(9);
     expect(c[0]).toBe(1);
     expect(c[1]).toBeCloseTo(1 / 256);
@@ -665,26 +658,14 @@ describe('size scales', () => {
     expect(studDims('3:4', 2)).toEqual({ width: 96, height: 128 });
   });
 
-  it('derives the scale from a picture width', () => {
-    expect(panelScaleOf('1:1', 96)).toBe(2);
-    expect(() => panelScaleOf('1:1', 50)).toThrow(RangeError);
-  });
-
-  it('maps scaled stud dims back to their aspect', () => {
-    expect(aspectOf(96, 96)).toBe('1:1');
-    expect(aspectOf(96, 128)).toBe('3:4');
-    expect(aspectOf(128, 96)).toBe('4:3');
-    expect(() => aspectOf(0, 0)).toThrow(RangeError);
-  });
-
   it('tiles a scaled grid row-major', () => {
     expect(panelOriginOf('1:1', 0, 2)).toEqual({ x: 0, y: 0 });
     expect(panelOriginOf('1:1', 5, 2)).toEqual({ x: 80, y: 0 });
     expect(panelOriginOf('1:1', 6, 2)).toEqual({ x: 0, y: 16 });
     expect(panelOriginOf('1:1', 35, 2)).toEqual({ x: 80, y: 80 });
-    expect(panelIndexOf('1:1', 80, 80, 2)).toBe(35);
-    expect(panelIndexOf('1:1', 95, 95, 2)).toBe(35);
-    expect(panelIndexOf('1:1', 96, 0, 2)).toBe(-1);
+    expect(panelIndexOfDims(96, 96, 80, 80)).toBe(35);
+    expect(panelIndexOfDims(96, 96, 95, 95)).toBe(35);
+    expect(panelIndexOfDims(96, 96, 96, 0)).toBe(-1);
     expect(() => panelOriginOf('1:1', 36, 2)).toThrow(RangeError);
     expect(assemblyPlanOf('1:1', 2)).toEqual({
       cols: 6,
@@ -702,7 +683,7 @@ describe('size scales', () => {
     for (let y = 0; y < 16; y++) {
       for (let x = 0; x < 16; x++) placed[y * w + x] = 3;
     }
-    const c = panelFractions('1:1', w, target, placed);
+    const c = panelFractions(w, w, target, placed);
     expect(c).toHaveLength(36);
     expect(c[0]).toBe(1);
     expect(c[35]).toBe(0);
@@ -717,6 +698,28 @@ describe('size scales', () => {
     expect(panelCount(save)).toBe(36);
     expect(panelOrigin(save, 7)).toEqual({ x: 16, y: 16 });
     expect(studIndex(save, 7, 1, 1)).toBe(17 * 96 + 17);
+  });
+});
+
+describe('custom grids', () => {
+  it('derives any custom grid from stud dims', () => {
+    expect(gridOfDims(80, 112)).toEqual({ cols: 5, rows: 7 });
+    expect(gridOfDims(16, 16)).toEqual({ cols: 1, rows: 1 });
+    expect(gridOfDims(160, 160)).toEqual({ cols: 10, rows: 10 });
+    expect(() => gridOfDims(50, 50)).toThrow(RangeError);
+    expect(() => gridOfDims(0, 16)).toThrow(RangeError);
+    expect(panelIndexOfDims(80, 112, 79, 111)).toBe(34);
+    expect(panelIndexOfDims(80, 112, 80, 0)).toBe(-1);
+  });
+
+  it('wrappers follow custom save dims', () => {
+    const save = makeSave('1:1', 2);
+    save.width = 80;
+    save.height = 112;
+    save.target = new Uint8Array(80 * 112);
+    save.placed = new Uint8Array(80 * 112);
+    expect(panelCount(save)).toBe(35);
+    expect(panelOrigin(save, 10)).toEqual({ x: 0, y: 32 });
   });
 });
 

@@ -63,6 +63,7 @@ Targets: iOS Safari 17+, Android Chrome (latest two), desktop Chrome/Safari/Fire
   - Square 1:1 → base 3×3 = **9 panels**, 48×48 studs; Medium 6×6 = 36 panels (96×96); Large 9×9 = 81 panels (144×144).
   - Portrait 3:4 → base 3×4 = **12 panels**, 48×64 studs; Medium 6×8 = 48 panels (96×128); Large 9×12 = 108 panels (144×192).
   - Landscape 4:3 → base 4×3 = **12 panels**, 64×48 studs; Medium 8×6 = 48 panels (128×96); Large 12×9 = 108 panels (192×144).
+  - **Custom:** typed columns × rows from 1×1 to 10×10 panels; the crop ratio follows the grid and the picture is labeled with the nearest named aspect.
 - **Panel:** a 16×16 stud baseplate section (256 studs). Every stud gets exactly one target color (no empty target cells).
 - **Palette:** at most `maxColors` colors for the whole picture (2 to 32, default 32). A panel uses a subset.
 - **Stud state:** `empty` or `placed(colorIndex)`. A placed dot is correct if it equals the target.
@@ -86,7 +87,7 @@ Targets: iOS Safari 17+, Android Chrome (latest two), desktop Chrome/Safari/Fire
 - Uploads are stored on the device with the save; library pictures are referenced by slug and never copied.
 
 ### 5.3 New Picture — Setup
-1. **Crop editor:** aspect picker (1:1, 3:4, 4:3) and size picker (Small, Medium, Large); pan and pinch-zoom the image under a fixed crop frame. Bundled photos default to their native aspect but can be re-cropped. The size picker scales the panel grid (§4); the crop frame's ratio always follows the chosen aspect.
+1. **Crop editor:** aspect picker (1:1, 3:4, 4:3) and size picker (Small, Medium, Large, Custom); pan and pinch-zoom the image under a fixed crop frame. Bundled photos default to their native aspect but can be re-cropped. The size picker scales the panel grid (§4); Custom accepts typed columns and rows (1–10 each) and hides the aspect picker, whose ratio the crop frame follows otherwise.
 2. **Palette mode toggle:**
    - *LEGO colors:* up to `maxColors` colors chosen from the official LEGO solid color set (43 colors, table stored in code with its source cited).
    - *Free colors:* the best `maxColors` colors for the photo (seeded k-means in Lab space).

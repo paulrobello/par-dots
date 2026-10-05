@@ -31,6 +31,10 @@ export const SIZE_OPTIONS: ReadonlyArray<{ scale: number; label: string }> = [
   { scale: 3, label: 'Large' },
 ];
 
+/** Bounds of the custom panel-grid inputs on the creation screens. */
+export const PANEL_GRID_MIN = 1;
+export const PANEL_GRID_MAX = 10;
+
 /** One palette entry. */
 export interface PaletteColor {
   /** Lowercase "#rrggbb". */

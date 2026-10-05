@@ -99,7 +99,7 @@ describe('rebrickableCsv', () => {
 
 describe('mountingItems', () => {
   it('budgets canvases, pins, hangers and the raised frame for the grid', () => {
-    const items = mountingItems('1:1', 'Black');
+    const items = mountingItems(LAYOUT['1:1'], 'Black');
     const grid = LAYOUT['1:1'];
     expect(items.slice(0, 3)).toEqual([
       { partId: CANVAS_PART_ID, colorName: 'Black', qty: grid.cols * grid.rows },
@@ -107,30 +107,30 @@ describe('mountingItems', () => {
         partId: PIN_PART_ID,
         brickLinkPartId: PIN_BRICKLINK_PART_ID,
         colorName: 'Black',
-        qty: PINS_PER_EDGE * sharedEdges('1:1'),
+        qty: PINS_PER_EDGE * sharedEdges(LAYOUT['1:1']),
       },
       { partId: HANGER_PART_ID, colorName: 'Black', qty: 2 },
     ]);
-    expect(items.slice(3)).toEqual(frameItems('1:1', 'Black'));
+    expect(items.slice(3)).toEqual(frameItems(LAYOUT['1:1'], 'Black'));
   });
 
   it('scales canvases, pins and the frame for a bigger grid', () => {
-    const items = mountingItems('1:1', 'Black', 2);
+    const items = mountingItems({ cols: 6, rows: 6 }, 'Black');
     expect(items[0]).toEqual({ partId: CANVAS_PART_ID, colorName: 'Black', qty: 36 });
-    expect(items[1].qty).toBe(PINS_PER_EDGE * sharedEdges('1:1', 2));
-    expect(items.slice(3)).toEqual(frameItems('1:1', 'Black', 2));
+    expect(items[1].qty).toBe(PINS_PER_EDGE * sharedEdges({ cols: 6, rows: 6 }));
+    expect(items.slice(3)).toEqual(frameItems({ cols: 6, rows: 6 }, 'Black'));
     const backing = items.find((it) => it.partId === '91405');
     expect(backing?.qty).toBe(36);
   });
 
   it('colors the frame parts with the chosen frame color', () => {
-    for (const it of mountingItems('1:1', 'White').slice(3)) {
+    for (const it of mountingItems(LAYOUT['1:1'], 'White').slice(3)) {
       expect(it.colorName).toBe('White');
     }
   });
 
   it('omits the whole frame when no frame is wanted', () => {
-    const items = mountingItems('1:1', null);
+    const items = mountingItems(LAYOUT['1:1'], null);
     expect(items).toHaveLength(3);
   });
 });
@@ -142,7 +142,7 @@ describe('frameItems', () => {
   it('lists the raised-frame recipe for the square grid', () => {
     // W = D = 50: ring runs 50/50/46/46, cap runs 46/46/46/46. The plate layer is two
     // passes because the backing's border ring is plates too.
-    expect(byPart(frameItems('1:1', 'Black'))).toEqual({
+    expect(byPart(frameItems(LAYOUT['1:1'], 'Black'))).toEqual({
       '91405': 9, // Plate 16x16 backing, one per panel
       '3460': 44, // Plate 1x8: backing border + dot-height layer
       '3666': 4, // Plate 1x6
@@ -158,7 +158,7 @@ describe('frameItems', () => {
   });
 
   it('colors every frame line with the chosen frame color', () => {
-    for (const it of frameItems('1:1', 'White')) {
+    for (const it of frameItems(LAYOUT['1:1'], 'White')) {
       expect(it.colorName).toBe('White');
     }
   });

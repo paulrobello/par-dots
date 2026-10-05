@@ -8,13 +8,7 @@
  * setData, then resize on layout changes and draw after setGhost.
  */
 
-import {
-  aspectOf,
-  panelFractions,
-  panelGridOf,
-  panelIndexOf,
-  panelScaleOf,
-} from '../game/geometry';
+import { gridOfDims, panelFractions, panelIndexOfDims } from '../game/geometry';
 import { EMPTY, type Mosaic, PANEL_SIZE } from '../types';
 import { clearCanvas, drawPlate, resizeBacking } from './canvas';
 import { fitGrid, type GridLayout, IDENTITY_VIEWPORT, screenToCell } from './layout';
@@ -78,8 +72,7 @@ export class OverviewRenderer {
   /** Canvas-CSS-px rectangle of a panel, e.g. as the origin of a zoom transition. */
   panelRect(index: number): { x: number; y: number; w: number; h: number } | null {
     if (!this.mosaic) return null;
-    const aspect = aspectOf(this.mosaic.width, this.mosaic.height);
-    const { cols, rows } = panelGridOf(aspect, panelScaleOf(aspect, this.mosaic.width));
+    const { cols, rows } = gridOfDims(this.mosaic.width, this.mosaic.height);
     if (!Number.isInteger(index) || index < 0 || index >= cols * rows) return null;
     const L = this.layout;
     const s = L.cell * PANEL_SIZE;
@@ -104,8 +97,7 @@ export class OverviewRenderer {
     const p = clientToCanvas(this.canvas, this.cssW, this.cssH, clientX, clientY);
     const cell = screenToCell(this.layout, IDENTITY_VIEWPORT, p.x, p.y);
     if (!cell) return null;
-    const aspect = aspectOf(this.mosaic.width, this.mosaic.height);
-    const idx = panelIndexOf(aspect, cell.x, cell.y, panelScaleOf(aspect, this.mosaic.width));
+    const idx = panelIndexOfDims(this.mosaic.width, this.mosaic.height, cell.x, cell.y);
     return idx < 0 ? null : idx;
   }
 
@@ -170,9 +162,8 @@ export class OverviewRenderer {
   private drawPanelChrome(m: Mosaic, edgesX: number[], edgesY: number[]): void {
     const ctx = this.ctx;
     const d = this.dpr;
-    const aspect = aspectOf(m.width, m.height);
-    const { cols, rows } = panelGridOf(aspect, panelScaleOf(aspect, m.width));
-    const completion = this.placed ? panelFractions(aspect, m.width, m.target, this.placed) : [];
+    const { cols, rows } = gridOfDims(m.width, m.height);
+    const completion = this.placed ? panelFractions(m.width, m.height, m.target, this.placed) : [];
 
     // A finished picture drops its seams and badges for a single green frame.
     if (completion.length > 0 && completion.every((f) => f >= 1)) {

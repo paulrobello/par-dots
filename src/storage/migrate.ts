@@ -1,7 +1,6 @@
 /** Upgrades and validates persisted PictureSave records so the db layer never returns unvalidated data. */
 
 import {
-  type Aspect,
   EMPTY,
   LAYOUT,
   MAX_COLORS,
@@ -37,7 +36,6 @@ export function migrateSave(raw: unknown): PictureSave | undefined {
 
   if (typeof r.id !== 'string') return undefined;
   if (typeof r.aspect !== 'string' || !Object.hasOwn(LAYOUT, r.aspect)) return undefined;
-  const { cols, rows } = LAYOUT[r.aspect as Aspect];
   if (
     typeof r.width !== 'number' ||
     !Number.isInteger(r.width) ||
@@ -46,12 +44,12 @@ export function migrateSave(raw: unknown): PictureSave | undefined {
   ) {
     return undefined;
   }
-  const base = cols * PANEL_SIZE;
-  const scale = r.width / base;
-  if (!Number.isInteger(scale) || scale < 1) return undefined;
-  const width = base * scale;
-  const height = rows * PANEL_SIZE * scale;
-  if (r.width !== width || r.height !== height) return undefined;
+  // The aspect is a display label; custom grids store the nearest named aspect, so the
+  // dimensions only have to be whole 16-stud panels, not multiples of the aspect's base.
+  const width = r.width;
+  const height = r.height;
+  if (width % PANEL_SIZE !== 0 || height % PANEL_SIZE !== 0) return undefined;
+  if (width < PANEL_SIZE || height < PANEL_SIZE) return undefined;
 
   const { palette, target, placed } = r;
   if (!Array.isArray(palette) || palette.length < 1 || palette.length > MAX_COLORS) {
@@ -76,7 +74,7 @@ export function migrateSave(raw: unknown): PictureSave | undefined {
     if (placed[i] !== EMPTY && placed[i] >= palette.length) return undefined;
   }
 
-  const panels = cols * rows * scale * scale;
+  const panels = (width / PANEL_SIZE) * (height / PANEL_SIZE);
   const elapsed = Array.isArray(r.panelElapsedMs) ? r.panelElapsedMs : [];
   const panelElapsedMs = Array.from({ length: panels }, (_, i) => {
     const v = elapsed[i];

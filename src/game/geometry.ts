@@ -1,8 +1,8 @@
 /**
  * Panel geometry: the single owner of how a picture is split into 16x16 panels.
- * Keyed on Aspect (LAYOUT) and an integer size scale (1 = the base grid; N scales both
- * grid axes by N). The PictureSave wrappers derive the scale from the save's own stud
- * dimensions. Panels are numbered row-major.
+ * Pictures are addressed through their own stud dimensions (gridOfDims); the aspect-keyed
+ * helpers exist for the creation screens, where a named aspect plus a size scale picks the
+ * grid. Panels are numbered row-major.
  */
 
 import { type Aspect, LAYOUT, PANEL_SIZE, type PictureSave } from '../types';
@@ -25,50 +25,43 @@ export function studDims(aspect: Aspect, scale = 1): { width: number; height: nu
   return { width: cols * scale * PANEL_SIZE, height: rows * scale * PANEL_SIZE };
 }
 
-/** Size scale of an aspect picture `width` studs wide (1 = the base grid). */
-export function panelScaleOf(aspect: Aspect, width: number): number {
-  const base = LAYOUT[aspect].cols * PANEL_SIZE;
-  const scale = width / base;
-  if (!Number.isInteger(scale) || scale < 1) {
-    throw new RangeError(`width ${width} is not a whole multiple of the base ${aspect} grid`);
+/** Panel grid of a picture, from its own stud dimensions. Throws for non-panel dims. */
+export function gridOfDims(width: number, height: number): { cols: number; rows: number } {
+  const cols = width / PANEL_SIZE;
+  const rows = height / PANEL_SIZE;
+  if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols < 1 || rows < 1) {
+    throw new RangeError(`${width}x${height} studs is not whole 16-stud panels`);
   }
-  return scale;
+  return { cols, rows };
 }
 
-/** Aspect whose stud dimensions are exactly width x height. Throws for any other size. */
-export function aspectOf(width: number, height: number): Aspect {
-  for (const aspect of Object.keys(LAYOUT) as Aspect[]) {
-    const base = LAYOUT[aspect].cols * PANEL_SIZE;
-    if (width < base) continue;
-    if (width % base === 0 && (width / base) * LAYOUT[aspect].rows * PANEL_SIZE === height) {
-      return aspect;
-    }
+/** Top-left stud of a panel in picture coordinates, in a cols x rows grid. */
+export function panelOriginInGrid(
+  grid: { cols: number; rows: number },
+  panelIndex: number,
+): { x: number; y: number } {
+  if (!Number.isInteger(panelIndex) || panelIndex < 0 || panelIndex >= grid.cols * grid.rows) {
+    throw new RangeError(`panel index ${panelIndex} out of range`);
   }
-  throw new RangeError(`No layout is ${width}x${height} studs`);
+  return {
+    x: (panelIndex % grid.cols) * PANEL_SIZE,
+    y: Math.floor(panelIndex / grid.cols) * PANEL_SIZE,
+  };
 }
 
-/** Top-left stud of a panel in picture coordinates. */
+/** Top-left stud of a panel in picture coordinates for an aspect grid. */
 export function panelOriginOf(
   aspect: Aspect,
   panelIndex: number,
   scale = 1,
 ): { x: number; y: number } {
-  if (
-    !Number.isInteger(panelIndex) ||
-    panelIndex < 0 ||
-    panelIndex >= panelCountOf(aspect, scale)
-  ) {
-    throw new RangeError(`panel index ${panelIndex} out of range`);
-  }
-  const cols = LAYOUT[aspect].cols * scale;
-  return { x: (panelIndex % cols) * PANEL_SIZE, y: Math.floor(panelIndex / cols) * PANEL_SIZE };
+  return panelOriginInGrid(panelGridOf(aspect, scale), panelIndex);
 }
 
-/** Panel containing stud (x, y), or -1 when outside the picture. */
-export function panelIndexOf(aspect: Aspect, x: number, y: number, scale = 1): number {
-  const { width, height } = studDims(aspect, scale);
+/** Panel containing stud (x, y) in a width x height stud picture, or -1 when outside. */
+export function panelIndexOfDims(width: number, height: number, x: number, y: number): number {
   if (x < 0 || y < 0 || x >= width || y >= height) return -1;
-  const cols = LAYOUT[aspect].cols * scale;
+  const { cols } = gridOfDims(width, height);
   return Math.floor(y / PANEL_SIZE) * cols + Math.floor(x / PANEL_SIZE);
 }
 
@@ -77,24 +70,25 @@ export function panelIndexOf(aspect: Aspect, x: number, y: number, scale = 1): n
  * per shared panel edge) and hanging hooks on the top row. Counts derive from the panel
  * grid alone.
  */
-export function assemblyPlanOf(
-  aspect: Aspect,
-  scale = 1,
-): {
+export function assemblyPlanOfGrid(grid: { cols: number; rows: number }): {
   cols: number;
   rows: number;
   rowJoints: number;
   joinConnectors: number;
   hooks: number;
 } {
-  const { cols, rows } = panelGridOf(aspect, scale);
   return {
-    cols,
-    rows,
-    rowJoints: 3 * (cols - 1) * rows,
-    joinConnectors: 3 * (rows - 1) * cols,
+    cols: grid.cols,
+    rows: grid.rows,
+    rowJoints: 3 * (grid.cols - 1) * grid.rows,
+    joinConnectors: 3 * (grid.rows - 1) * grid.cols,
     hooks: 2,
   };
+}
+
+/** Physical build plan for an aspect grid at a size scale. */
+export function assemblyPlanOf(aspect: Aspect, scale = 1): ReturnType<typeof assemblyPlanOfGrid> {
+  return assemblyPlanOfGrid(panelGridOf(aspect, scale));
 }
 
 /**
@@ -102,15 +96,15 @@ export function assemblyPlanOf(
  * panel order. `placed` may be shorter than target; missing entries count as empty.
  */
 export function panelFractions(
-  aspect: Aspect,
   width: number,
+  height: number,
   target: ArrayLike<number>,
   placed: ArrayLike<number>,
 ): number[] {
-  const scale = panelScaleOf(aspect, width);
+  const grid = gridOfDims(width, height);
   const out: number[] = [];
-  for (let p = 0; p < panelCountOf(aspect, scale); p++) {
-    const o = panelOriginOf(aspect, p, scale);
+  for (let p = 0; p < grid.cols * grid.rows; p++) {
+    const o = panelOriginInGrid(grid, p);
     let correct = 0;
     for (let ly = 0; ly < PANEL_SIZE; ly++) {
       for (let lx = 0; lx < PANEL_SIZE; lx++) {
@@ -125,12 +119,13 @@ export function panelFractions(
 
 /** Number of panels in a picture. */
 export function panelCount(save: PictureSave): number {
-  return panelCountOf(save.aspect, panelScaleOf(save.aspect, save.width));
+  const { cols, rows } = gridOfDims(save.width, save.height);
+  return cols * rows;
 }
 
 /** Top-left stud of a panel in picture coordinates. */
 export function panelOrigin(save: PictureSave, panelIndex: number): { x: number; y: number } {
-  return panelOriginOf(save.aspect, panelIndex, panelScaleOf(save.aspect, save.width));
+  return panelOriginInGrid(gridOfDims(save.width, save.height), panelIndex);
 }
 
 /** Flat index into target/placed for a panel-local stud. */

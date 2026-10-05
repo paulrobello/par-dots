@@ -615,7 +615,7 @@ describe('migrateSave schema v2', () => {
     expect(migrateSave({ ...base, target })).toBeUndefined();
   });
 
-  it('accepts a size-scaled save and rejects non-grid dims', () => {
+  it('accepts scaled and custom grids, rejects non-panel dims', () => {
     const cells = 96 * 96;
     const out = migrateSave({
       ...base,
@@ -627,7 +627,16 @@ describe('migrateSave schema v2', () => {
     expect(out?.width).toBe(96);
     expect(out?.height).toBe(96);
     expect(out?.panelElapsedMs).toHaveLength(36);
+    const custom = migrateSave({
+      ...base,
+      width: 80,
+      height: 112,
+      target: new Uint8Array(80 * 112),
+      placed: new Uint8Array(80 * 112),
+    });
+    expect(custom?.panelElapsedMs).toHaveLength(35);
     expect(migrateSave({ ...base, width: 50, height: 50 })).toBeUndefined();
-    expect(migrateSave({ ...base, width: 96, height: 48 })).toBeUndefined();
+    expect(migrateSave({ ...base, width: 48, height: 50 })).toBeUndefined();
+    expect(migrateSave({ ...base, width: 0, height: 0 })).toBeUndefined();
   });
 });

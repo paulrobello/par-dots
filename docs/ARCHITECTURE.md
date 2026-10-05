@@ -110,7 +110,7 @@ sequenceDiagram
 - `src/ui/image.ts` reads the image header with `readImageSize()` (`src/ui/imageHeader.ts`) and rejects more than `MAX_SOURCE_PIXELS` (40 MP) before `createImageBitmap` allocates the pixels.
 - `src/engine/client.ts` falls back to running `buildMosaic()` on the main thread when workers are unavailable, when the worker crashes, or when a job takes longer than `QUANTIZE_TIMEOUT_MS` (20 s).
 - `buildMosaic()` in `src/engine/quantize.ts` is deterministic: LEGO mode picks colors from `LEGO_COLORS` by greedy selection and swap refinement when more LEGO colors are in play than the limit allows; free mode runs seeded k-means++ and Lloyd iterations in Lab when the image has more distinct colors than the limit. Both then merge colors closer than `MIN_DELTA_E` and sort the palette by lightness.
-- Stud size comes from `src/game/geometry.ts`, the single owner of panel geometry. A picture's aspect fixes the crop ratio; a size scale (1–3, `SIZE_OPTIONS` in `src/types.ts`) multiplies the base grid, and the save's own `width`/`height` encode the resulting panel grid — every save-backed consumer derives it with `panelScaleOf()` rather than re-deriving from `LAYOUT`.
+- Panel geometry lives in `src/game/geometry.ts`, the single owner. At creation, a named aspect plus a size scale (1–3, `SIZE_OPTIONS` in `src/types.ts`) or a custom typed grid (1×1–10×10, `PANEL_GRID_MIN`/`PANEL_GRID_MAX`) picks the panel grid; the save's own `width`/`height` encode the grid, every save-backed consumer derives it with `gridOfDims()`, and the aspect stored on the save is a display label (the nearest named aspect for custom grids).
 
 ## Routes and Screens
 

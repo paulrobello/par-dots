@@ -2,13 +2,13 @@
 
 import { describeColor } from '../engine/colorNames';
 import { LEGO_COLORS } from '../engine/legoPalette';
-import { panelCountOf, studDims } from '../game';
 import { newId } from '../storage/id';
 import {
   type Aspect,
   type CropRect,
   EMPTY,
   type NormalizedCrop,
+  PANEL_SIZE,
   type PaletteColor,
   type PaletteMode,
   type PictureSave,
@@ -101,15 +101,14 @@ export function seededPalette(mode: PaletteMode): PaletteColor[] {
 /** Build a new drawn save: empty target, seeded palette, background pre-placed. */
 export function buildDrawnSave(opts: {
   name: string;
-  aspect: Aspect;
+  /** Panel grid in panels; the save's aspect label is the nearest named aspect. */
+  grid: { cols: number; rows: number };
   mode: PaletteMode;
   /** Background hex ("#rrggbb") or null for None. */
   background: string | null;
-  /** Panel-grid size scale; 1 = the base grid. */
-  scale?: number;
 }): PictureSave {
-  const scale = opts.scale ?? 1;
-  const { width, height } = studDims(opts.aspect, scale);
+  const width = opts.grid.cols * PANEL_SIZE;
+  const height = opts.grid.rows * PANEL_SIZE;
   const palette = seededPalette(opts.mode);
   let fill = EMPTY;
   if (opts.background) {
@@ -129,7 +128,7 @@ export function buildDrawnSave(opts: {
     updatedAt: nowMs,
     name: opts.name,
     sourceImageId: '',
-    aspect: opts.aspect,
+    aspect: nearestAspect(opts.grid.cols, opts.grid.rows),
     paletteMode: opts.mode,
     origin: 'drawn',
     ...(opts.background ? { drawBackground: opts.background } : {}),
@@ -138,7 +137,7 @@ export function buildDrawnSave(opts: {
     height,
     target: new Uint8Array(width * height).fill(EMPTY),
     placed: new Uint8Array(width * height).fill(fill),
-    panelElapsedMs: new Array<number>(panelCountOf(opts.aspect, scale)).fill(0),
+    panelElapsedMs: new Array<number>(opts.grid.cols * opts.grid.rows).fill(0),
   };
 }
 
@@ -173,10 +172,15 @@ export function paletteSymbols(n: number): string[] {
 
 export { lineCells as cellLine } from '../game/drawTools';
 
-/** Width / height ratio of an aspect. */
-export function aspectRatio(aspect: Aspect): number {
-  const [w, h] = aspect.split(':').map(Number);
-  return w / h;
+/** The named aspect closest to a cols x rows panel grid, for the save's aspect label. */
+export function nearestAspect(cols: number, rows: number): Aspect {
+  const r = cols / rows;
+  const named: Array<[Aspect, number]> = [
+    ['1:1', 1],
+    ['3:4', 3 / 4],
+    ['4:3', 4 / 3],
+  ];
+  return named.reduce((best, o) => (Math.abs(o[1] - r) < Math.abs(best[1] - r) ? o : best))[0];
 }
 
 /** Crop state: zoom >= 1 (1 = largest frame that fits), center in source pixels. */
@@ -188,36 +192,35 @@ export interface CropState {
 
 export const MAX_CROP_ZOOM = 6;
 
-/** Size of the crop frame in source pixels for an aspect and zoom. */
+/** Size of the crop frame in source pixels for a width/height ratio and zoom. */
 export function cropSize(
   imgW: number,
   imgH: number,
-  aspect: Aspect,
+  ratio: number,
   zoom: number,
 ): { w: number; h: number } {
-  const r = aspectRatio(aspect);
   let w = imgW;
-  let h = w / r;
+  let h = w / ratio;
   if (h > imgH) {
     h = imgH;
-    w = h * r;
+    w = h * ratio;
   }
   const z = Math.max(1, Math.min(MAX_CROP_ZOOM, zoom));
   return { w: w / z, h: h / z };
 }
 
 /** Clamp zoom and center so the crop frame stays fully inside the image. */
-export function clampCrop(imgW: number, imgH: number, aspect: Aspect, s: CropState): CropState {
+export function clampCrop(imgW: number, imgH: number, ratio: number, s: CropState): CropState {
   const zoom = Math.max(1, Math.min(MAX_CROP_ZOOM, s.zoom));
-  const { w, h } = cropSize(imgW, imgH, aspect, zoom);
+  const { w, h } = cropSize(imgW, imgH, ratio, zoom);
   const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
   return { zoom, cx: clamp(s.cx, w / 2, imgW - w / 2), cy: clamp(s.cy, h / 2, imgH - h / 2) };
 }
 
 /** Crop rectangle (source pixels) for a crop state, clamped inside the image. */
-export function cropRectFor(imgW: number, imgH: number, aspect: Aspect, s: CropState): CropRect {
-  const c = clampCrop(imgW, imgH, aspect, s);
-  const { w, h } = cropSize(imgW, imgH, aspect, c.zoom);
+export function cropRectFor(imgW: number, imgH: number, ratio: number, s: CropState): CropRect {
+  const c = clampCrop(imgW, imgH, ratio, s);
+  const { w, h } = cropSize(imgW, imgH, ratio, c.zoom);
   return { x: c.cx - w / 2, y: c.cy - h / 2, w, h };
 }
 

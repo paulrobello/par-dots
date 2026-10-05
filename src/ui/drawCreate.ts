@@ -3,9 +3,16 @@
  * drawing, then creates the drawn save and opens the editor. No source image involved.
  */
 
-import { panelCountOf, studDims } from '../game';
+import { panelGridOf } from '../game';
 import { getSettings, setSettings } from '../storage/settings';
-import { type Aspect, type PaletteMode, SIZE_OPTIONS } from '../types';
+import {
+  type Aspect,
+  PANEL_GRID_MAX,
+  PANEL_GRID_MIN,
+  PANEL_SIZE,
+  type PaletteMode,
+  SIZE_OPTIONS,
+} from '../types';
 import { h, icon, iconButton, toast } from './dom';
 import { buildDrawnSave, routeHash, userMessage } from './pure';
 import { createSave } from './saves';
@@ -22,6 +29,7 @@ const ASPECTS: Array<{ value: Aspect; label: string }> = [
 export function mountDrawCreate({ root, navigate }: ScreenContext): Cleanup {
   let aspect: Aspect = '1:1';
   let scale = 1;
+  let custom: { cols: number; rows: number } | null = null;
   let mode: PaletteMode = getSettings().paletteMode;
   let background: string | null = null;
   let creating = false;
@@ -73,16 +81,62 @@ export function mountDrawCreate({ root, navigate }: ScreenContext): Cleanup {
     },
   );
   const sizeHint = h('p', { class: 'muted small' }, '');
+  const activeGrid = (): { cols: number; rows: number } => custom ?? panelGridOf(aspect, scale);
   const syncSizeHint = (): void => {
-    const dims = studDims(aspect, scale);
-    sizeHint.textContent = `${panelCountOf(aspect, scale)} panels · ${dims.width}×${dims.height} studs`;
+    const g = activeGrid();
+    sizeHint.textContent = `${g.cols * g.rows} panels · ${g.cols * PANEL_SIZE}×${g.rows * PANEL_SIZE} studs`;
   };
-  const sizeCtl = segmented<'1' | '2' | '3'>(
+  const clampPanel = (v: string): number =>
+    Math.max(PANEL_GRID_MIN, Math.min(PANEL_GRID_MAX, Math.round(Number(v) || 1)));
+  const colInput = h('input', {
+    type: 'number',
+    min: String(PANEL_GRID_MIN),
+    max: String(PANEL_GRID_MAX),
+    step: '1',
+    value: '4',
+    'aria-label': 'Columns',
+  });
+  const rowInput = h('input', {
+    type: 'number',
+    min: String(PANEL_GRID_MIN),
+    max: String(PANEL_GRID_MAX),
+    step: '1',
+    value: '4',
+    'aria-label': 'Rows',
+  });
+  const customCtl = h(
+    'div',
+    { class: 'custom-grid', hidden: true },
+    colInput,
+    h('span', {}, '×'),
+    rowInput,
+  );
+  const syncCustom = (): void => {
+    customCtl.toggleAttribute('hidden', custom === null);
+    aspectCtl.toggleAttribute('hidden', custom !== null);
+  };
+  const onCustomInput = (): void => {
+    if (!custom) return;
+    const cols = clampPanel(colInput.value);
+    const rows = clampPanel(rowInput.value);
+    custom = { cols, rows };
+    if (colInput.value !== String(cols)) colInput.value = String(cols);
+    if (rowInput.value !== String(rows)) rowInput.value = String(rows);
+    syncSizeHint();
+  };
+  colInput.addEventListener('input', onCustomInput);
+  rowInput.addEventListener('input', onCustomInput);
+  const sizeCtl = segmented<'1' | '2' | '3' | 'c'>(
     'Size',
-    SIZE_OPTIONS.map((o) => ({ value: `${o.scale}` as '1' | '2' | '3', label: o.label })),
-    () => `${scale}` as '1' | '2' | '3',
+    [
+      ...SIZE_OPTIONS.map((o) => ({ value: `${o.scale}` as '1' | '2' | '3', label: o.label })),
+      { value: 'c' as const, label: 'Custom' },
+    ],
+    () => (custom ? 'c' : `${scale}`) as '1' | '2' | '3' | 'c',
     (v) => {
-      scale = Number(v);
+      custom = v === 'c' ? (custom ?? { cols: 4, rows: 4 }) : null;
+      if (v !== 'c') scale = Number(v);
+      syncCustom();
       syncSizeHint();
     },
   );
@@ -166,10 +220,9 @@ export function mountDrawCreate({ root, navigate }: ScreenContext): Cleanup {
     try {
       const save = buildDrawnSave({
         name: nameInput.value.trim() || 'My drawing',
-        aspect,
+        grid: activeGrid(),
         mode,
         background,
-        scale,
       });
       await createSave(save);
       if (!alive) return;
@@ -201,6 +254,7 @@ export function mountDrawCreate({ root, navigate }: ScreenContext): Cleanup {
         h('div', { class: 'field' }, h('span', {}, 'Name'), nameInput),
         aspectCtl,
         sizeCtl,
+        customCtl,
         sizeHint,
         modeCtl,
         h(

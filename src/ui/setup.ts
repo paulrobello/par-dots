@@ -7,7 +7,7 @@
 import { quantizeInWorker } from '../engine/client';
 import { hexToRgb } from '../engine/color';
 import { cropAndResample } from '../engine/resample';
-import { panelCountOf, panelGridOf, studDims } from '../game';
+import { panelGridOf } from '../game';
 import { renderMosaicToCanvas } from '../render/mosaicImage';
 import { devicePixelRatioSafe } from '../render/motion';
 import { newId } from '../storage/id';
@@ -18,6 +18,9 @@ import {
   MAX_COLORS,
   MIN_COLORS,
   type Mosaic,
+  PANEL_GRID_MAX,
+  PANEL_GRID_MIN,
+  PANEL_SIZE,
   type PaletteMode,
   type PictureSave,
   SAVE_SCHEMA_VERSION,
@@ -25,13 +28,13 @@ import {
 } from '../types';
 import { h, icon, iconButton, toast } from './dom';
 import {
-  aspectRatio,
   type CropState,
   clampCrop,
   cropRectFor,
   defaultCrop,
   flattenAlpha,
   hasTransparency,
+  nearestAspect,
   routeHash,
   userMessage,
 } from './pure';
@@ -67,13 +70,22 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
   let bgHex = '#000000';
   let aspect: Aspect = src.aspect;
   let sizeScale = 1;
+  let custom: { cols: number; rows: number } | null = null;
+
+  // The grid the picture is built from: a preset scale of the aspect's base grid, or the
+  // typed custom grid. It drives the crop ratio, the preview and the save.
+  const activeGrid = (): { cols: number; rows: number } => custom ?? panelGridOf(aspect, sizeScale);
+  const activeRatio = (): number => {
+    const g = activeGrid();
+    return g.cols / g.rows;
+  };
   let mode: PaletteMode = getSettings().paletteMode;
   let maxColors = getSettings().maxColors;
   let dither = getSettings().dither;
   let crop: CropState = clampCrop(
     img.width,
     img.height,
-    aspect,
+    activeRatio(),
     defaultCrop(img.width, img.height, src.crop),
   );
   let alive = true;
@@ -152,17 +164,65 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
     () => aspect,
     (v) => {
       aspect = v;
-      crop = clampCrop(img.width, img.height, aspect, crop);
+      crop = clampCrop(img.width, img.height, activeRatio(), crop);
       drawStage();
       schedulePreview();
     },
   );
-  const sizeCtl = segmented<'1' | '2' | '3'>(
+  const clampPanel = (v: string): number =>
+    Math.max(PANEL_GRID_MIN, Math.min(PANEL_GRID_MAX, Math.round(Number(v) || 1)));
+  const colInput = h('input', {
+    type: 'number',
+    min: String(PANEL_GRID_MIN),
+    max: String(PANEL_GRID_MAX),
+    step: '1',
+    value: '4',
+    'aria-label': 'Columns',
+  });
+  const rowInput = h('input', {
+    type: 'number',
+    min: String(PANEL_GRID_MIN),
+    max: String(PANEL_GRID_MAX),
+    step: '1',
+    value: '4',
+    'aria-label': 'Rows',
+  });
+  const customCtl = h(
+    'div',
+    { class: 'custom-grid', hidden: true },
+    colInput,
+    h('span', {}, '×'),
+    rowInput,
+  );
+  const syncCustom = (): void => {
+    customCtl.toggleAttribute('hidden', custom === null);
+    aspectCtl.toggleAttribute('hidden', custom !== null);
+  };
+  const onCustomInput = (): void => {
+    if (!custom) return;
+    const cols = clampPanel(colInput.value);
+    const rows = clampPanel(rowInput.value);
+    custom = { cols, rows };
+    if (colInput.value !== String(cols)) colInput.value = String(cols);
+    if (rowInput.value !== String(rows)) rowInput.value = String(rows);
+    crop = clampCrop(img.width, img.height, activeRatio(), crop);
+    drawStage();
+    schedulePreview();
+  };
+  colInput.addEventListener('input', onCustomInput);
+  rowInput.addEventListener('input', onCustomInput);
+  const sizeCtl = segmented<'1' | '2' | '3' | 'c'>(
     'Size',
-    SIZE_OPTIONS.map((o) => ({ value: `${o.scale}` as '1' | '2' | '3', label: o.label })),
-    () => `${sizeScale}` as '1' | '2' | '3',
+    [
+      ...SIZE_OPTIONS.map((o) => ({ value: `${o.scale}` as '1' | '2' | '3', label: o.label })),
+      { value: 'c' as const, label: 'Custom' },
+    ],
+    () => (custom ? 'c' : `${sizeScale}`) as '1' | '2' | '3' | 'c',
     (v) => {
-      sizeScale = Number(v);
+      custom = v === 'c' ? (custom ?? { cols: 4, rows: 4 }) : null;
+      if (v !== 'c') sizeScale = Number(v);
+      syncCustom();
+      crop = clampCrop(img.width, img.height, activeRatio(), crop);
       drawStage();
       schedulePreview();
     },
@@ -279,7 +339,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
       h(
         'div',
         { class: 'setup-body' },
-        h('div', { class: 'setup-crop' }, stageWrap, aspectCtl, sizeCtl),
+        h('div', { class: 'setup-crop' }, stageWrap, aspectCtl, sizeCtl, customCtl),
         h(
           'div',
           { class: 'setup-side' },
@@ -313,7 +373,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
     const ctx = stage.getContext('2d');
     if (!ctx) return;
     const pad = 16;
-    const r = aspectRatio(aspect);
+    const r = activeRatio();
     let fw = rect.width - pad * 2;
     let fh = fw / r;
     if (fh > rect.height - pad * 2) {
@@ -321,7 +381,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
       fw = fh * r;
     }
     frame = { x: (rect.width - fw) / 2, y: (rect.height - fh) / 2, w: fw, h: fh };
-    const c = cropRectFor(img.width, img.height, aspect, crop);
+    const c = cropRectFor(img.width, img.height, activeRatio(), crop);
     scale = fw / c.w;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, rect.width, rect.height);
@@ -343,7 +403,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
     ctx.lineWidth = 2;
     ctx.strokeRect(frame.x, frame.y, frame.w, frame.h);
     // Panel grid guides.
-    const { cols, rows } = panelGridOf(aspect, sizeScale);
+    const { cols, rows } = activeGrid();
     ctx.strokeStyle = 'rgba(255,255,255,0.35)';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -364,7 +424,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
   const pointers = new Map<number, { x: number; y: number }>();
   let pinchDist = 0;
   const applyCrop = (next: CropState): void => {
-    crop = clampCrop(img.width, img.height, aspect, next);
+    crop = clampCrop(img.width, img.height, activeRatio(), next);
     drawStage();
     schedulePreview();
   };
@@ -412,8 +472,9 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
 
   // ---- preview ------------------------------------------------------------
   const computeMosaic = (): Promise<Mosaic> => {
-    const dims = studDims(aspect, sizeScale);
-    const rect = cropRectFor(img.width, img.height, aspect, crop);
+    const g = activeGrid();
+    const dims = { width: g.cols * PANEL_SIZE, height: g.rows * PANEL_SIZE };
+    const rect = cropRectFor(img.width, img.height, activeRatio(), crop);
     const pixels = cropAndResample(img, rect, dims.width, dims.height);
     if (hasAlpha) flattenAlpha(pixels, hexToRgb(bgHex));
     return quantizeInWorker(pixels, dims.width, dims.height, mode, maxColors, dither);
@@ -434,7 +495,8 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
       canvas.setAttribute('role', 'img');
       canvas.setAttribute('aria-label', 'Mosaic preview');
       preview.replaceChildren(canvas);
-      previewNote.textContent = `${m.width}×${m.height} studs · ${panelCountOf(aspect, sizeScale)} panels · ${m.palette.length} colors`;
+      const g = activeGrid();
+      previewNote.textContent = `${m.width}×${m.height} studs · ${g.cols * g.rows} panels · ${m.palette.length} colors`;
       startBtn.disabled = false;
     }).catch((err: unknown) => {
       if (!alive || my !== token) return;
@@ -461,6 +523,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
     startBtn.disabled = true;
     try {
       const m = await p;
+      const g = activeGrid();
       const nowMs = Date.now();
       const save: PictureSave = {
         schemaVersion: SAVE_SCHEMA_VERSION,
@@ -469,7 +532,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
         updatedAt: nowMs,
         name: src.name,
         sourceImageId: src.kind === 'library' ? `library:${src.slug}` : '',
-        aspect,
+        aspect: custom ? nearestAspect(g.cols, g.rows) : aspect,
         paletteMode: mode,
         origin: 'photo',
         palette: m.palette,
@@ -477,7 +540,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
         height: m.height,
         target: m.target,
         placed: new Uint8Array(m.width * m.height).fill(EMPTY),
-        panelElapsedMs: new Array<number>(panelCountOf(aspect, sizeScale)).fill(0),
+        panelElapsedMs: new Array<number>(g.cols * g.rows).fill(0),
       };
       await createSave(save, src.kind === 'upload' ? src.blob : undefined);
       setPendingSource(null);

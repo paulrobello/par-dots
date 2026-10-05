@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildDrawnSave,
   cellLine,
   clampCrop,
   cropRectFor,
@@ -13,6 +14,7 @@ import {
   hasTransparency,
   nameFromFile,
   nameFromUrl,
+  nearestAspect,
   nextSelection,
   paletteLabels,
   paletteSymbols,
@@ -140,20 +142,42 @@ describe('cellLine', () => {
 });
 
 describe('crop math', () => {
-  it('fits the largest frame of the aspect at zoom 1', () => {
-    expect(cropSize(1000, 500, '1:1', 1)).toEqual({ w: 500, h: 500 });
-    expect(cropSize(1000, 500, '4:3', 1)).toEqual({ w: 2000 / 3, h: 500 });
-    expect(cropSize(600, 1000, '3:4', 2)).toEqual({ w: 300, h: 400 });
+  it('fits the largest frame of the ratio at zoom 1', () => {
+    expect(cropSize(1000, 500, 1, 1)).toEqual({ w: 500, h: 500 });
+    expect(cropSize(1000, 500, 4 / 3, 1)).toEqual({ w: 2000 / 3, h: 500 });
+    expect(cropSize(600, 1000, 0.75, 2)).toEqual({ w: 300, h: 400 });
   });
 
   it('clamps center and zoom so the frame stays inside the image', () => {
-    const c = clampCrop(1000, 500, '1:1', { zoom: 20, cx: -50, cy: 9999 });
+    const c = clampCrop(1000, 500, 1, { zoom: 20, cx: -50, cy: 9999 });
     expect(c.zoom).toBe(6);
-    const r = cropRectFor(1000, 500, '1:1', c);
+    const r = cropRectFor(1000, 500, 1, c);
     expect(r.x).toBeGreaterThanOrEqual(0);
     expect(r.y + r.h).toBeLessThanOrEqual(500 + 1e-9);
-    const r1 = cropRectFor(1000, 500, '1:1', { zoom: 1, cx: 0, cy: 0 });
+    const r1 = cropRectFor(1000, 500, 1, { zoom: 1, cx: 0, cy: 0 });
     expect(r1).toEqual({ x: 0, y: 0, w: 500, h: 500 });
+  });
+
+  it('labels a custom grid with the nearest named aspect', () => {
+    expect(nearestAspect(3, 3)).toBe('1:1');
+    expect(nearestAspect(3, 4)).toBe('3:4');
+    expect(nearestAspect(4, 3)).toBe('4:3');
+    expect(nearestAspect(5, 7)).toBe('3:4');
+    expect(nearestAspect(7, 5)).toBe('4:3');
+    expect(nearestAspect(10, 3)).toBe('4:3');
+  });
+
+  it('builds a drawn save from an explicit grid', () => {
+    const save = buildDrawnSave({
+      name: 'x',
+      grid: { cols: 5, rows: 7 },
+      mode: 'lego',
+      background: null,
+    });
+    expect(save.width).toBe(80);
+    expect(save.height).toBe(112);
+    expect(save.aspect).toBe('3:4');
+    expect(save.panelElapsedMs).toHaveLength(35);
   });
 });
 

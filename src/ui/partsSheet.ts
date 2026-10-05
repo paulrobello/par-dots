@@ -7,10 +7,10 @@
 import {
   colorCounts,
   effectiveCells,
+  gridOfDims,
   panelColorCounts,
   panelCount,
   panelOrigin,
-  panelScaleOf,
 } from '../game';
 import { EMPTY, PANEL_SIZE, type PictureSave } from '../types';
 import { downloadBlob, h, icon, openSheet, toast } from './dom';
@@ -99,11 +99,7 @@ function buyPartsControls(
       items().map(({ count }) => count),
       items().map(({ c }) => save.palette[c].name),
     ).concat(
-      mountingItems(
-        save.aspect,
-        (framePick.value as FrameColor) || null,
-        panelScaleOf(save.aspect, save.width),
-      ),
+      mountingItems(gridOfDims(save.width, save.height), (framePick.value as FrameColor) || null),
     );
   const framePick = h(
     'select',

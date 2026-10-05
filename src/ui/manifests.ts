@@ -6,9 +6,6 @@
  * unit-testable, with the Parts sheet wiring them to `downloadBlob`.
  */
 
-import { panelGridOf } from '../game';
-import type { Aspect } from '../types';
-
 /** BrickLink catalog item no. for Tile, Round 1x1, the piece Dots mosaics are built from. */
 export const DOTS_PART_ID = '98138';
 /** Brick Special 16x16 x 1 1/3 with Pin Holes, black: the mosaic canvas, one per panel. */
@@ -174,9 +171,8 @@ export function manifestItems(counts: number[], names: string[]): ManifestItem[]
 }
 
 /** Shared canvas edges in a cols x rows panel grid. */
-export function sharedEdges(aspect: Aspect, scale = 1): number {
-  const { cols, rows } = panelGridOf(aspect, scale);
-  return cols * (rows - 1) + rows * (cols - 1);
+export function sharedEdges(grid: { cols: number; rows: number }): number {
+  return grid.cols * (grid.rows - 1) + grid.rows * (grid.cols - 1);
 }
 
 /** Cover one even stud run greedily with the longest piece first. */
@@ -201,8 +197,11 @@ function runPieces(run: number, lengths: readonly number[]): number[] {
  * plate corners stay studded for bonding and hangers. Ring runs are [W, W, D-4, D-4]
  * for W = 16*cols+2, D = 16*rows+2, so the greedy pieces always sum exactly.
  */
-export function frameItems(aspect: Aspect, colorName: FrameColor, scale = 1): ManifestItem[] {
-  const { cols, rows } = panelGridOf(aspect, scale);
+export function frameItems(
+  grid: { cols: number; rows: number },
+  colorName: FrameColor,
+): ManifestItem[] {
+  const { cols, rows } = grid;
   const width = 16 * cols + 2;
   const depth = 16 * rows + 2;
   const runs = [width, width, depth - 4, depth - 4];
@@ -231,23 +230,22 @@ export function frameItems(aspect: Aspect, colorName: FrameColor, scale = 1): Ma
  * LEGO catalog, so this block is only offered in LEGO palette mode.
  */
 export function mountingItems(
-  aspect: Aspect,
+  grid: { cols: number; rows: number },
   frameColor: FrameColor | null,
-  scale = 1,
 ): ManifestItem[] {
-  const { cols, rows } = panelGridOf(aspect, scale);
+  const { cols, rows } = grid;
   const items: ManifestItem[] = [
     { partId: CANVAS_PART_ID, colorName: 'Black', qty: cols * rows },
     {
       partId: PIN_PART_ID,
       brickLinkPartId: PIN_BRICKLINK_PART_ID,
       colorName: 'Black',
-      qty: PINS_PER_EDGE * sharedEdges(aspect, scale),
+      qty: PINS_PER_EDGE * sharedEdges(grid),
     },
     { partId: HANGER_PART_ID, colorName: 'Black', qty: 2 },
   ];
   if (frameColor) {
-    items.push(...frameItems(aspect, frameColor, scale));
+    items.push(...frameItems(grid, frameColor));
   }
   return items;
 }

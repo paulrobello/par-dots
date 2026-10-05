@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Picture sizes: the setup and draw-create screens offer Small, Medium and Large; Medium doubles and Large triples the panel grid per axis (square grows from 9 to 36 to 81 panels). Preview, parts lists, printable guides and the assembly plan all scale with the size, and existing saves keep playing unchanged.
+- Picture sizes: the setup and draw-create screens offer Small, Medium, Large and Custom. Medium doubles and Large triples the panel grid per axis (square grows from 9 to 36 to 81 panels); Custom takes typed columns and rows from 1×1 to 10×10, with the crop ratio following the grid. Preview, parts lists, printable guides and the assembly plan all scale with the grid, and existing saves keep playing unchanged.
 - Draw mode: rename a drawing any time by editing its title in the draw editor's top bar.
 - Imported pictures rename the same way: edit the title in the overview screen's top bar.
 - Buy parts: a "No frame" choice omits the frame parts from the BrickLink wanted-list XML and Rebrickable CSV.

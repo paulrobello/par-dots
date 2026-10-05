@@ -26,16 +26,17 @@ export {
   snapLine,
 } from './drawTools';
 export {
-  aspectOf,
   assemblyPlanOf,
+  assemblyPlanOfGrid,
+  gridOfDims,
   panelCount,
   panelCountOf,
   panelFractions,
   panelGridOf,
-  panelIndexOf,
+  panelIndexOfDims,
   panelOrigin,
+  panelOriginInGrid,
   panelOriginOf,
-  panelScaleOf,
   studDims,
   studIndex,
 } from './geometry';

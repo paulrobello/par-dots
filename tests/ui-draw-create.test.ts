@@ -98,6 +98,34 @@ describe('mountDrawCreate', () => {
     expect(save.panelElapsedMs).toHaveLength(36);
   });
 
+  it('creates a custom grid when Custom is chosen', async () => {
+    const { ctx } = makeCtx();
+    mountDrawCreate(ctx);
+    const customBtn = must(
+      [...document.querySelectorAll<HTMLButtonElement>('[role="radio"]')].find(
+        (b) => b.textContent === 'Custom',
+      ),
+    );
+    customBtn.click();
+    const cols = must(document.querySelector<HTMLInputElement>('input[aria-label="Columns"]'));
+    const rows = must(document.querySelector<HTMLInputElement>('input[aria-label="Rows"]'));
+    cols.value = '5';
+    cols.dispatchEvent(new Event('input'));
+    rows.value = '7';
+    rows.dispatchEvent(new Event('input'));
+    const hint = must(document.querySelector<HTMLParagraphElement>('p.muted.small'));
+    expect(hint.textContent).toBe('35 panels · 80×112 studs');
+    (
+      document.querySelector<HTMLButtonElement>('button.btn.primary.big') as HTMLButtonElement
+    ).click();
+    await vi.waitFor(() => expect(createSave).toHaveBeenCalledTimes(1));
+    const save = vi.mocked(createSave).mock.calls[0][0] as PictureSave;
+    expect(save.width).toBe(80);
+    expect(save.height).toBe(112);
+    expect(save.aspect).toBe('3:4');
+    expect(save.panelElapsedMs).toHaveLength(35);
+  });
+
   it('keeps the LEGO background choices to seeded LEGO colors', () => {
     const { ctx } = makeCtx();
     mountDrawCreate(ctx);
