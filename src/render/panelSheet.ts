@@ -270,7 +270,7 @@ export function renderAssemblySheet(save: PictureSave, cellPx = 40): HTMLCanvasE
   if (!ctx) throw new Error('2D canvas context unavailable');
   const contentW = margin * 2 + c * 16; // same width as a panel sheet
   canvas.width = contentW;
-  canvas.height = Math.round(c * 25.5);
+  canvas.height = Math.round(c * 26);
 
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -305,8 +305,8 @@ export function renderAssemblySheet(save: PictureSave, cellPx = 40): HTMLCanvasE
   ctx.fillStyle = INK;
   for (let i = 0; i < plan.cols - 1; i++) {
     const bx = margin + (i + 1) * box + i * bar;
-    for (const fy of [0.2, 0.5, 0.8]) {
-      ctx.fillRect(bx, rowY + box * fy - bar, bar, bar * 2);
+    for (const fy of [0.15, 0.5, 0.85]) {
+      ctx.fillRect(bx, rowY + box * fy - bar / 2, bar, bar);
     }
   }
   for (let i = 0; i < plan.cols; i++) {
@@ -341,9 +341,9 @@ export function renderAssemblySheet(save: PictureSave, cellPx = 40): HTMLCanvasE
   const gapY = s2y + c * 1.8;
   for (let i = 0; i < plan.cols; i++) {
     const px = margin + i * (box + bar);
-    for (const fx of [0.2, 0.5, 0.8]) {
+    for (const fx of [0.15, 0.5, 0.85]) {
       ctx.fillStyle = INK;
-      ctx.fillRect(px + box * fx - bar / 2, gapY + box * 0.55, bar, box * 0.9);
+      ctx.fillRect(px + box * fx - bar * 0.3, gapY + box * 0.55, bar * 0.6, box * 0.9);
     }
   }
   for (const ry of [gapY, gapY + box * 0.9 + bar]) {
@@ -422,17 +422,20 @@ export function renderAssemblySheet(save: PictureSave, cellPx = 40): HTMLCanvasE
   );
   ctx.fillText('(e.g. two sawtooth picture hangers, one near each end).', margin, s4y + c * 1.7);
 
-  // Schematic: top-row panel with two hook marks above its top edge.
-  const hookY = s4y + c * 2.5;
+  // Schematic: the top row in side view, a hanger bar attached near each end.
+  const hookY = s4y + c * 2.9;
   ctx.fillStyle = INK;
-  for (const hx of [margin + bar / 2, margin + (plan.cols - 1) * (box + bar) + box / 2]) {
-    ctx.fillRect(hx, hookY - bar * 2, bar * 3, bar);
+  for (const hx of [margin + box * 0.25, margin + (plan.cols - 1) * (box + bar) + box * 0.75]) {
+    ctx.fillRect(hx - bar * 1.5, hookY - bar * 2, bar * 3, bar * 2);
   }
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(margin, hookY, box, box * 0.55);
-  ctx.strokeStyle = INK;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(margin + 1, hookY + 1, box - 2, box * 0.55 - 2);
+  for (let i = 0; i < plan.cols; i++) {
+    const px = margin + i * (box + bar);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(px, hookY, box, box * 0.55);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px + 1, hookY + 1, box - 2, box * 0.55 - 2);
+  }
 
   // Connectors and hooks are generic parts outside the palette; the exports stay
   // palette-only by decision (card 01a1091d803d) - say so on the page.
