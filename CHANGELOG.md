@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Draw mode: rename a drawing any time by editing its title in the draw editor's top bar.
+- Imported pictures rename the same way: edit the title in the overview screen's top bar.
 - Buy parts: a "No frame" choice omits the frame parts from the BrickLink wanted-list XML and Rebrickable CSV.
 
 - Draw-your-own mode: create a blank mosaic (aspect, palette mode, background) and paint it with brush, line, box, ellipse, polygon, fill, eyedropper and eraser tools, mirror painting, a 50-move undo history, an editable palette, and — in LEGO mode — the same parts exports as photo pictures.

@@ -15,7 +15,7 @@ import { h, icon, iconButton, openSheet, toast } from './dom';
 import { exportPng } from './exportImage';
 import { openGuideSheet, openPartsSheet } from './partsSheet';
 import { formatDuration, formatPercent, panelZoomTransform, routeHash, userMessage } from './pure';
-import { loadSave } from './saves';
+import { loadSave, persistSave } from './saves';
 import type { Cleanup, ScreenContext } from './screen';
 import { settingsButton } from './settingsSheet';
 import { takeTransitionHint } from './state';
@@ -42,7 +42,14 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
   });
   const hoverBox = h('div', { class: 'panel-hover', 'aria-hidden': 'true' });
   const stage = h('div', { class: 'overview-stage' }, canvas, hoverBox);
-  const title = h('h1', { class: 'title' }, '');
+  const title = h('input', {
+    type: 'text',
+    class: 'title',
+    maxlength: '60',
+    'aria-label': 'Picture name',
+    autocomplete: 'off',
+    enterkeyhint: 'done',
+  });
   const stats = h('div', { class: 'stats', 'aria-live': 'polite' });
   const ghostBtn = h(
     'button',
@@ -187,7 +194,23 @@ export function mountOverview({ root, navigate }: ScreenContext, id: string): Cl
         navigate(routeHash({ name: 'drawEditor', id: save.id }), { replace: true });
         return;
       }
-      title.textContent = save.name;
+      title.value = save.name;
+      title.addEventListener('change', () => {
+        const name = title.value.trim();
+        if (!name) {
+          title.value = save.name;
+          return;
+        }
+        if (name === save.name) return;
+        save.name = name;
+        persistSave(save).catch((err: unknown) => {
+          console.error(err);
+          toast(`Save failed: ${userMessage(err)}`, 4000);
+        });
+      });
+      title.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.key === 'Enter') title.blur();
+      });
       const prog = overallProgress(save);
       const total = save.panelElapsedMs.reduce((a, b) => a + b, 0);
       const complete = pictureComplete(save);
