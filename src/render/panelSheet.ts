@@ -388,7 +388,7 @@ export function renderAssemblySheet(save: PictureSave, cellPx = 40): HTMLCanvasE
   const fw = plan.cols * u;
   const fh = plan.rows * u;
   const ring = Math.max(2, Math.round(u * 0.12));
-  const cap = Math.max(3, ring);
+  const cap = Math.max(4, ring * 2);
   ctx.fillStyle = '#ddd';
   ctx.fillRect(margin, frameY, fw, fh);
   ctx.strokeStyle = INK;
@@ -403,13 +403,8 @@ export function renderAssemblySheet(save: PictureSave, cellPx = 40): HTMLCanvasE
     [margin, frameY + fh - cap],
     [margin + fw - cap, frameY + fh - cap],
   ]) {
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(kx + 0.5, ky + 0.5, cap - 1, cap - 1);
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(kx + 0.5, ky + 0.5, cap - 1, cap - 1);
     ctx.fillStyle = INK;
-    ctx.fillRect(kx + cap / 2 - 1, ky + cap / 2 - 1, 2, 2);
+    ctx.fillRect(kx, ky, cap, cap);
   }
 
   // Step 4: hanging hooks on the top row.
