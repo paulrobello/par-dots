@@ -40,8 +40,8 @@ const FRAME_CORNER_PART_ID = '3022';
 /** Frame color choices for the raised frame. */
 export const FRAME_COLORS = ['Black', 'White'] as const;
 export type FrameColor = (typeof FRAME_COLORS)[number];
-/** Technic pins budgeted per shared edge between two canvases. */
-export const PINS_PER_EDGE = 5;
+/** Technic pins budgeted per shared edge between two canvases; matches the assembly guide. */
+export const PINS_PER_EDGE = 3;
 
 /**
  * BrickLink Color Guide ID per LEGO color name. Names must match `legoPalette.ts`
@@ -228,7 +228,7 @@ export function frameItems(aspect: Aspect, colorName: FrameColor): ManifestItem[
 
 /**
  * Everything the mosaic needs besides the colored dots: one black canvas per panel,
- * Technic pins (5 per shared edge), two wall-mount hangers, and — unless frameColor is
+ * Technic pins (3 per shared edge), two wall-mount hangers, and — unless frameColor is
  * null — the raised frame's parts in the chosen color. Black items only exist in the
  * LEGO catalog, so this block is only offered in LEGO palette mode.
  */

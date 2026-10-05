@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Buy parts: the frame export is now a buildable raised frame — a backing plate one stud larger than the panels, a brick ring to panel-top height, a plate layer to dot height, and a smooth tile cap one plate above the dots, corners left studded — replacing the 1x16 brick border ring, which the pin-hole canvases cannot hold.
+- Buy parts: the pin budget now matches the assembly guide's three connectors per shared edge (was five).
 - The palette swap button has its own arrows icon instead of the pan tool's.
 
 ### Fixed

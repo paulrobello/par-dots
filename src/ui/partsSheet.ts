@@ -130,7 +130,7 @@ function buyPartsControls(
     h(
       'p',
       { class: 'muted small' },
-      `Wanted list for 1x1 round tiles by LEGO color, plus the build kit: black 16x16 canvases (one per panel), Technic pins (5 per joined edge), two wall-mount panels, and — unless "No frame" is chosen — a raised frame: a backing plate one stud larger than the panels, a brick ring to panel-top height, a plate layer to dot height, and a smooth tile cap one plate above the dots, with the four corners left studded for hangers. Upload the XML on BrickLink's Wanted List Mass Upload page, or import the CSV into a Rebrickable part list.`,
+      `Wanted list for 1x1 round tiles by LEGO color, plus the build kit: black 16x16 canvases (one per panel), Technic pins (3 per joined edge), two wall-mount panels, and — unless "No frame" is chosen — a raised frame: a backing plate one stud larger than the panels, a brick ring to panel-top height, a plate layer to dot height, and a smooth tile cap one plate above the dots, with the four corners left studded for hangers. Upload the XML on BrickLink's Wanted List Mass Upload page, or import the CSV into a Rebrickable part list.`,
     ),
     h('div', { class: 'guide-row' }, framePick, bricklink, rebrickable),
   );
