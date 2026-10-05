@@ -117,6 +117,28 @@ export function mountDrawEditor({ root, navigate }: ScreenContext, id: string): 
     });
     const stage = h('div', { class: 'draw-stage' }, canvas);
     const trayEl = h('div', { class: 'draw-tray', role: 'group', 'aria-label': 'Palette' });
+    const titleInput = h('input', {
+      type: 'text',
+      class: 'title',
+      value: save.name,
+      maxlength: '60',
+      'aria-label': 'Drawing name',
+      autocomplete: 'off',
+      enterkeyhint: 'done',
+    });
+    titleInput.addEventListener('change', () => {
+      const name = titleInput.value.trim();
+      if (!name) {
+        titleInput.value = save.name;
+        return;
+      }
+      if (name === save.name) return;
+      save.name = name;
+      schedulePersist();
+    });
+    titleInput.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter') titleInput.blur();
+    });
     const toolbar = h('div', {
       class: 'draw-toolbar',
       role: 'toolbar',
@@ -127,7 +149,7 @@ export function mountDrawEditor({ root, navigate }: ScreenContext, id: string): 
         'header',
         { class: 'topbar' },
         iconButton('back', 'Back to gallery', () => navigate('#/')),
-        h('h1', { class: 'title' }, save.name),
+        titleInput,
         countEl,
         h('span', { class: 'spacer' }),
         h(
@@ -490,6 +512,7 @@ export function mountDrawEditor({ root, navigate }: ScreenContext, id: string): 
 
     // ---- keyboard -----------------------------------------------------------
     const onKey = (e: KeyboardEvent): void => {
+      if (e.target instanceof HTMLInputElement) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         (e.shiftKey ? redoBtn : undoBtn).click();

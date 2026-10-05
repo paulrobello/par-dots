@@ -91,11 +91,12 @@ function buyPartsControls(
     manifestItems(
       items().map(({ count }) => count),
       items().map(({ c }) => save.palette[c].name),
-    ).concat(mountingItems(save.aspect, framePick.value as FrameColor));
+    ).concat(mountingItems(save.aspect, (framePick.value as FrameColor) || null));
   const framePick = h(
     'select',
-    { class: 'parts-scope', 'aria-label': 'Frame color' },
+    { class: 'parts-scope', 'aria-label': 'Frame' },
     ...FRAME_COLORS.map((c) => h('option', { value: c }, `${c} frame`)),
+    h('option', { value: '' }, 'No frame'),
   );
   const bricklink = h(
     'button',
@@ -129,7 +130,7 @@ function buyPartsControls(
     h(
       'p',
       { class: 'muted small' },
-      `Wanted list for 1x1 round tiles by LEGO color, plus the build kit: black 16x16 canvases (one per panel), Technic pins (5 per joined edge), two wall-mount panels, and a 1x16 brick border frame in the color chosen here. Upload the XML on BrickLink's Wanted List Mass Upload page, or import the CSV into a Rebrickable part list.`,
+      `Wanted list for 1x1 round tiles by LEGO color, plus the build kit: black 16x16 canvases (one per panel), Technic pins (5 per joined edge), two wall-mount panels, and — unless "No frame" is chosen — a 1x16 brick border frame in the chosen color. Upload the XML on BrickLink's Wanted List Mass Upload page, or import the CSV into a Rebrickable part list.`,
     ),
     h('div', { class: 'guide-row' }, framePick, bricklink, rebrickable),
   );

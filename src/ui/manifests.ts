@@ -176,12 +176,12 @@ export function framePerimeter(aspect: Aspect): number {
 
 /**
  * Everything the mosaic needs besides the colored dots: one black canvas per panel,
- * Technic pins (5 per shared edge), two wall-mount hangers, and a 1x16 brick border
- * frame in the chosen color. Black items only exist in the LEGO catalog, so this
- * block is only offered in LEGO palette mode.
+ * Technic pins (5 per shared edge), two wall-mount hangers, and — unless frameColor is
+ * null — a 1x16 brick border frame in the chosen color. Black items only exist in the
+ * LEGO catalog, so this block is only offered in LEGO palette mode.
  */
-export function mountingItems(aspect: Aspect, frameColor: FrameColor): ManifestItem[] {
-  return [
+export function mountingItems(aspect: Aspect, frameColor: FrameColor | null): ManifestItem[] {
+  const items: ManifestItem[] = [
     { partId: CANVAS_PART_ID, colorName: 'Black', qty: LAYOUT[aspect].cols * LAYOUT[aspect].rows },
     {
       partId: PIN_PART_ID,
@@ -190,8 +190,11 @@ export function mountingItems(aspect: Aspect, frameColor: FrameColor): ManifestI
       qty: PINS_PER_EDGE * sharedEdges(aspect),
     },
     { partId: HANGER_PART_ID, colorName: 'Black', qty: 2 },
-    { partId: FRAME_PART_ID, colorName: frameColor, qty: framePerimeter(aspect) },
   ];
+  if (frameColor) {
+    items.push({ partId: FRAME_PART_ID, colorName: frameColor, qty: framePerimeter(aspect) });
+  }
+  return items;
 }
 
 /**

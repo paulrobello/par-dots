@@ -118,6 +118,12 @@ describe('mountingItems', () => {
     const white = mountingItems('1:1', 'White').find((it) => it.partId === FRAME_PART_ID);
     expect(white?.colorName).toBe('White');
   });
+
+  it('omits the frame bricks when no frame is wanted', () => {
+    const items = mountingItems('1:1', null);
+    expect(items).toHaveLength(3);
+    expect(items.some((it) => it.partId === FRAME_PART_ID)).toBe(false);
+  });
 });
 
 describe('manifestItems', () => {

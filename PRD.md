@@ -102,7 +102,7 @@ Targets: iOS Safari 17+, Android Chrome (latest two), desktop Chrome/Safari/Fire
 - Tap any panel (any order), or use the numbered panel buttons, to zoom into it with an animated zoom transition.
 - Shows overall progress %, total elapsed time, panel count and color count. A completed picture shows **View picture** (the finished mosaic in a sheet, with its own download) and **Download PNG** buttons.
 - **Guide** downloads printable building sheets: every panel as a PDF with one panel per US Letter page, or one chosen panel as a PNG. The PDF opens with an overview page — the whole picture with panel seams and every panel numbered to match its sheet — followed by the coloring sheets, and closes with an assembly page: build rows of panels joined with three black connectors per shared edge, join the rows the same way, attach two hanging hooks, with counts derived from the layout. Connectors and hooks are generic parts, ordered separately; they are not in the parts exports.
-- **Parts** shows a per-color dot count (whole picture or one panel) with a tab-separated copy of the list. **Buy parts** exports a wanted list for 1x1 round tiles by LEGO color plus the build kit — one black 16x16 canvas with pin holes per panel, five Technic pins per shared canvas edge, two black wall-mount panels, and a 1x16 brick border frame in the chosen frame color (black or white) — as a BrickLink Wanted List Mass Upload XML or a Rebrickable part-list import CSV, for the scope shown. Only in LEGO palette mode; free shades have no catalog color.
+- **Parts** shows a per-color dot count (whole picture or one panel) with a tab-separated copy of the list. **Buy parts** exports a wanted list for 1x1 round tiles by LEGO color plus the build kit — one black 16x16 canvas with pin holes per panel, five Technic pins per shared canvas edge, two black wall-mount panels, and an optional 1x16 brick border frame in the chosen frame color (black, white, or no frame) — as a BrickLink Wanted List Mass Upload XML or a Rebrickable part-list import CSV, for the scope shown. Only in LEGO palette mode; free shades have no catalog color.
 
 ### 5.5 Panel Play
 Layout (portrait phone, top to bottom):
@@ -150,7 +150,8 @@ button has its own arrows icon and the selected tool stays highlighted.
 
 Drawn pictures never complete: no progress bar, no timer, no done badge. The gallery lists
 them under "My drawings" with their dot count. In LEGO mode a drawing exports parts lists,
-BrickLink wanted lists and printable panel instructions exactly like a photo picture.
+BrickLink wanted lists and printable panel instructions exactly like a photo picture. The
+drawing can be renamed any time by editing its title in the draw editor's top bar.
 
 ## 6. Visual Design (2D with 3D look)
 

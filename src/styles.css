@@ -825,6 +825,7 @@ p {
 .draw-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
 .draw-toolbar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 6px 8px; }
 .draw-count { font-variant-numeric: tabular-nums; }
+.draw-editor input.title { flex: 1 1 auto; min-width: 0; background: transparent; border: none; padding: 0; }
 
 .toolbar {
   display: grid;
