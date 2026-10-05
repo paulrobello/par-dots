@@ -5,7 +5,7 @@ import {
   brickLinkColorId,
   CANVAS_PART_ID,
   DOTS_PART_ID,
-  FRAME_PART_ID,
+  frameItems,
   HANGER_PART_ID,
   manifestItems,
   manifestStem,
@@ -98,10 +98,10 @@ describe('rebrickableCsv', () => {
 });
 
 describe('mountingItems', () => {
-  it('budgets canvases, pins, hangers and frame bricks for the grid', () => {
+  it('budgets canvases, pins, hangers and the raised frame for the grid', () => {
     const items = mountingItems('1:1', 'Black');
     const grid = LAYOUT['1:1'];
-    expect(items).toEqual([
+    expect(items.slice(0, 3)).toEqual([
       { partId: CANVAS_PART_ID, colorName: 'Black', qty: grid.cols * grid.rows },
       {
         partId: PIN_PART_ID,
@@ -110,19 +110,48 @@ describe('mountingItems', () => {
         qty: PINS_PER_EDGE * sharedEdges('1:1'),
       },
       { partId: HANGER_PART_ID, colorName: 'Black', qty: 2 },
-      { partId: FRAME_PART_ID, colorName: 'Black', qty: 2 * (grid.cols + grid.rows) },
     ]);
+    expect(items.slice(3)).toEqual(frameItems('1:1', 'Black'));
   });
 
-  it('colors the frame bricks with the chosen frame color', () => {
-    const white = mountingItems('1:1', 'White').find((it) => it.partId === FRAME_PART_ID);
-    expect(white?.colorName).toBe('White');
+  it('colors the frame parts with the chosen frame color', () => {
+    for (const it of mountingItems('1:1', 'White').slice(3)) {
+      expect(it.colorName).toBe('White');
+    }
   });
 
-  it('omits the frame bricks when no frame is wanted', () => {
+  it('omits the whole frame when no frame is wanted', () => {
     const items = mountingItems('1:1', null);
     expect(items).toHaveLength(3);
-    expect(items.some((it) => it.partId === FRAME_PART_ID)).toBe(false);
+  });
+});
+
+describe('frameItems', () => {
+  const byPart = (items: ReturnType<typeof frameItems>): Record<string, number> =>
+    Object.fromEntries(items.map((it) => [it.partId, it.qty]));
+
+  it('lists the raised-frame recipe for the square grid', () => {
+    // W = D = 50: ring runs 50/50/46/46, cap runs 46/46/46/46. The plate layer is two
+    // passes because the backing's border ring is plates too.
+    expect(byPart(frameItems('1:1', 'Black'))).toEqual({
+      '91405': 9, // Plate 16x16 backing, one per panel
+      '3460': 44, // Plate 1x8: backing border + dot-height layer
+      '3666': 4, // Plate 1x6
+      '3023': 4, // Plate 1x2
+      '2465': 10, // Brick 1x16, up to panel-top height
+      '3008': 2, // Brick 1x8
+      '3010': 2, // Brick 1x4
+      '3004': 4, // Brick 1x2
+      '4162': 20, // Tile 1x8 cap, one plate above the dots
+      '6636': 4, // Tile 1x6
+      '3022': 4, // Plate 2x2 studded corner caps
+    });
+  });
+
+  it('colors every frame line with the chosen frame color', () => {
+    for (const it of frameItems('1:1', 'White')) {
+      expect(it.colorName).toBe('White');
+    }
   });
 });
 

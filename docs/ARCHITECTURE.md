@@ -73,7 +73,7 @@ graph TD
 | `src/audio/` | Web Audio sounds and `navigator.vibrate` haptics (`sfx.ts`), looping background music from `public/music/*.mp3` (`music.ts`) | Reads settings on every call; music starts on the first gesture and pauses while hidden |
 | `src/ui/` | Screens, DOM helpers, input handling, the save repository, navigation handoff state | The only layer that touches the document |
 
-The Parts sheet's Buy parts section builds its wanted-list manifests in DOM-free `src/ui/manifests.ts` (BrickLink wanted-list XML and Rebrickable part-list CSV, with the LEGO color name to BrickLink/Rebrickable color ID tables). Each export covers the colored dots plus the mounting kit — one black canvas per panel, Technic pins per shared edge, two wall-mount hangers and a 1x16 brick border frame — and is offered only in LEGO palette mode, where every color has a catalog ID. The builders are DOM-free, so they are unit-tested without a DOM.
+The Parts sheet's Buy parts section builds its wanted-list manifests in DOM-free `src/ui/manifests.ts` (BrickLink wanted-list XML and Rebrickable part-list CSV, with the LEGO color name to BrickLink/Rebrickable color ID tables). Each export covers the colored dots plus the mounting kit — one black canvas per panel, Technic pins per shared edge, two wall-mount hangers and, unless the builder opts out, a raised frame (`frameItems()`: a backing plate one stud larger than the panel grid, with a brick ring, plate layer and tile cap stacked on its border) — and is offered only in LEGO palette mode, where every color has a catalog ID. The builders are DOM-free, so they are unit-tested without a DOM.
 
 ## New-Picture Pipeline
 

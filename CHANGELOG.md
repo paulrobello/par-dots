@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Draw mode: rename a drawing any time by editing its title in the draw editor's top bar.
-- Buy parts: a "No frame" choice omits the 1x16 border bricks from the BrickLink wanted-list XML and Rebrickable CSV.
+- Buy parts: a "No frame" choice omits the frame parts from the BrickLink wanted-list XML and Rebrickable CSV.
 
 - Draw-your-own mode: create a blank mosaic (aspect, palette mode, background) and paint it with brush, line, box, ellipse, polygon, fill, eyedropper and eraser tools, mirror painting, a 50-move undo history, an editable palette, and — in LEGO mode — the same parts exports as photo pictures.
 - Guide PDFs open with an overview page — the assembled picture with panel seams and every panel numbered to match its building sheet — then the coloring sheets, and close with an assembly page (rows joined with three black connectors per shared edge, rows joined to each other, hanging hooks) whose connector and hook counts derive from the panel layout.
@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Buy parts: the frame export is now a buildable raised frame — a backing plate one stud larger than the panels, a brick ring to panel-top height, a plate layer to dot height, and a smooth tile cap one plate above the dots, corners left studded — replacing the 1x16 brick border ring, which the pin-hole canvases cannot hold.
 - The palette swap button has its own arrows icon instead of the pan tool's.
 
 ### Fixed

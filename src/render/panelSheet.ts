@@ -3,7 +3,7 @@
  * saves, the placed dots for drawn ones), each cell carrying its palette symbol, empty
  * cells left blank, with a legend mapping symbol to color name and count. The full guide
  * export also composes an overview page (the whole picture with panel seams and numbers)
- * and an assembly page (rows with black connectors, joining rows, hanging hooks).
+ * and an assembly page (rows with connectors, joining rows, a raised frame, hanging hooks).
  */
 
 import {
@@ -250,8 +250,9 @@ export function renderGuideOverview(save: PictureSave, cellPx = 8): HTMLCanvasEl
 
 /**
  * Assembly page: how the built panels become a hangable picture — build rows of panels
- * joined with black connectors, join the rows the same way, then attach the hanging
- * hooks. Counts come from assemblyPlanOf; connector bars are drawn on the schematics.
+ * joined with black connectors, join the rows the same way, set them on a raised frame
+ * (backing plate, brick ring, plate layer, tile cap), then attach the hanging hooks.
+ * Counts come from assemblyPlanOf; connector bars are drawn on the schematics.
  */
 export function renderAssemblySheet(save: PictureSave, cellPx = 40): HTMLCanvasElement {
   const c = Math.max(8, Math.round(cellPx));
@@ -269,7 +270,7 @@ export function renderAssemblySheet(save: PictureSave, cellPx = 40): HTMLCanvasE
   if (!ctx) throw new Error('2D canvas context unavailable');
   const contentW = margin * 2 + c * 16; // same width as a panel sheet
   canvas.width = contentW;
-  canvas.height = Math.round(c * 19);
+  canvas.height = Math.round(c * 25.5);
 
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -356,23 +357,78 @@ export function renderAssemblySheet(save: PictureSave, cellPx = 40): HTMLCanvasE
     }
   }
 
-  // Step 3: hanging hooks on the top row.
+  // Step 3: the raised frame; the plan view shows the backing, its border ring and the
+  // four studded corner caps.
   const s3y = gapY + box * 0.9 + bar + box * 0.55 + c;
   ctx.font = stepFont;
   ctx.fillStyle = INK;
   ctx.fillText('3.', margin, s3y);
-  ctx.fillText('Hang it', margin + c * 0.7, s3y);
+  ctx.fillText('Frame it', margin + c * 0.7, s3y);
+  ctx.font = textFont;
+  ctx.fillStyle = '#555';
+  ctx.fillText(
+    'Set the joined panels on a backing one stud larger all around, then raise a border',
+    margin,
+    s3y + c * 0.9,
+  );
+  ctx.fillText(
+    'ring on its edge - bricks to panel-top height, then plates, then a smooth tile cap',
+    margin,
+    s3y + c * 1.7,
+  );
+  ctx.fillText(
+    'one plate above the dots. Leave the four cap corners studded for hangers.',
+    margin,
+    s3y + c * 2.5,
+  );
+
+  // Plan view: the backing rectangle, its raised border ring and the studded corners.
+  const frameY = s3y + c * 3.4;
+  const u = Math.min((c * 3) / plan.cols, (c * 2) / plan.rows);
+  const fw = plan.cols * u;
+  const fh = plan.rows * u;
+  const ring = Math.max(2, Math.round(u * 0.12));
+  const cap = Math.max(3, ring);
+  ctx.fillStyle = '#ddd';
+  ctx.fillRect(margin, frameY, fw, fh);
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(margin, frameY, fw, fh);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(margin + ring, frameY + ring, fw - 2 * ring, fh - 2 * ring);
+  ctx.strokeRect(margin + ring + 0.5, frameY + ring + 0.5, fw - 2 * ring - 1, fh - 2 * ring - 1);
+  for (const [kx, ky] of [
+    [margin, frameY],
+    [margin + fw - cap, frameY],
+    [margin, frameY + fh - cap],
+    [margin + fw - cap, frameY + fh - cap],
+  ]) {
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(kx + 0.5, ky + 0.5, cap - 1, cap - 1);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(kx + 0.5, ky + 0.5, cap - 1, cap - 1);
+    ctx.fillStyle = INK;
+    ctx.fillRect(kx + cap / 2 - 1, ky + cap / 2 - 1, 2, 2);
+  }
+
+  // Step 4: hanging hooks on the top row.
+  const s4y = frameY + fh + c;
+  ctx.font = stepFont;
+  ctx.fillStyle = INK;
+  ctx.fillText('4.', margin, s4y);
+  ctx.fillText('Hang it', margin + c * 0.7, s4y);
   ctx.font = textFont;
   ctx.fillStyle = '#555';
   ctx.fillText(
     `Attach ${plan.hooks} hanging hooks to the top edge of the top row`,
     margin,
-    s3y + c * 0.9,
+    s4y + c * 0.9,
   );
-  ctx.fillText('(e.g. two sawtooth picture hangers, one near each end).', margin, s3y + c * 1.7);
+  ctx.fillText('(e.g. two sawtooth picture hangers, one near each end).', margin, s4y + c * 1.7);
 
   // Schematic: top-row panel with two hook marks above its top edge.
-  const hookY = s3y + c * 2.5;
+  const hookY = s4y + c * 2.5;
   ctx.fillStyle = INK;
   for (const hx of [margin + bar / 2, margin + (plan.cols - 1) * (box + bar) + box / 2]) {
     ctx.fillRect(hx, hookY - bar * 2, bar * 3, bar);

@@ -63,7 +63,7 @@ Everything runs on-device: uploads never leave your phone, progress is saved loc
 
 ### Building Tools
 - **Parts List**: Dot counts per color for the whole picture or a single panel
-- **Buy Parts**: Export the dot colors and the physical build kit (16x16 pin-hole canvases, joining Technic pins, wall-mount panels and a 1x16 brick border frame) as a BrickLink wanted-list XML or a Rebrickable part-list CSV
+- **Buy Parts**: Export the dot colors and the physical build kit (16x16 pin-hole canvases, joining Technic pins, wall-mount panels and an optional raised frame on a backing plate) as a BrickLink wanted-list XML or a Rebrickable part-list CSV
 - **Printable Building Sheets**: Per-panel guides with a symbol on every dot, usable in grayscale and by colorblind builders, downloaded as a single PDF or one panel as a PNG
 - **Back Up and Restore**: Save every picture, its progress and uploaded photo to a `.pardots` file and restore it on any device
 
