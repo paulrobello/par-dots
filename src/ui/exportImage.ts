@@ -41,18 +41,19 @@ export function exportPanelSheet(save: PictureSave, i: number): void {
 /** Download every panel's sheet as one PDF: overview, assembly, then one panel per US Letter page. */
 export async function exportAllSheets(save: PictureSave): Promise<void> {
   try {
-    const front = [renderGuideOverview(save), renderAssemblySheet(save)];
-    const pages = await Promise.all([
-      ...front.map(async (sheet) => ({
+    // Overview first, then the coloring sheets, and the assembly instructions last.
+    const sheets = [
+      renderGuideOverview(save),
+      ...Array.from({ length: panelCount(save) }, (_, i) => panelSheet(save, i)),
+      renderAssemblySheet(save),
+    ];
+    const pages = await Promise.all(
+      sheets.map(async (sheet) => ({
         jpeg: await canvasJpeg(sheet),
         width: sheet.width,
         height: sheet.height,
       })),
-      ...Array.from({ length: panelCount(save) }, async (_, i) => {
-        const sheet = panelSheet(save, i);
-        return { jpeg: await canvasJpeg(sheet), width: sheet.width, height: sheet.height };
-      }),
-    ]);
+    );
     const pdf = buildImagePdf(pages);
     downloadBlob(
       new Blob([pdf as BlobPart], { type: 'application/pdf' }),

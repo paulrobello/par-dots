@@ -293,18 +293,20 @@ export function renderAssemblySheet(save: PictureSave, cellPx = 40): HTMLCanvasE
   ctx.font = textFont;
   ctx.fillStyle = '#555';
   ctx.fillText(
-    `Connect the panels back-to-back with black connectors - ${plan.cols - 1} per row,`,
+    `Connect the panels back-to-back with black connectors - 3 per edge,`,
     margin,
     bodyTop + c * 0.9,
   );
   ctx.fillText(`${plan.rowJoints} black connectors in all.`, margin, bodyTop + c * 1.7);
 
-  // Schematic: one row of panel squares with black connector bars between them.
+  // Schematic: one row of panel squares with three black connectors per shared edge.
   const rowY = bodyTop + c * 2.6;
   ctx.fillStyle = INK;
   for (let i = 0; i < plan.cols - 1; i++) {
     const bx = margin + (i + 1) * box + i * bar;
-    ctx.fillRect(bx, rowY + box / 2 - bar, bar, bar * 2);
+    for (const fy of [0.2, 0.5, 0.8]) {
+      ctx.fillRect(bx, rowY + box * fy - bar, bar, bar * 2);
+    }
   }
   for (let i = 0; i < plan.cols; i++) {
     const px = margin + i * (box + bar);
@@ -329,17 +331,19 @@ export function renderAssemblySheet(save: PictureSave, cellPx = 40): HTMLCanvasE
   ctx.font = textFont;
   ctx.fillStyle = '#555';
   ctx.fillText(
-    `Join the rows with ${plan.joinConnectors} black connectors - one at each seam.`,
+    `Join the rows with ${plan.joinConnectors} black connectors - 3 per edge.`,
     margin,
     s2y + c * 0.9,
   );
 
-  // Schematic: two stacked rows with a black connector at each column boundary.
+  // Schematic: two stacked rows with three black connectors per panel of the seam.
   const gapY = s2y + c * 1.8;
   for (let i = 0; i < plan.cols; i++) {
-    const bx = margin + i * (box + bar) + (i > 0 ? bar : 0) + box / 2 - bar / 2;
-    ctx.fillStyle = INK;
-    ctx.fillRect(bx, gapY + box * 0.55, bar, box * 0.9);
+    const px = margin + i * (box + bar);
+    for (const fx of [0.2, 0.5, 0.8]) {
+      ctx.fillStyle = INK;
+      ctx.fillRect(px + box * fx - bar / 2, gapY + box * 0.55, bar, box * 0.9);
+    }
   }
   for (const ry of [gapY, gapY + box * 0.9 + bar]) {
     for (let i = 0; i < plan.cols; i++) {

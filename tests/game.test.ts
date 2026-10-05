@@ -590,22 +590,22 @@ describe('aspect-keyed panel geometry', () => {
     expect(assemblyPlanOf('1:1')).toEqual({
       cols: 3,
       rows: 3,
-      rowJoints: 6,
-      joinConnectors: 6,
+      rowJoints: 18,
+      joinConnectors: 18,
       hooks: 2,
     });
     expect(assemblyPlanOf('4:3')).toEqual({
       cols: 4,
       rows: 3,
-      rowJoints: 9,
-      joinConnectors: 8,
+      rowJoints: 27,
+      joinConnectors: 24,
       hooks: 2,
     });
     expect(assemblyPlanOf('3:4')).toEqual({
       cols: 3,
       rows: 4,
-      rowJoints: 8,
-      joinConnectors: 9,
+      rowJoints: 24,
+      joinConnectors: 27,
       hooks: 2,
     });
   });

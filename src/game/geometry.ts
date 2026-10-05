@@ -51,8 +51,9 @@ export function panelIndexOf(aspect: Aspect, x: number, y: number): number {
 }
 
 /**
- * Physical build plan for a picture: rows of panels joined with black connectors and
- * hanging hooks on the top row. Counts derive from the panel grid alone.
+ * Physical build plan for a picture: rows of panels joined with black connectors (three
+ * per shared panel edge) and hanging hooks on the top row. Counts derive from the panel
+ * grid alone.
  */
 export function assemblyPlanOf(aspect: Aspect): {
   cols: number;
@@ -65,8 +66,8 @@ export function assemblyPlanOf(aspect: Aspect): {
   return {
     cols,
     rows,
-    rowJoints: (cols - 1) * rows,
-    joinConnectors: (rows - 1) * cols,
+    rowJoints: 3 * (cols - 1) * rows,
+    joinConnectors: 3 * (rows - 1) * cols,
     hooks: 2,
   };
 }

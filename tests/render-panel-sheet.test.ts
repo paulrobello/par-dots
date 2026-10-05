@@ -171,13 +171,15 @@ describe('renderAssemblySheet', () => {
     expect(texts).toContain('Assembly');
     expect(texts).toContain('Build 3 rows of 4 panels');
     const has = (s: string): boolean => texts.some((t) => t.includes(s));
-    expect(has('9 black connectors in all')).toBe(true);
-    expect(has('8 black connectors')).toBe(true);
+    expect(has('3 per edge')).toBe(true);
+    expect(has('27 black connectors in all')).toBe(true);
+    expect(has('24 black connectors')).toBe(true);
     expect(has('2 hanging hooks')).toBe(true);
     expect(has('not part of the color palette')).toBe(true);
 
-    // Connector bars are the only ink-filled rects on the schematic (header text is not).
+    // Connector bars are the only ink-filled rects on the schematic (header text is not):
+    // 3 bars per connected edge - 3 seams within the row plus every column of the join.
     const bars = rects.filter((r) => r.fill === '#1b1b1b');
-    expect(bars.length).toBeGreaterThanOrEqual(4 - 1 + (3 - 1));
+    expect(bars.length).toBeGreaterThanOrEqual((4 - 1) * 3 + (3 - 1) * 4 * 1);
   });
 });
