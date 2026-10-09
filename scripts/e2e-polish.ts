@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { chromium, type Page } from 'playwright';
+import { gpuArgs } from './browser';
 
 const base = process.argv[2] ?? 'http://localhost:4231/';
 const out = '.claude/shots/polish';
@@ -75,7 +76,11 @@ async function canvasImage(page: Page): Promise<string> {
 
 async function main(): Promise<void> {
   await mkdir(out, { recursive: true });
-  const browser = await chromium.launch({ headless: process.env.HEADED !== '1' });
+  const browser = await chromium.launch({
+    headless: process.env.HEADED !== '1',
+    channel: 'chromium',
+    args: gpuArgs(),
+  });
   const errors: string[] = [];
   try {
     for (const reduced of [false, true]) {

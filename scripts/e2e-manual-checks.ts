@@ -3,6 +3,7 @@
  * ARC-005) against a running preview. Run: bun run scripts/e2e-manual-checks.ts [baseUrl].
  */
 import { chromium, type Page } from 'playwright';
+import { gpuArgs } from './browser';
 
 const base = process.argv[2] ?? 'http://localhost:4231/';
 
@@ -36,7 +37,7 @@ function check(ok: boolean, label: string): void {
 }
 
 async function main(): Promise<void> {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ channel: 'chromium', args: gpuArgs() });
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     serviceWorkers: 'block',

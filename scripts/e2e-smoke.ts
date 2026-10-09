@@ -6,6 +6,7 @@
  */
 import { mkdir } from 'node:fs/promises';
 import { chromium, type Page } from 'playwright';
+import { gpuArgs } from './browser';
 
 const base = process.argv[2] ?? 'http://localhost:4231/';
 const out = '.claude/shots';
@@ -18,7 +19,7 @@ async function shot(page: Page, name: string): Promise<void> {
 
 async function main(): Promise<void> {
   await mkdir(out, { recursive: true });
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ channel: 'chromium', args: gpuArgs() });
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 2,

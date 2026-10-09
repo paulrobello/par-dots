@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
 import type { PaletteColor, PaletteMode, PictureSave } from '../src/types';
+import { gpuArgs } from './browser';
 
 type ObservedWindow = typeof window & { drawnColorLabels: string[] };
 const base = process.argv[2] ?? 'http://localhost:4231/';
@@ -25,7 +26,11 @@ const palettes: Record<PaletteMode, PaletteColor[]> = {
 };
 
 await mkdir(out, { recursive: true });
-const browser = await chromium.launch({ headless: process.env.HEADED !== '1' });
+const browser = await chromium.launch({
+  headless: process.env.HEADED !== '1',
+  channel: 'chromium',
+  args: gpuArgs(),
+});
 try {
   for (const mode of ['free', 'lego'] as const) {
     const context = await browser.newContext({
