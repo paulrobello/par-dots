@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Guide PDFs now include a Frame page between the coloring sheets and the assembly page: it builds the raised frame layer by layer with the exact pieces per side — backing (a 16x16 plate per panel plus a 1-stud border ring of plates), brick ring (longest pieces first, per-side piece lists), plate layer, then a tile cap inset 2 studs with four studded 2x2 corners for a corner plate and the hangers. The piece lists come from the same recipe as the Buy parts export (`frameRingPieces`), so what the PDF teaches and what the manifest sells cannot drift.
 - Picture sizes: the setup and draw-create screens offer Small, Medium, Large and Custom. Medium doubles and Large triples the panel grid per axis (square grows from 9 to 36 to 81 panels); Custom takes typed columns and rows from 1×1 to 10×10, with the crop ratio following the grid. Preview, parts lists, printable guides and the assembly plan all scale with the grid, and existing saves keep playing unchanged.
 - Draw mode: rename a drawing any time by editing its title in the draw editor's top bar.
 - Imported pictures rename the same way: edit the title in the overview screen's top bar.

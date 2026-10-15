@@ -1,13 +1,15 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { panelColorCounts } from '../src/game';
+import { gridOfDims, panelColorCounts } from '../src/game';
 import {
   renderAssemblySheet,
+  renderFrameSheet,
   renderGuideOverview,
   renderPanelSheet,
 } from '../src/render/panelSheet';
 import { EMPTY, type PictureSave, SAVE_SCHEMA_VERSION } from '../src/types';
+import { frameRingPieces } from '../src/ui/manifests';
 
 // happy-dom has no 2D context; record fillRect/fillText calls instead of pixels.
 const rects: Array<{ x: number; y: number; w: number; h: number; fill: string }> = [];
@@ -159,6 +161,32 @@ describe('renderGuideOverview', () => {
       expect(s[0][1]).toBeGreaterThan(PY);
       expect(s[0][1]).toBeLessThan(PY + 48 * OV);
     }
+  });
+});
+
+describe('renderFrameSheet', () => {
+  it('teaches the frame layer by layer with exact per-side piece lists', () => {
+    const save = wideSave(); // 4x3 panels: W = 66, D = 50, side runs 46
+    const canvas = renderFrameSheet(save, frameRingPieces(gridOfDims(save.width, save.height)));
+    expect(canvas.width).toBeGreaterThan(0);
+    expect(canvas.height).toBeGreaterThan(0);
+
+    expect(texts).toContain('Frame');
+    const has = (s: string): boolean => texts.some((t) => t.includes(s));
+    expect(has('Lay the backing')).toBe(true);
+    expect(has('One 16x16 plate per panel (12 here)')).toBe(true);
+    expect(has('a 66 x 50-stud square')).toBe(true);
+    expect(has('one layer of bricks')).toBe(true);
+    // 66 = 16x4 + 2, so the long runs get four 1x16 bricks and a 1x2.
+    expect(has('4 x brick 1x16 + 1 x brick 1x2 each')).toBe(true);
+    // 46 = 16x2 + 8 + 4 + 2.
+    expect(has('2 x brick 1x16 + 1 x brick 1x8 + 1 x brick 1x4 + 1 x brick 1x2 each')).toBe(true);
+    expect(has('Add the plate layer')).toBe(true);
+    expect(has('Cap with tiles')).toBe(true);
+    // Cap runs: 62 = 7x8 + 6 on top/bottom, 46 = 5x8 + 6 on the sides.
+    expect(has('top and bottom 7 x tile 1x8 + 1 x tile 1x6 each')).toBe(true);
+    expect(has('a plate 2x2 on each corner')).toBe(true);
+    expect(has('Next: Assembly')).toBe(true);
   });
 });
 

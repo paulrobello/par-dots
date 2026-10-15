@@ -189,36 +189,46 @@ function runPieces(run: number, lengths: readonly number[]): number[] {
 }
 
 /**
- * The raised frame's parts, all in the frame color. A backing plate one stud larger
+ * Piece lengths per side for each raised-frame ring layer, sides in [top, bottom,
+ * left, right] order: the backing's 1-stud border ring (plates), the brick ring up to
+ * panel-top height, the plate layer over the bricks, and the smooth tile cap one plate
+ * above the dots, inset 2 studs per end. Ring runs are [W, W, D-4, D-4] for
+ * W = 16*cols+2, D = 16*rows+2, so the greedy pieces always sum exactly. Single source
+ * of truth shared by `frameItems` (what to buy) and the guide's Frame page (what goes where).
+ */
+export function frameRingPieces(grid: { cols: number; rows: number }): number[][][] {
+  const width = 16 * grid.cols + 2;
+  const depth = 16 * grid.rows + 2;
+  const runs = [width, width, depth - 4, depth - 4];
+  return [
+    runs.map((run) => runPieces(run, FRAME_PLATE_LENGTHS)),
+    runs.map((run) => runPieces(run, FRAME_BRICK_LENGTHS)),
+    runs.map((run) => runPieces(run, FRAME_PLATE_LENGTHS)),
+    [width - 4, width - 4, depth - 4, depth - 4].map((run) => runPieces(run, FRAME_TILE_LENGTHS)),
+  ];
+}
+
+/**
+ * The raised frame's parts, all in the frame color: a backing plate one stud larger
  * than the panel grid all around — a 16x16 plate per panel plus a 1-stud border ring —
- * then a ring raised on that border: bricks up to panel-top height, a plate layer to
- * dot height (the backing border is plates too, so the plate runs are bought twice),
- * and a smooth tile cap one plate above the dots, inset 2 studs so exactly four 2x2
- * plate corners stay studded for bonding and hangers. Ring runs are [W, W, D-4, D-4]
- * for W = 16*cols+2, D = 16*rows+2, so the greedy pieces always sum exactly.
+ * then the ring layers from `frameRingPieces` (the backing border is plates too, so
+ * the plate runs are bought twice), and four 2x2 plates capping the ring corners,
+ * left studded for bonding and hangers.
  */
 export function frameItems(
   grid: { cols: number; rows: number },
   colorName: FrameColor,
 ): ManifestItem[] {
   const { cols, rows } = grid;
-  const width = 16 * cols + 2;
-  const depth = 16 * rows + 2;
-  const runs = [width, width, depth - 4, depth - 4];
+  const layers = [FRAME_PLATE_IDS, FRAME_BRICK_IDS, FRAME_PLATE_IDS, FRAME_TILE_IDS];
   const qty = new Map<string, number>();
   const add = (partId: string, n: number): void => {
     qty.set(partId, (qty.get(partId) ?? 0) + n);
   };
-  const addRun = (run: number, ids: Record<number, string>, lengths: readonly number[]): void => {
-    for (const len of runPieces(run, lengths)) add(ids[len], 1);
-  };
   add(BACKING_PART_ID, cols * rows);
-  for (const run of runs) addRun(run, FRAME_PLATE_IDS, FRAME_PLATE_LENGTHS); // backing border ring
-  for (const run of runs) addRun(run, FRAME_BRICK_IDS, FRAME_BRICK_LENGTHS);
-  for (const run of runs) addRun(run, FRAME_PLATE_IDS, FRAME_PLATE_LENGTHS); // layer over the bricks
-  for (const run of [width - 4, width - 4, depth - 4, depth - 4]) {
-    addRun(run, FRAME_TILE_IDS, FRAME_TILE_LENGTHS);
-  }
+  frameRingPieces(grid).forEach((sides, layer) => {
+    for (const run of sides) for (const len of run) add(layers[layer][len], 1);
+  });
   add(FRAME_CORNER_PART_ID, 4);
   return [...qty].map(([partId, n]) => ({ partId, colorName, qty: n }));
 }

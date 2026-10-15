@@ -2,8 +2,9 @@
  * Printable building sheets: one numbered 16x16 grid page per panel (the target for photo
  * saves, the placed dots for drawn ones), each cell carrying its palette symbol, empty
  * cells left blank, with a legend mapping symbol to color name and count. The full guide
- * export also composes an overview page (the whole picture with panel seams and numbers)
- * and an assembly page (rows with connectors, joining rows, a raised frame, hanging hooks).
+ * export also composes an overview page (the whole picture with panel seams and numbers),
+ * a frame page (the raised frame built layer by layer with the exact pieces per side) and
+ * an assembly page (rows with connectors, joining rows, the raised frame, hanging hooks).
  */
 
 import { assemblyPlanOfGrid, effectiveCells, gridOfDims, panelCount, panelOrigin } from '../game';
@@ -238,6 +239,264 @@ export function renderGuideOverview(save: PictureSave, cellPx = 8): HTMLCanvasEl
     ctx.font = `bold ${labelSize}px ${FONT}`;
     ctx.fillText(String(p + 1), cx, cy);
   }
+
+  return canvas;
+}
+
+/** Greedy word wrap against measured width at the given font. */
+function wrapLines(
+  ctx: CanvasRenderingContext2D,
+  font: string,
+  text: string,
+  maxW: number,
+): string[] {
+  ctx.font = font;
+  const out: string[] = [];
+  let line = '';
+  for (const word of text.split(' ')) {
+    const next = line ? `${line} ${word}` : word;
+    if (!line || ctx.measureText(next).width <= maxW) line = next;
+    else {
+      out.push(line);
+      line = word;
+    }
+  }
+  if (line) out.push(line);
+  return out;
+}
+
+/** Plan view of the backing: the per-panel 16x16 plates on a shaded border ring. */
+function drawBacking(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  u: number,
+  t: number,
+  cols: number,
+  rows: number,
+): void {
+  const w = (16 * cols + 2) * u;
+  const d = (16 * rows + 2) * u;
+  ctx.fillStyle = '#d9d9d9';
+  ctx.fillRect(x, y, w, d);
+  for (let py = 0; py < rows; py++) {
+    for (let px = 0; px < cols; px++) {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x + t + 16 * px * u, y + t + 16 * py * u, 16 * u, 16 * u);
+      ctx.strokeRect(x + t + 16 * px * u + 0.5, y + t + 16 * py * u + 0.5, 16 * u - 1, 16 * u - 1);
+    }
+  }
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, d - 1);
+}
+
+/** Plan view of one ring layer: each side strip segmented by its piece lengths. */
+function drawRingSides(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  u: number,
+  t: number,
+  sides: number[][],
+  width: number,
+  depth: number,
+): void {
+  const w = width * u;
+  const d = depth * u;
+  const strip = (sx: number, sy: number, pieces: number[], horiz: boolean): void => {
+    let p = horiz ? sx : sy;
+    pieces.forEach((len, i) => {
+      ctx.fillStyle = i % 2 ? '#c9c9c9' : '#9a9a9a';
+      if (horiz) ctx.fillRect(p, sy, len * u, t);
+      else ctx.fillRect(sx, p, t, len * u);
+      p += len * u;
+    });
+  };
+  strip(x, y, sides[0], true);
+  strip(x, y + d - t, sides[1], true);
+  strip(x, y + t, sides[2], false);
+  strip(x + w - t, y + t, sides[3], false);
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, d - 1);
+}
+
+/** Plan view of the finished frame: ring, inset tile band, four studded 2x2 corners. */
+function drawCap(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  u: number,
+  t: number,
+  width: number,
+  depth: number,
+): void {
+  const w = width * u;
+  const d = depth * u;
+  ctx.fillStyle = '#d9d9d9';
+  ctx.fillRect(x, y, w, d);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x + t, y + t, w - 2 * t, d - 2 * t);
+  // Tile band on the ring top, inset 2 studs per end.
+  ctx.fillStyle = '#9a9a9a';
+  ctx.fillRect(x + 2 * u, y, (width - 4) * u, t);
+  ctx.fillRect(x + 2 * u, y + d - t, (width - 4) * u, t);
+  ctx.fillRect(x, y + 2 * u, t, (depth - 4) * u);
+  ctx.fillRect(x + w - t, y + 2 * u, t, (depth - 4) * u);
+  // Studded corner caps over the four 2x2 corners.
+  const cap = Math.max(4, 2 * u);
+  ctx.fillStyle = INK;
+  for (const [kx, ky] of [
+    [x, y],
+    [x + w - cap, y],
+    [x, y + d - cap],
+    [x + w - cap, y + d - cap],
+  ]) {
+    ctx.fillRect(kx, ky, cap, cap);
+  }
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, d - 1);
+}
+
+/**
+ * Frame page: builds the raised frame from the pieces the Buy parts export lists, layer
+ * by layer with the exact pieces per side. The ring piece runs come in via `ring` (the
+ * frameRingPieces output) because render/ must not import ui/.
+ */
+export function renderFrameSheet(
+  save: PictureSave,
+  ring: number[][][],
+  cellPx = 40,
+): HTMLCanvasElement {
+  const c = Math.max(8, Math.round(cellPx));
+  const margin = Math.round(c * 0.5);
+  const titleSize = Math.round(c * 0.6);
+  const subSize = Math.round(c * 0.4);
+  const stepFont = `bold ${Math.round(c * 0.42)}px ${FONT}`;
+  const textFont = `${Math.round(c * 0.4)}px ${FONT}`;
+  const lineStep = c * 0.45;
+  const bodyW = c * 16;
+
+  const { cols, rows } = gridOfDims(save.width, save.height);
+  const width = 16 * cols + 2;
+  const depth = 16 * rows + 2;
+  const [border, bricks, plates, cap] = ring;
+
+  /** "3 x brick 1x16 + 1 x brick 1x2" from one run's piece lengths. */
+  const listPieces = (pieces: number[], kind: string, join = ' + '): string => {
+    const tally = new Map<number, number>();
+    for (const p of pieces) tally.set(p, (tally.get(p) ?? 0) + 1);
+    return [...tally]
+      .sort((a, b) => b[0] - a[0])
+      .map(([len, n]) => `${n} x ${kind} 1x${len}`)
+      .join(join);
+  };
+
+  const borderTotals = listPieces(border.flat(), 'plate', ', ');
+  const capLong = listPieces(cap[0], 'tile');
+  const capShort = listPieces(cap[2], 'tile');
+  const capRuns =
+    width - 4 === depth - 4
+      ? `per side ${capLong}`
+      : `top and bottom ${capLong} each, sides ${capShort} each`;
+
+  const steps: Array<{ title: string; body: string; diagram: 'backing' | 'ring' | 'cap' | null }> =
+    [
+      {
+        title: 'Lay the backing',
+        body: `One 16x16 plate per panel (${cols * rows} here), butted into a ${width} x ${depth}-stud square, plus a 1-stud border ring of plates - ${borderTotals}.`,
+        diagram: 'backing',
+      },
+      {
+        title: 'Raise the brick ring',
+        body: `On the border ring lay one layer of bricks, longest piece first: long runs top and bottom (${width} studs, ${listPieces(bricks[0], 'brick')} each), short runs left and right (${depth - 4} studs, ${listPieces(bricks[2], 'brick')} each). Lay the two long runs first, then the short runs between them.`,
+        diagram: 'ring',
+      },
+      {
+        title: 'Add the plate layer',
+        body: `The same plates as the border ring, laid over the bricks: long runs ${listPieces(plates[0], 'plate')} each, short runs ${listPieces(plates[2], 'plate')} each.`,
+        diagram: null,
+      },
+      {
+        title: 'Cap with tiles',
+        body: `A smooth tile ring one plate above the dots, inset 2 studs per end - ${capRuns}. The four 2x2 corners stay studded: a plate 2x2 on each corner bonds the ring and holds the hangers.`,
+        diagram: 'cap',
+      },
+    ];
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2D canvas context unavailable');
+
+  // Size the page from the wrapped bodies and diagram, then draw (resizing resets state).
+  // u is the schematic's studs-per-pixel scale; t thickens the 1-stud ring strips so they
+  // read at print size, overdrawn inward — the diagrams are schematics, not blueprints.
+  const u = Math.min((c * 11) / width, (c * 7) / depth);
+  const t = Math.max(u, Math.round(c * 0.15));
+  const diagramH = depth * u;
+  ctx.font = textFont;
+  const intro = wrapLines(
+    ctx,
+    textFont,
+    'All frame pieces come in your frame color; counts match the Buy parts list.',
+    bodyW,
+  );
+  const bodies = steps.map((s) => wrapLines(ctx, textFont, s.body, bodyW));
+
+  let h = margin + titleSize + subSize + c; // header
+  h += intro.length * lineStep + c * 0.45;
+  steps.forEach((s, i) => {
+    h += c * 0.9; // step title
+    h += bodies[i].length * lineStep;
+    h += s.diagram ? diagramH + c * 0.35 : c * 0.2;
+  });
+  h += c * 0.9; // footer
+  h += margin;
+
+  canvas.width = margin * 2 + c * 16;
+  canvas.height = Math.ceil(h);
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+
+  ctx.fillStyle = INK;
+  ctx.font = `bold ${titleSize}px ${FONT}`;
+  ctx.fillText(save.name, margin, margin + titleSize / 2);
+  ctx.font = `${subSize}px ${FONT}`;
+  ctx.fillStyle = '#555';
+  ctx.fillText('Frame', margin, margin + titleSize + subSize / 2);
+
+  let y = margin + titleSize + subSize + c;
+  for (const line of intro) {
+    ctx.fillText(line, margin, y);
+    y += lineStep;
+  }
+  y += c * 0.45;
+
+  steps.forEach((s, i) => {
+    ctx.fillStyle = INK;
+    ctx.font = stepFont;
+    ctx.fillText(`${i + 1}. ${s.title}`, margin, y);
+    y += c * 0.9;
+    ctx.fillStyle = '#555';
+    ctx.font = textFont;
+    for (const line of bodies[i]) {
+      ctx.fillText(line, margin, y);
+      y += lineStep;
+    }
+    if (s.diagram === 'backing') drawBacking(ctx, margin, y, u, t, cols, rows);
+    else if (s.diagram === 'ring') drawRingSides(ctx, margin, y, u, t, bricks, width, depth);
+    else if (s.diagram === 'cap') drawCap(ctx, margin, y, u, t, width, depth);
+    y += s.diagram ? diagramH + c * 0.35 : c * 0.2;
+  });
+
+  ctx.fillStyle = '#555';
+  ctx.font = textFont;
+  ctx.fillText('Next: Assembly - join the panels and set them on this frame.', margin, y);
 
   return canvas;
 }

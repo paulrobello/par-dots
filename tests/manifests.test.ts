@@ -6,6 +6,7 @@ import {
   CANVAS_PART_ID,
   DOTS_PART_ID,
   frameItems,
+  frameRingPieces,
   HANGER_PART_ID,
   manifestItems,
   manifestStem,
@@ -160,6 +161,59 @@ describe('frameItems', () => {
   it('colors every frame line with the chosen frame color', () => {
     for (const it of frameItems(LAYOUT['1:1'], 'White')) {
       expect(it.colorName).toBe('White');
+    }
+  });
+});
+
+describe('frameRingPieces', () => {
+  it('splits each ring side into the greedy pieces, per layer', () => {
+    // 3x3 grid: W = D = 50, so ring runs are 50/50/46/46 and the cap runs 46 on all
+    // four sides. The plate layers repeat because the backing border is plates too.
+    expect(frameRingPieces(LAYOUT['1:1'])).toEqual([
+      [
+        [8, 8, 8, 8, 8, 8, 2],
+        [8, 8, 8, 8, 8, 8, 2],
+        [8, 8, 8, 8, 8, 6],
+        [8, 8, 8, 8, 8, 6],
+      ],
+      [
+        [16, 16, 16, 2],
+        [16, 16, 16, 2],
+        [16, 16, 8, 4, 2],
+        [16, 16, 8, 4, 2],
+      ],
+      [
+        [8, 8, 8, 8, 8, 8, 2],
+        [8, 8, 8, 8, 8, 8, 2],
+        [8, 8, 8, 8, 8, 6],
+        [8, 8, 8, 8, 8, 6],
+      ],
+      [
+        [8, 8, 8, 8, 8, 6],
+        [8, 8, 8, 8, 8, 6],
+        [8, 8, 8, 8, 8, 6],
+        [8, 8, 8, 8, 8, 6],
+      ],
+    ]);
+  });
+
+  it('always sums each side exactly to its ring run', () => {
+    for (const grid of [
+      LAYOUT['1:1'],
+      LAYOUT['4:3'],
+      { cols: 10, rows: 10 },
+      { cols: 2, rows: 5 },
+    ]) {
+      const w = 16 * grid.cols + 2;
+      const d = 16 * grid.rows + 2;
+      frameRingPieces(grid).forEach((layer, li) => {
+        // The cap layer (index 3) is inset 2 studs per end; the other layers are not.
+        const [long, short] = li === 3 ? [w - 4, d - 4] : [w, d - 4];
+        expect(layer[0].reduce((a, b) => a + b, 0)).toBe(long);
+        expect(layer[1].reduce((a, b) => a + b, 0)).toBe(long);
+        expect(layer[2].reduce((a, b) => a + b, 0)).toBe(short);
+        expect(layer[3].reduce((a, b) => a + b, 0)).toBe(short);
+      });
     }
   });
 });

@@ -3,12 +3,18 @@
  * the mosaic from real dots (`<name>-panel-N.png`, or every panel as one page of `<name>-guide.pdf`).
  */
 
-import { panelColorCounts, panelCount } from '../game';
+import { gridOfDims, panelColorCounts, panelCount } from '../game';
 import { renderMosaicToCanvas } from '../render/mosaicImage';
-import { renderAssemblySheet, renderGuideOverview, renderPanelSheet } from '../render/panelSheet';
+import {
+  renderAssemblySheet,
+  renderFrameSheet,
+  renderGuideOverview,
+  renderPanelSheet,
+} from '../render/panelSheet';
 import { buildImagePdf } from '../render/pdf';
 import type { PictureSave } from '../types';
 import { downloadBlob, toast } from './dom';
+import { frameRingPieces } from './manifests';
 import { paletteLabels, paletteSymbols, safeFileStem } from './pure';
 
 function downloadCanvas(canvas: HTMLCanvasElement, filename: string): void {
@@ -38,13 +44,14 @@ export function exportPanelSheet(save: PictureSave, i: number): void {
   downloadCanvas(panelSheet(save, i), `${safeFileStem(save.name)}-panel-${i + 1}.png`);
 }
 
-/** Download every panel's sheet as one PDF: overview, assembly, then one panel per US Letter page. */
+/** Download every panel's sheet as one PDF: overview, panels, the frame, then assembly. */
 export async function exportAllSheets(save: PictureSave): Promise<void> {
   try {
-    // Overview first, then the coloring sheets, and the assembly instructions last.
+    // Overview, then the coloring sheets, then how to build the frame and assemble the picture.
     const sheets = [
       renderGuideOverview(save),
       ...Array.from({ length: panelCount(save) }, (_, i) => panelSheet(save, i)),
+      renderFrameSheet(save, frameRingPieces(gridOfDims(save.width, save.height))),
       renderAssemblySheet(save),
     ];
     const pages = await Promise.all(
