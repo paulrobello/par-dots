@@ -192,14 +192,16 @@ function runPieces(run: number, lengths: readonly number[]): number[] {
  * Piece lengths per side for each raised-frame ring layer, sides in [top, bottom,
  * left, right] order: the backing's 1-stud border ring (plates), the brick ring up to
  * panel-top height, the plate layer over the bricks, and the smooth tile cap one plate
- * above the dots, inset 2 studs per end. Ring runs are [W, W, D-4, D-4] for
- * W = 16*cols+2, D = 16*rows+2, so the greedy pieces always sum exactly. Single source
- * of truth shared by `frameItems` (what to buy) and the guide's Frame page (what goes where).
+ * above the dots, inset 2 studs per end. The three studded ring layers run the full
+ * border perimeter, so their runs are [W, W, D-2, D-2] for W = 16*cols+2, D = 16*rows+2
+ * (sum 2W + 2(D-2)); the cap's runs are [W-4, W-4, D-4, D-4], leaving the four 2x2
+ * corners open. The greedy pieces always sum exactly. Single source of truth shared by
+ * `frameItems` (what to buy) and the guide's Frame page (what goes where).
  */
 export function frameRingPieces(grid: { cols: number; rows: number }): number[][][] {
   const width = 16 * grid.cols + 2;
   const depth = 16 * grid.rows + 2;
-  const runs = [width, width, depth - 4, depth - 4];
+  const runs = [width, width, depth - 2, depth - 2];
   return [
     runs.map((run) => runPieces(run, FRAME_PLATE_LENGTHS)),
     runs.map((run) => runPieces(run, FRAME_BRICK_LENGTHS)),

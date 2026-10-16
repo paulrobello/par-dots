@@ -411,7 +411,7 @@ export function renderFrameSheet(
       },
       {
         title: 'Raise the brick ring',
-        body: `On the border ring lay one layer of bricks, longest piece first: long runs top and bottom (${width} studs, ${listPieces(bricks[0], 'brick')} each), short runs left and right (${depth - 4} studs, ${listPieces(bricks[2], 'brick')} each). Lay the two long runs first, then the short runs between them.`,
+        body: `On the border ring lay one layer of bricks, longest piece first: long runs top and bottom (${width} studs, ${listPieces(bricks[0], 'brick')} each), short runs left and right (${depth - 2} studs, ${listPieces(bricks[2], 'brick')} each). Lay the two long runs first, then the short runs between them.`,
         diagram: 'ring',
       },
       {

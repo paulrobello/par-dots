@@ -166,7 +166,7 @@ describe('renderGuideOverview', () => {
 
 describe('renderFrameSheet', () => {
   it('teaches the frame layer by layer with exact per-side piece lists', () => {
-    const save = wideSave(); // 4x3 panels: W = 66, D = 50, side runs 46
+    const save = wideSave(); // 4x3 panels: W = 66, D = 50, side runs 48
     const canvas = renderFrameSheet(save, frameRingPieces(gridOfDims(save.width, save.height)));
     expect(canvas.width).toBeGreaterThan(0);
     expect(canvas.height).toBeGreaterThan(0);
@@ -179,8 +179,8 @@ describe('renderFrameSheet', () => {
     expect(has('one layer of bricks')).toBe(true);
     // 66 = 16x4 + 2, so the long runs get four 1x16 bricks and a 1x2.
     expect(has('4 x brick 1x16 + 1 x brick 1x2 each')).toBe(true);
-    // 46 = 16x2 + 8 + 4 + 2.
-    expect(has('2 x brick 1x16 + 1 x brick 1x8 + 1 x brick 1x4 + 1 x brick 1x2 each')).toBe(true);
+    // 48 = 16x3.
+    expect(has('short runs left and right (48 studs, 3 x brick 1x16 each)')).toBe(true);
     expect(has('Add the plate layer')).toBe(true);
     expect(has('Cap with tiles')).toBe(true);
     // Cap runs: 62 = 7x8 + 6 on top/bottom, 46 = 5x8 + 6 on the sides.

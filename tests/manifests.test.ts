@@ -141,17 +141,14 @@ describe('frameItems', () => {
     Object.fromEntries(items.map((it) => [it.partId, it.qty]));
 
   it('lists the raised-frame recipe for the square grid', () => {
-    // W = D = 50: ring runs 50/50/46/46, cap runs 46/46/46/46. The plate layer is two
-    // passes because the backing's border ring is plates too.
+    // W = D = 50: ring runs 50/50/48/48 (perimeter 2*50 + 2*48 = 196), cap runs
+    // 46/46/46/46. The plate layer is two passes because the backing border is plates too.
     expect(byPart(frameItems(LAYOUT['1:1'], 'Black'))).toEqual({
       '91405': 9, // Plate 16x16 backing, one per panel
-      '3460': 44, // Plate 1x8: backing border + dot-height layer
-      '3666': 4, // Plate 1x6
+      '3460': 48, // Plate 1x8: backing border + dot-height layer
       '3023': 4, // Plate 1x2
-      '2465': 10, // Brick 1x16, up to panel-top height
-      '3008': 2, // Brick 1x8
-      '3010': 2, // Brick 1x4
-      '3004': 4, // Brick 1x2
+      '2465': 12, // Brick 1x16, up to panel-top height
+      '3004': 2, // Brick 1x2
       '4162': 20, // Tile 1x8 cap, one plate above the dots
       '6636': 4, // Tile 1x6
       '3022': 4, // Plate 2x2 studded corner caps
@@ -167,26 +164,26 @@ describe('frameItems', () => {
 
 describe('frameRingPieces', () => {
   it('splits each ring side into the greedy pieces, per layer', () => {
-    // 3x3 grid: W = D = 50, so ring runs are 50/50/46/46 and the cap runs 46 on all
-    // four sides. The plate layers repeat because the backing border is plates too.
+    // 3x3 grid: W = D = 50, so the studded ring runs are 50/50/48/48 (the sides span
+    // between the top/bottom runs) and the cap runs 46 on all four sides.
     expect(frameRingPieces(LAYOUT['1:1'])).toEqual([
       [
         [8, 8, 8, 8, 8, 8, 2],
         [8, 8, 8, 8, 8, 8, 2],
-        [8, 8, 8, 8, 8, 6],
-        [8, 8, 8, 8, 8, 6],
+        [8, 8, 8, 8, 8, 8],
+        [8, 8, 8, 8, 8, 8],
       ],
       [
         [16, 16, 16, 2],
         [16, 16, 16, 2],
-        [16, 16, 8, 4, 2],
-        [16, 16, 8, 4, 2],
+        [16, 16, 16],
+        [16, 16, 16],
       ],
       [
         [8, 8, 8, 8, 8, 8, 2],
         [8, 8, 8, 8, 8, 8, 2],
-        [8, 8, 8, 8, 8, 6],
-        [8, 8, 8, 8, 8, 6],
+        [8, 8, 8, 8, 8, 8],
+        [8, 8, 8, 8, 8, 8],
       ],
       [
         [8, 8, 8, 8, 8, 6],
@@ -207,8 +204,9 @@ describe('frameRingPieces', () => {
       const w = 16 * grid.cols + 2;
       const d = 16 * grid.rows + 2;
       frameRingPieces(grid).forEach((layer, li) => {
-        // The cap layer (index 3) is inset 2 studs per end; the other layers are not.
-        const [long, short] = li === 3 ? [w - 4, d - 4] : [w, d - 4];
+        // The cap layer (index 3) is inset 2 studs per end; the studded ring layers
+        // span the full perimeter, sides running between the top/bottom runs.
+        const [long, short] = li === 3 ? [w - 4, d - 4] : [w, d - 2];
         expect(layer[0].reduce((a, b) => a + b, 0)).toBe(long);
         expect(layer[1].reduce((a, b) => a + b, 0)).toBe(long);
         expect(layer[2].reduce((a, b) => a + b, 0)).toBe(short);

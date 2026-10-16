@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The raised frame's ring recipe was four studs short per studded layer: the side runs used the cap's inset length (D−4) instead of the full border span (D−2), so the backing border, brick ring and plate layer each came up one to two pieces short at the four corner junctions. Corrected per-side piece lists now appear on the Frame page and in the Buy parts exports; for a 9-panel picture the brick bill changes from ten to twelve 1x16 bricks and the plate 1x6 and 1x8/1x4 bricks drop out.
 - Draw-editor partial repaints no longer stack seam and grid lines, which made white seams appear after undo and the grid brighten with every tool use.
 
 - Free color names now describe the actual shade, including burgundy, rust, and peach, instead of borrowing the nearest LEGO name. Existing pictures show the corrected names in the tray, Parts, and building guides without changing their colors or progress. LEGO mode retains official names.
