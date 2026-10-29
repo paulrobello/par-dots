@@ -216,7 +216,7 @@ export const SAVE_SCHEMA_VERSION = 2;
 
 export interface PaletteColor {
   hex: string; // "#rrggbb"
-  name: string; // LEGO color name (free mode: nearest LEGO name)
+  name: string; // LEGO color name (free mode: descriptive shade name)
 }
 
 export interface Mosaic {
