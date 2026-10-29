@@ -153,16 +153,41 @@ export function mountGallery({ root, navigate }: ScreenContext): Cleanup {
       return;
     }
     list.replaceChildren(
-      h('div', { class: 'save-grid-inner' }, ...photos.map((s) => card(s))),
+      h('div', { class: 'save-grid-inner' }, ...photos.map((s) => saveCard(s))),
       ...(photos.length === 0 ? [h('p', { class: 'muted' }, 'No pictures yet.')] : []),
       h('h2', { class: 'section-title' }, 'My drawings'),
       ...(drawn.length === 0
         ? [h('p', { class: 'muted' }, 'No drawings yet. Tap Make my own to start one.')]
-        : [h('div', { class: 'save-grid-inner' }, ...drawn.map((s) => drawnCard(s)))]),
+        : [h('div', { class: 'save-grid-inner' }, ...drawn.map((s) => saveCard(s)))]),
     );
   };
 
-  const drawnCard = (save: PictureSave): HTMLElement => {
+  /** Ask for confirmation, run the action, surface failures, then refresh the gallery. */
+  const confirmAction = async (
+    title: string,
+    body: string,
+    confirmLabel: string,
+    action: () => Promise<void>,
+    failure: string,
+  ): Promise<void> => {
+    const ok = await confirmDialog(title, body, confirmLabel);
+    if (!ok) return;
+    try {
+      await action();
+    } catch (err) {
+      console.error(err);
+      toast(`${failure}: ${userMessage(err)}`);
+    }
+    void render();
+  };
+
+  /**
+   * One card builder for both origins: drawn saves show a dot count and always offer
+   * Download PNG; photo saves show progress, a done badge, and Download only when complete.
+   */
+  const saveCard = (save: PictureSave): HTMLElement => {
+    const drawn = save.origin === 'drawn';
+    const done = !drawn && pictureComplete(save);
     const cellPx = Math.max(2, Math.round(192 / Math.max(save.width, save.height)));
     const thumb = asThumb(
       renderMosaicToCanvas(save, cellPx * (window.devicePixelRatio > 1 ? 2 : 1), 'dots', {
@@ -170,174 +195,36 @@ export function mountGallery({ root, navigate }: ScreenContext): Cleanup {
       }),
       `${save.name} preview`,
     );
-    const open = (): void => navigate(routeHash({ name: 'drawEditor', id: save.id }));
-    const restart = async (): Promise<void> => {
-      const ok = await confirmDialog(
-        'Restart drawing?',
-        `Everything drawn in "${save.name}" will be removed.`,
+    const openHash = drawn
+      ? routeHash({ name: 'drawEditor', id: save.id })
+      : routeHash({ name: 'overview', id: save.id });
+    const open = (): void => navigate(openHash);
+    const restart = (): Promise<void> =>
+      confirmAction(
+        drawn ? 'Restart drawing?' : 'Restart picture?',
+        drawn
+          ? `Everything drawn in "${save.name}" will be removed.`
+          : `All placed dots in "${save.name}" will be removed and the timer reset.`,
         'Restart',
+        () => (drawn ? restartDrawnSave(save) : restartSave(save)),
+        'Could not restart',
       );
-      if (!ok) return;
-      try {
-        await restartDrawnSave(save);
-      } catch (err) {
-        console.error(err);
-        toast(`Could not restart: ${userMessage(err)}`);
-      }
-      void render();
-    };
-    const del = async (): Promise<void> => {
-      const ok = await confirmDialog(
-        'Delete drawing?',
-        `"${save.name}" will be deleted. This cannot be undone.`,
+    const del = (): Promise<void> =>
+      confirmAction(
+        drawn ? 'Delete drawing?' : 'Delete picture?',
+        drawn
+          ? `"${save.name}" will be deleted. This cannot be undone.`
+          : `"${save.name}" and its progress will be deleted. This cannot be undone.`,
         'Delete',
+        () => removeSave(save.id),
+        'Could not delete',
       );
-      if (!ok) return;
-      try {
-        await removeSave(save.id);
-      } catch (err) {
-        console.error(err);
-        toast(`Could not delete: ${userMessage(err)}`);
-      }
-      void render();
-    };
-    return h(
-      'article',
-      { class: 'save-card' },
-      h(
-        'button',
-        {
-          type: 'button',
-          class: 'save-thumb',
-          'aria-label': `Continue ${save.name}`,
-          on: { click: open },
-        },
-        thumb,
-      ),
-      h(
-        'div',
-        { class: 'save-meta' },
-        h('h3', {}, save.name),
-        h('p', { class: 'muted small' }, `${placedCount(save)} dots`),
-      ),
-      h(
-        'div',
-        { class: 'save-actions' },
-        h(
-          'button',
-          { type: 'button', class: 'btn primary', on: { click: open } },
-          icon('play'),
-          'Continue',
-        ),
-        h(
-          'button',
-          {
-            type: 'button',
-            class: 'icon-btn',
-            'aria-label': `Download ${save.name} as PNG`,
-            'data-tip': 'Download PNG',
-            on: { click: () => exportPng(save) },
-          },
-          icon('download'),
-        ),
-        h(
-          'button',
-          {
-            type: 'button',
-            class: 'icon-btn',
-            'aria-label': `Back up ${save.name}`,
-            'data-tip': 'Back up',
-            on: {
-              click: () => void downloadBackup([save], `${safeFileStem(save.name)}.pardots`),
-            },
-          },
-          icon('backup'),
-        ),
-        h(
-          'button',
-          {
-            type: 'button',
-            class: 'icon-btn',
-            'aria-label': `Restart ${save.name}`,
-            'data-tip': 'Restart',
-            on: { click: () => void restart() },
-          },
-          icon('restart'),
-        ),
-        h(
-          'button',
-          {
-            type: 'button',
-            class: 'icon-btn',
-            'aria-label': `Delete ${save.name}`,
-            'data-tip': 'Delete',
-            on: { click: () => void del() },
-          },
-          icon('trash'),
-        ),
-      ),
-    );
-  };
-
-  const card = (save: PictureSave): HTMLElement => {
-    const prog = overallProgress(save);
-    const done = pictureComplete(save);
-    const cellPx = Math.max(2, Math.round(192 / Math.max(save.width, save.height)));
-    const thumb = asThumb(
-      renderMosaicToCanvas(save, cellPx * (window.devicePixelRatio > 1 ? 2 : 1), 'dots', {
-        cells: save.placed,
-      }),
-      `${save.name} preview`,
-    );
-    const open = (): void => navigate(routeHash({ name: 'overview', id: save.id }));
-    const restart = async (): Promise<void> => {
-      const ok = await confirmDialog(
-        'Restart picture?',
-        `All placed dots in "${save.name}" will be removed and the timer reset.`,
-        'Restart',
-      );
-      if (!ok) return;
-      try {
-        await restartSave(save);
-      } catch (err) {
-        console.error(err);
-        toast(`Could not restart: ${userMessage(err)}`);
-      }
-      void render();
-    };
-    const del = async (): Promise<void> => {
-      const ok = await confirmDialog(
-        'Delete picture?',
-        `"${save.name}" and its progress will be deleted. This cannot be undone.`,
-        'Delete',
-      );
-      if (!ok) return;
-      try {
-        await removeSave(save.id);
-      } catch (err) {
-        console.error(err);
-        toast(`Could not delete: ${userMessage(err)}`);
-      }
-      void render();
-    };
-    return h(
-      'article',
-      { class: 'save-card' },
-      h(
-        'button',
-        {
-          type: 'button',
-          class: 'save-thumb',
-          'aria-label': `Continue ${save.name}`,
-          on: { click: open },
-        },
-        thumb,
-        done ? h('span', { class: 'done-badge' }, icon('check')) : null,
-      ),
-      h(
-        'div',
-        { class: 'save-meta' },
-        h('h3', {}, save.name),
+    const meta = h('div', { class: 'save-meta' }, h('h3', {}, save.name));
+    if (drawn) {
+      meta.append(h('p', { class: 'muted small' }, `${placedCount(save)} dots`));
+    } else {
+      const prog = overallProgress(save);
+      meta.append(
         h(
           'div',
           {
@@ -354,7 +241,23 @@ export function mountGallery({ root, navigate }: ScreenContext): Cleanup {
           { class: 'muted small' },
           `${done ? 'Complete' : formatPercent(prog.percent)} · ${formatDuration(totalMs(save))}`,
         ),
+      );
+    }
+    return h(
+      'article',
+      { class: 'save-card' },
+      h(
+        'button',
+        {
+          type: 'button',
+          class: 'save-thumb',
+          'aria-label': `Continue ${save.name}`,
+          on: { click: open },
+        },
+        thumb,
+        done ? h('span', { class: 'done-badge' }, icon('check')) : null,
       ),
+      meta,
       h(
         'div',
         { class: 'save-actions' },
@@ -364,7 +267,7 @@ export function mountGallery({ root, navigate }: ScreenContext): Cleanup {
           icon('play'),
           done ? 'View' : 'Continue',
         ),
-        done
+        drawn || done
           ? h(
               'button',
               {
