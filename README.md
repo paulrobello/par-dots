@@ -48,8 +48,8 @@ Everything runs on-device: uploads never leave your phone, progress is saved loc
 | *Picture setup* | *Progress overview* |
 | ![Panel play, starting](https://raw.githubusercontent.com/paulrobello/par-dots/main/screenshots/panel-play-start.png) | ![Panel play, in progress](https://raw.githubusercontent.com/paulrobello/par-dots/main/screenshots/panel-play-progress.png) |
 | *Panel play, starting* | *Panel play, in progress* |
-| ![Settings](https://raw.githubusercontent.com/paulrobello/par-dots/main/screenshots/settings.png) | |
-| *Settings* | |
+| ![Draw editor](https://raw.githubusercontent.com/paulrobello/par-dots/main/screenshots/draw-editor.png) | ![Settings](https://raw.githubusercontent.com/paulrobello/par-dots/main/screenshots/settings.png) |
+| *Draw editor* | *Settings* |
 
 ## Features
 
@@ -58,6 +58,7 @@ Everything runs on-device: uploads never leave your phone, progress is saved loc
 - **Framing and Layout**: Drag and pinch to crop, then choose Square, Portrait or Landscape (9 or 12 panels of 16x16 studs)
 - **LEGO or Free Colors**: Match the official LEGO Dots palette or let the quantizer pick free colors, from 2 to 32, with optional dithering for photos
 - **Panel Play**: A color tray with remaining counts, Remove and Move modes, Hint, Undo/Redo, pinch zoom, and a reference overlay
+- **Draw Your Own**: A freehand mosaic editor for blank mosaics — brush, line, box, ellipse, polygon, fill, eyedropper and eraser tools, mirror painting, an editable palette and a 50-move undo history — with the same dot sounds as panel play, and LEGO-mode parts exports like any photo picture
 - **Progress Overview**: Panel progress badges, a Ghost toggle, animated zoom into panels, and previous/next panel navigation
 - **Celebrations and Export**: Sounds, haptics and celebrations on completion, plus PNG download of finished pictures
 
@@ -100,6 +101,10 @@ Everything runs on-device: uploads never leave your phone, progress is saved loc
 | Escape | Back to the overview |
 
 A panel is done when every stud holds the correct color. Finished pictures can be downloaded as a PNG from the finale, the overview, or the gallery, and opened full size with **View picture** on the overview. The overview's Parts sheet also holds **Buy parts** exports (BrickLink wanted-list XML or Rebrickable part-list CSV, LEGO palette mode only) and **Guide** downloads of the building sheets. "Back up all" in the gallery saves every picture, with its progress and uploaded photo, to a `.pardots` file, and "Restore" loads one back on any browser or device. Sound, place sound, haptics, background music (Happy, Calm or Energy) and separate effects and music volumes are in the settings sheet (gear button at the top right of every screen).
+
+### Draw your own
+
+Tap **New Picture**, then **Make my own**, and create a blank mosaic: name it, choose the aspect, a Small/Medium/Large or typed Custom size (1x1 to 10x10 panels), **LEGO colors** or **Free colors**, and a background. The editor spans the whole mosaic with visible panel seams and holds every tool on screen: brush, line, box, ellipse, polygon, fill, eyedropper and eraser, with mirror painting and a 50-move undo/redo history. Placing dots plays the same sounds and haptics as panel play, and hovering shows a ghost of the cells the next stroke will paint. Pan and zoom with drag, pinch, double-tap or Shift+drag. Edit the title in the top bar to rename the drawing. In LEGO colors mode a drawing exports the same parts lists and printable guides as a photo picture. Drawn pictures never complete — no timer, no progress, no done badge — and the gallery lists them under **My drawings** with their dot count.
 
 ## Development
 
@@ -197,11 +202,14 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the layers fit together
 
 ### Unreleased
 
-* **Building tools**: Parts list with dot counts per color, printable per-panel building sheets with color symbols (all panels as one PDF or a single panel as a PNG), and buy-parts exports covering the dot colors plus the physical build kit (BrickLink wanted-list XML and Rebrickable part-list CSV)
+* **Draw your own**: create a blank mosaic (aspect, size, palette mode, background) and paint it freehand — brush, line, box, ellipse, polygon, fill, eyedropper and eraser tools, mirror painting, an editable palette, 50-move undo, the same dot sounds and haptics as panel play, hover ghosts of the next stroke, and Shift+drag panning; drawings can be renamed from the editor's top bar
+* **Guides and parts**: building guides open with a numbered overview page and close with an assembly page; the raised frame exports as a buildable kit — backing plate, brick ring, plate layer and tile cap with corrected per-side piece lists — with a three-pins-per-shared-edge pin budget (was five) and a "No frame" choice
+* **Picture sizes**: Small, Medium, Large and typed Custom grids from 1x1 to 10x10 panels; preview, parts lists, guides and the assembly plan all scale with the grid, and existing saves keep playing unchanged
+* **Building tools**: Parts list with dot counts per color, printable per-panel building sheets with color symbols (all panels as one PDF or a single panel as a PNG), and buy-parts exports covering the dot colors plus the physical build kit (BrickLink wanted-list XML and Rebrickable part-list CSV, LEGO palette mode only)
 * **Play**: Previous/next panel navigation, right mouse button removes dots, the panel timer pauses while Settings is open
-* **Pictures**: Optional Floyd-Steinberg dithering for photo mosaics; View picture shows a finished mosaic full size on the overview
+* **Pictures**: Optional Floyd-Steinberg dithering for photo mosaics; uploads with transparency composite over a chosen background color defaulting to black; View picture shows a finished mosaic full size on the overview
 * **Data**: Back up and restore to `.pardots` files, persistent storage request with usage shown in Settings
-* **Settings**: Background color presets, background music with three looping tracks and separate effects and music volumes
+* **Settings**: Background color presets, background music with three looping tracks and separate effects and music volumes; fast styled tooltips throughout
 
 ### v0.1.0
 
