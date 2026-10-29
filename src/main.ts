@@ -10,14 +10,14 @@ import { initMusic } from './audio/music';
 import { initAudio } from './audio/sfx';
 import { getSettings } from './storage/settings';
 import { applyBackground } from './ui/background';
-import { closeAllOverlays, isOverlayOpen } from './ui/dom';
+import { closeAllOverlays, h, isOverlayOpen } from './ui/dom';
 import { mountDrawCreate } from './ui/drawCreate';
 import { mountDrawEditor } from './ui/drawEditor';
 import { mountGallery } from './ui/gallery';
 import { initInstall } from './ui/install';
 import { mountOverview } from './ui/overview';
 import { mountPanelPlay } from './ui/panelPlay';
-import { parseRoute, shouldApplyUpdate } from './ui/pure';
+import { parseRoute, type Route, shouldApplyUpdate, userMessage } from './ui/pure';
 import { whenSaved } from './ui/saves';
 import type { Cleanup, Navigate, ScreenContext } from './ui/screen';
 import { mountSetup } from './ui/setup';
@@ -52,32 +52,60 @@ function render(): void {
   const route = parseRoute(location.hash);
   const ctx: ScreenContext = { root: appRoot, navigate };
   appRoot.dataset.screen = route.name;
-  switch (route.name) {
-    case 'gallery':
-      cleanup = mountGallery(ctx);
-      break;
-    case 'new':
-      cleanup = mountSource(ctx);
-      break;
-    case 'setup':
-      cleanup = mountSetup(ctx);
-      break;
-    case 'drawNew':
-      cleanup = mountDrawCreate(ctx);
-      break;
-    case 'drawEditor':
-      cleanup = mountDrawEditor(ctx, route.id);
-      break;
-    case 'overview':
-      cleanup = mountOverview(ctx, route.id);
-      break;
-    case 'panel':
-      cleanup = mountPanelPlay(ctx, route.id, route.panel);
-      break;
+  try {
+    cleanup = mountRoute(route, ctx);
+  } catch (err) {
+    console.error(err);
+    // A throw mid-mount leaves a half-built screen; discard it and offer a way out.
+    appRoot.replaceChildren();
+    appRoot.dataset.screen = 'error';
+    cleanup = mountCrashScreen(ctx, err);
   }
   window.scrollTo(0, 0);
   trackPageView();
   maybeApplyUpdate();
+}
+
+/** Mount one screen per route name. */
+function mountRoute(route: Route, ctx: ScreenContext): Cleanup | null {
+  switch (route.name) {
+    case 'gallery':
+      return mountGallery(ctx);
+    case 'new':
+      return mountSource(ctx);
+    case 'setup':
+      return mountSetup(ctx);
+    case 'drawNew':
+      return mountDrawCreate(ctx);
+    case 'drawEditor':
+      return mountDrawEditor(ctx, route.id);
+    case 'overview':
+      return mountOverview(ctx, route.id);
+    case 'panel':
+      return mountPanelPlay(ctx, route.id, route.panel);
+  }
+}
+
+/** Minimal screen for a route whose mount threw; the gallery is the way back. */
+function mountCrashScreen(ctx: ScreenContext, err: unknown): Cleanup {
+  ctx.root.append(
+    h(
+      'div',
+      { class: 'screen error-screen' },
+      h('header', { class: 'topbar' }, h('h1', { class: 'title' }, 'Something went wrong')),
+      h(
+        'div',
+        { class: 'scroll' },
+        h('p', { class: 'muted' }, `This screen could not open: ${userMessage(err)}`),
+        h(
+          'button',
+          { class: 'btn primary big', type: 'button', on: { click: () => ctx.navigate('#/') } },
+          'Back to gallery',
+        ),
+      ),
+    ),
+  );
+  return () => {};
 }
 
 /** Set once a new service worker is waiting; calling it activates the worker. */
