@@ -13,7 +13,7 @@ import { BoardRenderer } from '../render/boardRenderer';
 import type { PictureSave } from '../types';
 import { bindBoardInput, type StrokeIntent } from './boardInput';
 import { celebratePanel } from './celebrate';
-import { h, isOverlayOpen, openSheet, toast } from './dom';
+import { h, icon, isOverlayOpen, openSheet, toast } from './dom';
 import { maybePromptInstall } from './install';
 import { createPanelTimer } from './panelTimer';
 import { bindPlayFeedback } from './playFeedback';
@@ -368,6 +368,53 @@ export function mountPanelPlay(
     };
     document.addEventListener('keydown', onKey);
 
+    // ---- XR (P0): Enter VR entry, shown only when immersive-vr is supported --------------
+    // src/xr/ is reached only through these dynamic imports, so 2D-only sessions never
+    // parse three.js; the click path imports scene.ts and requests the session.
+    let xrLaunch: { end(): Promise<void> } | null = null;
+    const vrBtn = h(
+      'button',
+      { type: 'button', class: 'chip', 'aria-label': 'Enter VR' },
+      icon('box'),
+      h('span', {}, 'Enter VR'),
+    );
+    const enterVr = async (): Promise<void> => {
+      const xr = navigator.xr;
+      if (!xr || xrLaunch) return;
+      vrBtn.disabled = true;
+      try {
+        const [{ requestVrSession }, { launchVr }] = await Promise.all([
+          import('../xr/session'),
+          import('../xr/scene'),
+        ]);
+        if (!alive) return;
+        const session = await requestVrSession(xr);
+        if (!alive) {
+          void session.end().catch(() => undefined);
+          return;
+        }
+        xrLaunch = launchVr(session, {
+          onEnd: () => {
+            xrLaunch = null;
+            vrBtn.disabled = false;
+            saveNow();
+          },
+        });
+      } catch (err) {
+        console.error(err);
+        toast(`Could not enter VR: ${userMessage(err)}`, 4000);
+        vrBtn.disabled = false;
+      }
+    };
+    vrBtn.addEventListener('click', () => void enterVr());
+    void import('../xr/session')
+      .then(async ({ xrSupport }) => {
+        const { vr } = await xrSupport(navigator.xr);
+        if (!alive || !vr) return;
+        view.playSide.append(vrBtn);
+      })
+      .catch(() => undefined);
+
     if (!lockedAtOpen) syncTray(false);
     maybePromptInstall();
     updateHud();
@@ -383,6 +430,7 @@ export function mountPanelPlay(
       board.destroy();
       document.removeEventListener('visibilitychange', onVisibility);
       document.removeEventListener('keydown', onKey);
+      void xrLaunch?.end();
     };
   };
 

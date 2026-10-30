@@ -25,6 +25,8 @@ export interface PlayView {
   undoBtn: HTMLButtonElement;
   redoBtn: HTMLButtonElement;
   tray: HTMLElement;
+  /** Side column beside the board; the XR entry button is appended here when supported. */
+  playSide: HTMLElement;
 }
 
 const toolButton = (name: IconName, label: string, text: string, pressable = true) =>
@@ -86,6 +88,7 @@ export function renderPlayView(
   const undoBtn = toolButton('undo', 'Undo', 'Undo', false);
   const redoBtn = toolButton('redo', 'Redo', 'Redo', false);
   const tray = h('div', { class: 'tray', role: 'radiogroup', 'aria-label': 'Dot colors' });
+  const playSide = h('div', { class: 'play-side' }, refBtn, overlayBtn);
   const prevBtn = iconButton('chevron-left', 'Previous panel', actions.prev, 'icon-btn nav-btn');
   prevBtn.disabled = panel === 0;
   const nextBtn = iconButton('chevron-right', 'Next panel', actions.next, 'icon-btn nav-btn');
@@ -117,12 +120,7 @@ export function renderPlayView(
       timeEl,
       iconButton('gear', 'Settings', actions.settings),
     ),
-    h(
-      'div',
-      { class: 'play-body' },
-      h('div', { class: 'play-side' }, refBtn, overlayBtn),
-      boardWrap,
-    ),
+    h('div', { class: 'play-body' }, playSide, boardWrap),
     locked
       ? h('div', { class: 'locked-note' }, icon('check'), 'Panel complete')
       : h('div', { class: 'play-controls' }, toolbar, h('div', { class: 'tray-wrap' }, tray)),
@@ -148,6 +146,7 @@ export function renderPlayView(
     undoBtn,
     redoBtn,
     tray,
+    playSide,
   };
 }
 

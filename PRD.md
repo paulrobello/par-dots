@@ -2,7 +2,7 @@
 
 **Status:** v1 as built (updated 2026-09-26) · **Owner:** Paul Robello
 
-This document describes par-dots as it ships. For how the code is organized, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+This document describes par-dots as it ships. For how the code is organized, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The WebXR mode is specified separately in [PRD-XR.md](PRD-XR.md).
 
 ## Table of Contents
 

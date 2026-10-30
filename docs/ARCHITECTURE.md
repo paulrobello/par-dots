@@ -9,6 +9,7 @@ How par-dots is organized: the source layers, how a photo becomes a playable pic
 - [New-Picture Pipeline](#new-picture-pipeline)
 - [Routes and Screens](#routes-and-screens)
 - [Panel Play Screen](#panel-play-screen)
+- [XR Entry](#xr-entry-p0)
 - [Persistence](#persistence)
 - [PWA and Updates](#pwa-and-updates)
 - [Conventions](#conventions)
@@ -69,6 +70,7 @@ graph TD
 | `src/engine/` | Image math: crop and area-average resample (`resample.ts`), quantization (`quantize.ts`), Lab color math (`color.ts`), the LEGO color table (`legoPalette.ts`), free-color shade names (`colorNames.ts`), the quantize worker and its client | DOM-free; runs in a worker or on the main thread |
 | `src/game/` | Panel geometry (`geometry.ts`), per-panel rules and undo/redo (`panelSession.ts`), progress (`progress.ts`) | DOM-free; `PanelSession` mutates `save.placed` in place and emits events |
 | `src/render/` | `BoardRenderer` (one 16x16 panel), `OverviewRenderer` (the whole picture), offscreen mosaic images, building sheets (per-panel pages plus the guide's overview, frame and assembly pages) and a minimal PDF writer (`pdf.ts`), sprites, layout math, shared canvas helpers | Knows nothing about screens; `render/color.ts` reuses `engine/color.ts` |
+| `src/xr/` | WebXR session detection and the VR studio scene (`session.ts` three.js-free, `scene.ts` the only three.js importer) | Dynamically imported from panel play only, so 2D-only sessions never parse three.js; no 2D layer imports `xr/` |
 | `src/storage/` | IndexedDB (`db.ts`), save validation and migration (`migrate.ts`), settings (`settings.ts`), storage persistence and quota (`quota.ts`), id generation (`id.ts`) | `ui/` reaches `db.ts` only through `src/ui/saves.ts` |
 | `src/audio/` | Web Audio sounds and `navigator.vibrate` haptics (`sfx.ts`), looping background music from `public/music/*.mp3` (`music.ts`) | Reads settings on every call; music starts on the first gesture and pauses while hidden |
 | `src/ui/` | Screens, DOM helpers, input handling, the save repository, navigation handoff state | The only layer that touches the document |
@@ -148,6 +150,10 @@ Game rules stay in `game/`: `ui/` never decides whether a dot is correct, it ask
 `engine/colorNames.ts` describes Free colors from their RGB shade. Quantization stores those names for new pictures, while `paletteLabels(palette, mode)` derives them for existing Free pictures when the tray, Parts, or building guides are rendered. LEGO labels stay intact. Display relabeling never mutates saves or changes palette indices, target cells, or placed cells.
 
 Visual effects do not delay game-state updates. The renderer runs its animation loop only while an effect is active and resolves a pending completion sweep when destroyed. Panel play waits for that sweep before showing the board-local badge in `celebrate.ts`; full-screen confetti is used only by the picture finale. The tray owns transient selection, count, and completed-color feedback and disposes its animation resources on unmount. Reduced motion skips movement while retaining the resulting state and completion message.
+
+## XR Entry (P0)
+
+The "Enter VR" chip on panel play is the WebXR entry (spec: [PRD-XR.md](../PRD-XR.md)). It exists only after `navigator.xr` reports `immersive-vr` support, so desktop browsers and iOS never render it. `src/xr/session.ts` (no three.js) detects support and requests the session with a `local-floor` reference space; `src/xr/scene.ts` (the only three.js importer) builds the studio — void background, grid floor, neutral lights — binds the session via `renderer.xr.setSession()`, and on the session's `end` event stops the loop, disposes the studio's GPU resources, and hands control back so panel play saves and re-enables the button. Both modules are reached only through dynamic imports in `ui/panelPlay.ts`, so a 2D-only session never parses three.js.
 
 ## Persistence
 
