@@ -55,6 +55,62 @@ const BG_SWATCHES: Array<{ hex: string; label: string }> = [
   { hex: '#ffffff', label: 'White' },
 ];
 
+/** Wraps a range input with touch-sized step controls while retaining native range behavior. */
+export function rangeWithButtons(input: HTMLInputElement, onInput: () => void): HTMLDivElement {
+  const decrement = h(
+    'button',
+    {
+      type: 'button',
+      class: 'range-step',
+      'aria-label': `Decrease ${input.getAttribute('aria-label') ?? 'value'}`,
+    },
+    '−',
+  );
+  const increment = h(
+    'button',
+    {
+      type: 'button',
+      class: 'range-step',
+      'aria-label': `Increase ${input.getAttribute('aria-label') ?? 'value'}`,
+    },
+    '+',
+  );
+  const sync = (): void => {
+    const value = input.valueAsNumber;
+    const min = input.min === '' ? -Infinity : Number(input.min);
+    const max = input.max === '' ? Infinity : Number(input.max);
+    decrement.disabled = value <= min;
+    increment.disabled = value >= max;
+  };
+  input.addEventListener('input', () => {
+    onInput();
+    sync();
+  });
+  const step = (direction: -1 | 1): void => {
+    const before = input.value;
+    if (direction < 0) input.stepDown();
+    else input.stepUp();
+    // happy-dom does not currently implement stepUp/stepDown. Keep the control usable in
+    // that environment while matching the native range semantics used by browsers.
+    if (input.value === before) {
+      const amount = Number(input.step) || 1;
+      const min = input.min === '' ? -Infinity : Number(input.min);
+      const max = input.max === '' ? Infinity : Number(input.max);
+      const next = Math.max(min, Math.min(max, input.valueAsNumber + direction * amount));
+      if (next !== input.valueAsNumber) input.value = String(next);
+    }
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+  decrement.addEventListener('click', () => {
+    step(-1);
+  });
+  increment.addEventListener('click', () => {
+    step(1);
+  });
+  sync();
+  return h('div', { class: 'range-stepper' }, decrement, input, increment);
+}
+
 /**
  * Mounts the setup screen (route `#/setup`) for the pending source. The returned Cleanup stops
  * the crop-stage ResizeObserver, cancels a pending preview, and ignores in-flight previews.
@@ -251,17 +307,17 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
     class: 'colors-range',
     'aria-label': 'Maximum colors',
   });
-  colorsInput.addEventListener('input', () => {
+  const colorsStepper = rangeWithButtons(colorsInput, () => {
     maxColors = Number(colorsInput.value);
     colorsValue.textContent = String(maxColors);
     setSettings({ maxColors });
     schedulePreview();
   });
   const colorsCtl = h(
-    'label',
+    'div',
     { class: 'colors-ctl' },
     h('span', {}, 'Max colors'),
-    colorsInput,
+    colorsStepper,
     colorsValue,
   );
 

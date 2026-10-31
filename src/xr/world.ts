@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import { play } from '../audio/sfx';
 import type { PanelSession } from '../game/panelSession';
+import { getSettings } from '../storage/settings';
 import type { XrPanelLayout } from '../types';
 import { createBridge } from './bridge';
 import { createCompletion } from './completion';
@@ -17,7 +18,9 @@ import { createInputModel, type PadState, readGamepad } from './input';
 import { createLibrary, type LibraryRow } from './library';
 import { createPlacer, type HitPose, offsetsFrom } from './place';
 import { type Cell, createPlate } from './plate';
+import { createProgressLabel } from './progress';
 import type { Studio, XrWorld } from './scene';
+import { createXrSettings } from './settings';
 import { createTools, nextBuzz, type ToolId } from './tools';
 import { createGrab, faceTray, localRay } from './transforms';
 import { createTray } from './tray';
@@ -64,6 +67,7 @@ const readPad = (studio: Studio): { pad: PadState | null; index: number } => {
 
 /** Pulse every controller's haptic actuator (Quest: the hand holding the tool feels it). */
 const pulse = (xrSession: XRSession, intensity: number, ms: number): void => {
+  if (!getSettings().haptics) return;
   for (let i = 0; i < xrSession.inputSources.length; i++) {
     const h = xrSession.inputSources[i].gamepad?.hapticActuators?.[0];
     h?.pulse?.(intensity, ms);
@@ -192,6 +196,8 @@ export function createPanelWorld(
 
   const frame = createFrame(bridge, deps.palette, deps.symbols);
   studio.scene.add(frame.root);
+  const progress = createProgressLabel(frame.root);
+  progress.sync(bridge.progress());
   const tray = createTray({
     bridge,
     palette: deps.palette,
@@ -205,6 +211,8 @@ export function createPanelWorld(
   studio.scene.add(completion.root);
   const help = createHelp();
   studio.scene.add(help.root);
+  const settings = createXrSettings(deps.mode, (preset) => studio.setEnvironment?.(preset));
+  studio.scene.add(settings.root);
   const viewerPosition = (): THREE.Vector3 => {
     const camera = studio.renderer.xr.getCamera?.();
     return camera
@@ -318,6 +326,7 @@ export function createPanelWorld(
       frameTimer = null;
       frame.sync();
       tray.sync();
+      progress.sync(bridge.progress());
     }, 120);
   });
 
@@ -333,6 +342,7 @@ export function createPanelWorld(
     } else if (event.type === 'complete') {
       deps.onComplete?.();
       help.root.visible = false;
+      settings.root.visible = false;
       completion.show(deps.continueLabel?.() ?? 'Exit VR', plate.root, viewerPosition());
       play('panelComplete');
       pulse(xrSession, 0.8, 100);
@@ -354,6 +364,8 @@ export function createPanelWorld(
     } else if (id === 'remove') {
       removeMode = !removeMode;
       syncToolsActive();
+    } else if (id === 'settings') {
+      settings.show(plate.root, viewerPosition());
     } else if (id === 'help') {
       help.show(plate.root, viewerPosition());
     } else if (id === 'ghost') {
@@ -376,6 +388,13 @@ export function createPanelWorld(
     const wrong = bridge.wrongCells();
     if (wrong.length === 0) {
       pulse(xrSession, 0.3, 30);
+      plate.setFlash(null);
+      hintLabel.show('No mistakes');
+      if (hintTimer !== null) clearTimeout(hintTimer);
+      hintTimer = setTimeout(() => {
+        hintTimer = null;
+        hintLabel.hide();
+      }, 3000);
       return;
     }
     plate.setFlash(wrong);
@@ -455,12 +474,15 @@ export function createPanelWorld(
       }
     }
     const down = actionPad?.trigger === true && !prevSelectTrig;
-    const modalAtStart = completion.root.visible || help.root.visible;
+    const modalAtStart = completion.root.visible || help.root.visible || settings.root.visible;
     if (completion.root.visible) {
       completion.update(time);
       if (down && index >= 0 && completion.pick(pos, dir)) (deps.onContinue ?? deps.onExit)();
     } else if (help.root.visible) {
       if (down && index >= 0 && help.pick(pos, dir)) suppressTriggerUntilRelease = true;
+    } else if (settings.root.visible) {
+      if (down && index >= 0 && settings.pick(pos, dir) === 'close')
+        suppressTriggerUntilRelease = true;
     } else if (isAr && !placed) {
       updatePlacement(xrFrame, down);
     } else {
@@ -470,7 +492,8 @@ export function createPanelWorld(
       else if (down && tool !== null) handleTool(tool);
     }
     prevSelectTrig = actionPad?.trigger === true;
-    const modal = modalAtStart || completion.root.visible || help.root.visible;
+    const modal =
+      modalAtStart || completion.root.visible || help.root.visible || settings.root.visible;
     const inputPad = modal && actionPad ? { ...actionPad, trigger: false } : actionPad;
     model.update(modal || inputPad?.grip ? null : snap, inputPad);
     for (let i = 0; i < controllers.markers.length; i++) {
@@ -605,9 +628,11 @@ export function createPanelWorld(
     controllers.dispose();
     completion.dispose();
     help.dispose();
+    settings.dispose();
     for (const root of [plate.root, frame.root, tray.root, tools.root, reticle])
       root.removeFromParent();
     plate.dispose();
+    progress.dispose();
     frame.dispose();
     tray.dispose();
     tools.dispose();
@@ -682,6 +707,7 @@ export function createSwapWorld(initial: XrWorld): XrWorld & {
 
 /** The library world's deps: fixed rows at construction, pick and exit callbacks. */
 export interface LibraryWorldDeps {
+  mode?: 'vr' | 'ar';
   rows: () => LibraryRow[];
   onPick(id: string): void;
   onExit(): void;
@@ -698,6 +724,8 @@ export function createLibraryWorld(
   library.root.position.set(0, 1.35, -0.5);
   library.root.lookAt(0, 1.6, 0.2);
   studio.scene.add(library.root);
+  const settings = createXrSettings(deps.mode ?? 'vr', (preset) => studio.setEnvironment?.(preset));
+  studio.scene.add(settings.root);
 
   const pos = new THREE.Vector3();
   const dir = new THREE.Vector3();
@@ -720,21 +748,42 @@ export function createLibraryWorld(
       }
       const pad = readGamepad(source.gamepad);
       if (!pad.trigger) ready[index] = true;
-      if (pad.b && !prevB[index]) deps.onExit();
+      if (pad.b && !prevB[index]) {
+        if (settings.root.visible) settings.root.visible = false;
+        else deps.onExit();
+      }
       prevB[index] = pad.b;
-      if (Math.abs(pad.stickX) > 0.6 && !stickHeld[index]) library.pageBy(pad.stickX > 0 ? 1 : -1);
+      if (!settings.root.visible && Math.abs(pad.stickX) > 0.6 && !stickHeld[index])
+        library.pageBy(pad.stickX > 0 ? 1 : -1);
       stickHeld[index] = Math.abs(pad.stickX) > 0.3;
       pos.setFromMatrixPosition(ctl.matrixWorld);
       dir.set(0, 0, -1).transformDirection(ctl.matrixWorld);
-      const row = library.pickRow({ origin: pos, dir });
-      if (hovered === null && row !== null) hovered = row;
       const down = ready[index] && pad.trigger && !prevTrigger[index];
-      if (down && row !== null && !pickedThisFrame) {
-        const id = deps.rows()[row]?.id;
-        if (id) {
-          pulse(xrSession, 0.5, 12);
-          pickedThisFrame = true;
-          deps.onPick(id);
+      if (settings.root.visible) {
+        if (down && !pickedThisFrame) {
+          const action = settings.pick(pos, dir);
+          if (action) {
+            pickedThisFrame = true;
+            if (action === 'close') ready[index] = false;
+          }
+        }
+      } else if (down && !pickedThisFrame && library.pickSettings({ origin: pos, dir })) {
+        const camera = studio.renderer.xr.getCamera?.();
+        const head = camera
+          ? new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld)
+          : new THREE.Vector3(0, 1.6, 0.2);
+        settings.show(library.root, head);
+        pickedThisFrame = true;
+      } else {
+        const row = library.pickRow({ origin: pos, dir });
+        if (hovered === null && row !== null) hovered = row;
+        if (down && row !== null && !pickedThisFrame) {
+          const id = deps.rows()[row]?.id;
+          if (id) {
+            pulse(xrSession, 0.5, 12);
+            pickedThisFrame = true;
+            deps.onPick(id);
+          }
         }
       }
       prevTrigger[index] = pad.trigger;
@@ -746,6 +795,7 @@ export function createLibraryWorld(
     controllers.dispose();
     library.root.removeFromParent();
     library.dispose();
+    settings.dispose();
   };
 
   return { update, layout: () => null, repaint: library.repaint, dispose };

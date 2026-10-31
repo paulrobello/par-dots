@@ -20,6 +20,7 @@ let audio: HTMLAudioElement | null = null;
 let current: MusicTrack | null = null;
 let unlocked = false;
 let initialized = false;
+let immersiveActive = false;
 
 function trackUrl(track: MusicTrack): string {
   return `${import.meta.env.BASE_URL}music/${track}.mp3`;
@@ -29,7 +30,8 @@ function trackUrl(track: MusicTrack): string {
 export function syncMusic(): void {
   if (typeof Audio === 'undefined') return;
   const { music, musicTrack, musicVolume } = getSettings();
-  const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+  const hidden =
+    typeof document !== 'undefined' && document.visibilityState === 'hidden' && !immersiveActive;
   if (audio) audio.volume = (MAX_VOLUME * musicVolume) / 100;
   if (!music || musicVolume === 0 || !unlocked || hidden) {
     audio?.pause();
@@ -46,6 +48,12 @@ export function syncMusic(): void {
     audio.src = trackUrl(musicTrack);
   }
   if (audio.paused) void audio.play().catch(() => undefined);
+}
+
+/** Keep music playing while the 2D document is hidden by an immersive session. */
+export function setImmersiveMusicActive(active: boolean): void {
+  immersiveActive = active;
+  syncMusic();
 }
 
 /** Start music on the first user gesture and follow page visibility. Safe to call repeatedly. */

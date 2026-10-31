@@ -164,6 +164,7 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
       if (!alive || !studioRef || !swapHandle) return;
       const rowsHolder = { rows: [] as ReturnType<LibraryModule['libraryRows']> };
       const library = wrld.createLibraryWorld(studioRef, xrSession, {
+        mode,
         rows: () => rowsHolder.rows,
         onPick: (id) => void pick(id),
         onExit: () => void xrLaunch?.end(),
@@ -217,6 +218,7 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
         const initialRows: { rows: ReturnType<LibraryModule['libraryRows']> } = { rows: [] };
         const initial = wrld.createSwapWorld(
           wrld.createLibraryWorld(studio, xrSession, {
+            mode,
             rows: () => initialRows.rows,
             onPick: (id) => void pick(id),
             onExit: () => void xrLaunch?.end(),

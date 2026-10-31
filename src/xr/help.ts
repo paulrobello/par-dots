@@ -58,6 +58,7 @@ export function createHelp(): {
       'X             Toggle reference frame',
       'B             Exit VR',
       'Ghost         Toggle plate overlay',
+      'Settings      World, audio and haptics',
       'Trigger reference image  Select its color',
     ];
     rows.forEach((row, i) => {

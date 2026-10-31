@@ -33,6 +33,7 @@ it('shows target letters only on empty pegs and does not repaint them on hover',
   expect(labels[0]).toBe('B');
   const count = labels.length;
   plate.setGhost({ x: 1, y: 0 });
+  expect(plate.root.getObjectByName('xr-plate-hover-ring')?.visible).toBe(true);
   expect(labels).toHaveLength(count);
   placed[1] = 1;
   plate.sync();

@@ -72,6 +72,47 @@ it('uses the connected controller slot for library selection and B exit', () => 
   expect(f.scene.getObjectByName('xr-library')).toBeUndefined();
 });
 
+it('opens and closes settings from the VR library without selecting a picture', () => {
+  const f = fixture();
+  const onPick = vi.fn();
+  const world = createLibraryWorld(f.studio, f.session, {
+    rows: () => [{ id: 'one', label: 'One' }],
+    onPick,
+    onExit: vi.fn(),
+  });
+  f.connect(1);
+  const library = f.scene.getObjectByName('xr-library') as THREE.Object3D;
+  library.updateWorldMatrix(true, true);
+  const button = new THREE.Vector3(
+    (539 / 640 - 0.5) * 0.46,
+    (0.5 - 51 / 840) * 0.6,
+    0,
+  ).applyMatrix4(library.matrixWorld);
+  const normal = new THREE.Vector3(0, 0, 1).transformDirection(library.matrixWorld);
+  f.aim(button.clone().addScaledVector(normal, 0.2), normal.clone().negate());
+  world.update(0);
+  f.buttons[0].pressed = true;
+  world.update(1);
+  const settings = f.scene.getObjectByName('xr-settings') as THREE.Object3D;
+  expect(settings.visible).toBe(true);
+  expect(onPick).not.toHaveBeenCalled();
+  settings.updateWorldMatrix(true, true);
+  const close = new THREE.Vector3(
+    (948 / 1024 - 0.5) * 0.48,
+    (0.5 - 57 / 768) * 0.36,
+    0,
+  ).applyMatrix4(settings.matrixWorld);
+  const settingsNormal = new THREE.Vector3(0, 0, 1).transformDirection(settings.matrixWorld);
+  f.aim(close.clone().addScaledVector(settingsNormal, 0.2), settingsNormal.negate());
+  f.buttons[0].pressed = false;
+  world.update(2);
+  f.buttons[0].pressed = true;
+  world.update(3);
+  expect(settings.visible).toBe(false);
+  expect(onPick).not.toHaveBeenCalled();
+  world.dispose();
+});
+
 it('accepts a left-controller library trigger after it is released', () => {
   const f = fixture();
   Object.defineProperty(f.source, 'handedness', { value: 'left' });
@@ -245,18 +286,42 @@ it('selects a tray chip, updates its ring, and grabs the tool panel on contact',
   world.update(10);
   expect(help.visible).toBe(false);
   expect(selected).toBe(1);
+  tools.updateWorldMatrix(true, true);
+  const settingsX = (TOOL_ORDER.indexOf('settings') - (TOOL_ORDER.length - 1) / 2) * 0.062;
+  const settingsButton = new THREE.Vector3(settingsX, 0, 0).applyMatrix4(tools.matrixWorld);
+  f.aim(settingsButton.clone().addScaledVector(toolsNormal, 0.15), toolsNormal.clone().negate());
+  f.buttons[0].pressed = false;
+  world.update(11);
+  f.buttons[0].pressed = true;
+  world.update(12);
+  const settings = f.scene.getObjectByName('xr-settings') as THREE.Object3D;
+  expect(settings.visible).toBe(true);
+  settings.updateWorldMatrix(true, true);
+  const closeSettings = new THREE.Vector3(
+    (948 / 1024 - 0.5) * 0.48,
+    (0.5 - 57 / 768) * 0.36,
+    0,
+  ).applyMatrix4(settings.matrixWorld);
+  const settingsNormal = new THREE.Vector3(0, 0, 1).transformDirection(settings.matrixWorld);
+  f.aim(closeSettings.clone().addScaledVector(settingsNormal, 0.15), settingsNormal.negate());
+  f.buttons[0].pressed = false;
+  world.update(13);
+  f.buttons[0].pressed = true;
+  world.update(14);
+  expect(settings.visible).toBe(false);
+  expect(selected).toBe(1);
   f.buttons[0].pressed = false;
   const initialX = tools.position.x;
   f.grips[1].position.copy(tools.position);
   f.scene.updateMatrixWorld(true);
-  world.update(11);
+  world.update(15);
   const marker = f.grips[1].children[0] as THREE.Mesh<
     THREE.SphereGeometry,
     THREE.MeshStandardMaterial
   >;
   expect(marker.material.color.getHex()).toBe(0x56dbb1);
   f.buttons[1].pressed = true;
-  world.update(12);
+  world.update(16);
   f.grips[1].position.x += 0.1;
   f.scene.updateMatrixWorld(true);
   world.update(28);

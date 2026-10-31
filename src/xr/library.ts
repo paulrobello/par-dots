@@ -46,6 +46,7 @@ export interface LibraryHandle {
   root: THREE.Group;
   /** World-space ray to the picked row index, or null. */
   pickRow(ray: { origin: THREE.Vector3; dir: THREE.Vector3 }): number | null;
+  pickSettings(ray: { origin: THREE.Vector3; dir: THREE.Vector3 }): boolean;
   /** Set the absolute row currently under the controller, or clear the hover. */
   setHover(row: number | null): void;
   repaint(): void;
@@ -97,17 +98,20 @@ export function createLibrary(deps: LibraryDeps): LibraryHandle {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText('Library', 28, 56);
-    ctx.textAlign = 'right';
-    ctx.font = '500 24px system-ui, sans-serif';
-    ctx.fillText(
-      `B: Exit   |   Stick: Page ${page + 1}/${Math.max(1, Math.ceil(allRows.length / MAX_LIBRARY_ROWS))}`,
-      CANVAS_W - 28,
-      56,
-    );
+    ctx.fillStyle = '#f2cd37';
+    ctx.fillRect(466, 24, 146, 54);
+    ctx.fillStyle = '#252117';
+    ctx.font = '700 26px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Settings', 539, 51);
     ctx.textAlign = 'left';
     ctx.fillStyle = 'rgba(230,230,230,0.65)';
-    ctx.font = '500 22px system-ui, sans-serif';
-    ctx.fillText('Point at a picture, then press trigger to open it', 28, 88);
+    ctx.font = '500 21px system-ui, sans-serif';
+    ctx.fillText(
+      `Trigger: open  •  Stick: page ${page + 1}/${Math.max(1, Math.ceil(allRows.length / MAX_LIBRARY_ROWS))}  •  B: exit`,
+      28,
+      92,
+    );
     ctx.font = '600 34px system-ui, sans-serif';
     const rowH = (CANVAS_H - 110) / MAX_LIBRARY_ROWS;
     rows.forEach((row, i) => {
@@ -158,18 +162,24 @@ export function createLibrary(deps: LibraryDeps): LibraryHandle {
   const localDir = new THREE.Vector3();
   const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 
-  const pickRow = (r: { origin: THREE.Vector3; dir: THREE.Vector3 }): number | null => {
-    if (!ctx) return null;
+  const hitPanel = (r: { origin: THREE.Vector3; dir: THREE.Vector3 }): boolean => {
     root.updateWorldMatrix(true, true);
     inv.copy(root.matrixWorld).invert();
     originL.copy(r.origin).applyMatrix4(inv);
-    // Transform the direction by the full inverse matrix so nested rotation and scale
-    // affect picking exactly as they affect the visible panel.
     localDir.copy(r.dir).transformDirection(inv);
     ray.origin.copy(originL);
     ray.direction.copy(localDir);
+    return ray.intersectPlane(plane, hitP) !== null;
+  };
+  const pickSettings = (r: { origin: THREE.Vector3; dir: THREE.Vector3 }): boolean => {
+    if (!hitPanel(r)) return false;
+    const x = (hitP.x / LIBRARY_WIDTH + 0.5) * CANVAS_W;
+    const y = (0.5 - hitP.y / LIBRARY_HEIGHT) * CANVAS_H;
+    return x >= 466 && x <= 612 && y >= 24 && y <= 78;
+  };
+  const pickRow = (r: { origin: THREE.Vector3; dir: THREE.Vector3 }): number | null => {
+    if (!ctx || !hitPanel(r)) return null;
     const p = hitP;
-    if (!ray.intersectPlane(plane, p)) return null;
     if (Math.abs(p.x) > LIBRARY_WIDTH / 2 || Math.abs(p.y) > LIBRARY_HEIGHT / 2) return null;
     const rows = deps.rows();
     if (rows.length === 0) return null;
@@ -201,5 +211,5 @@ export function createLibrary(deps: LibraryDeps): LibraryHandle {
     repaint();
   };
   repaint();
-  return { root, pickRow, setHover, repaint, pageBy, dispose };
+  return { root, pickRow, pickSettings, setHover, repaint, pageBy, dispose };
 }

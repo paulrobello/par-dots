@@ -87,7 +87,7 @@ panel in XR, finish it on the phone.
   through the same commit path, so saves fire at the same points (stroke end,
   undo/redo, session end ≈ page-hidden, panel complete).
 
-A Ghost tool toggles reference colors and matching symbols on empty plate pegs without obscuring placed dots. A Help tool opens the VR controller guide. Completing a plate plays a fanfare and shows a button to continue to the next plate in VR. Pointing at the reference image and pressing the trigger selects that cell’s color when it is available in the tray. The gallery lists unfinished photo projects with previews and progress bars. Either controller can point and use trigger to select; the thumbstick pages through the list and B exits. Gallery-launched VR saves the panel workspace layout. When MR hit testing is available, placement requires a currently visible surface reticle. If hit testing is unavailable or denied, the workspace appears at the default position.
+The Settings control is available in the library and build workspace. It offers Studio, Night sky, Sunset and Woodland VR environments and the shared sound, volume, haptics, music, track and place-sound settings; MR keeps passthrough. A progress label shows correct dots and Hint confirms when there are no mistakes. A Ghost tool toggles reference colors and matching symbols on empty plate pegs without obscuring placed dots. A Help tool opens the VR controller guide. Completing a plate plays a fanfare and shows a button to continue to the next plate in VR. Pointing at the reference image and pressing the trigger selects that cell’s color when it is available in the tray. The gallery lists unfinished photo projects with previews and progress bars. Either controller can point and use trigger to select; the thumbstick pages through the list and B exits. Gallery-launched VR saves the panel workspace layout. When MR hit testing is available, placement requires a currently visible surface reticle. If hit testing is unavailable or denied, the workspace appears at the default position.
 
 ## 6. Phases
 
@@ -104,7 +104,7 @@ board is untouched before/after; `checkall-ci` green; no new console errors.
 ### P1 — Build plate and placement
 Scope: plate (16×16, 8 mm pitch, enlarged 6.4 mm × 1.8 mm studs on a 3.2 mm
 plate) as InstancedMesh with per-instance color; right-controller ray with
-snap-assist (nearest valid stud within radius, ghost-highlighted target cell);
+snap-assist (nearest valid stud within radius, marked by a ring at its base without changing its color);
 trigger places the current color (occupied studs ignored — parity); A-sweep
 paints strokes; haptic pulse + existing dot sound per placement; XR strokes
 commit through the bridge (saves + undo history work).

@@ -6,7 +6,10 @@
  */
 
 import * as THREE from 'three';
+import { setImmersiveMusicActive } from '../audio/music';
+import { getSettings, type XrEnvironment } from '../storage/settings';
 import type { XrPanelLayout } from '../types';
+import { createVrEnvironment } from './environment';
 
 /** Any scene-graph node whose GPU resources `disposeTree` can release. */
 export interface DisposeNode {
@@ -38,6 +41,8 @@ export interface XrRenderer {
 export interface Studio {
   renderer: XrRenderer;
   scene: DisposeNode & { add(o: unknown): unknown };
+  /** Apply a VR environment; unavailable for MR passthrough. */
+  setEnvironment?(preset: XrEnvironment): void;
   render(): void;
   /** Release the GPU side: dispose every scene-graph resource, then the renderer. */
   dispose(): void;
@@ -89,21 +94,23 @@ function createStudio(): Studio {
   renderer.xr.enabled = true;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x202329);
+  const environment = createVrEnvironment(scene);
+  environment.set(getSettings().xrEnvironment);
   scene.add(new THREE.HemisphereLight(0xffffff, 0x404550, 1.1));
   const sun = new THREE.DirectionalLight(0xffffff, 1.1);
   sun.position.set(1.5, 3, 2);
   scene.add(sun);
-  scene.add(new THREE.GridHelper(20, 40, 0x394048, 0x2b3037));
   const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 30);
   camera.position.set(0, 1.6, 2.5);
   return {
     renderer,
     scene,
+    setEnvironment: environment.set,
     render: () => {
       renderer.render(scene, camera);
     },
     dispose: () => {
+      environment.dispose();
       disposeTree(scene);
       renderer.dispose();
     },
@@ -172,6 +179,7 @@ export function launchVr(
     studio.renderer.setAnimationLoop(null);
     world?.dispose();
     studio.dispose();
+    setImmersiveMusicActive(false);
     opts.onEnd();
   };
   const onSetSession = (): void => {
@@ -182,6 +190,7 @@ export function launchVr(
     });
   };
   let result: unknown;
+  setImmersiveMusicActive(true);
   try {
     result = studio.renderer.xr.setSession(session);
     const existing = Array.from(session.inputSources ?? []);

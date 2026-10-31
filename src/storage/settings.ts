@@ -20,6 +20,10 @@ export type Background = 'gray' | 'blue' | 'green' | 'brown' | 'purple';
 /** Backgrounds in settings-sheet order; also the allowlist sanitize() accepts. */
 export const BACKGROUNDS: readonly Background[] = ['gray', 'blue', 'green', 'brown', 'purple'];
 
+/** Immersive VR environment presets. MR remains passthrough. */
+export type XrEnvironment = 'studio' | 'night' | 'sunset' | 'forest';
+export const XR_ENVIRONMENTS: readonly XrEnvironment[] = ['studio', 'night', 'sunset', 'forest'];
+
 /** Stored settings. Invalid or missing fields fall back to DEFAULT_SETTINGS. */
 export interface Settings {
   /** Play sounds. Default true. */
@@ -36,6 +40,8 @@ export interface Settings {
   dither: boolean;
   /** App background preset. Default 'gray'. */
   background: Background;
+  /** Immersive VR environment. Default studio. */
+  xrEnvironment: XrEnvironment;
   /** Play background music. Default true. */
   music: boolean;
   /** Background music track. Default 'happy'. */
@@ -55,6 +61,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   maxColors: MAX_COLORS,
   dither: false,
   background: 'gray',
+  xrEnvironment: 'studio',
   music: true,
   musicTrack: 'happy',
   sfxVolume: 80,
@@ -81,6 +88,8 @@ function sanitize(raw: unknown): Settings {
     if (typeof r.dither === 'boolean') s.dither = r.dither;
     if (r.paletteMode === 'lego' || r.paletteMode === 'free') s.paletteMode = r.paletteMode;
     if (BACKGROUNDS.includes(r.background as Background)) s.background = r.background as Background;
+    if (XR_ENVIRONMENTS.includes(r.xrEnvironment as XrEnvironment))
+      s.xrEnvironment = r.xrEnvironment as XrEnvironment;
     if (typeof r.music === 'boolean') s.music = r.music;
     if (MUSIC_TRACKS.includes(r.musicTrack as MusicTrack))
       s.musicTrack = r.musicTrack as MusicTrack;

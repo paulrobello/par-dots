@@ -96,15 +96,27 @@ describe('createPlate', () => {
     plate.dispose();
   });
 
-  it('ghosts an empty stud toward its target color', () => {
+  it('highlights a hovered stud with a ring without changing stud colors', () => {
     const plate = createPlate(source, palette);
-    plate.setGhost({ x: 5, y: 5 });
     const mesh = plate.root.children.find(
       (c) => c.name === 'xr-plate-studs',
     ) as THREE.InstancedMesh;
     const c = new THREE.Color();
     mesh.getColorAt(5 * PANEL_SIZE + 5, c);
-    expect(c.getHexString()).toBe('0000ff');
+    const emptyBefore = c.getHexString();
+    mesh.getColorAt(0, c);
+    const placedBefore = c.getHexString();
+    plate.setGhost({ x: 5, y: 5 });
+    const ring = plate.root.getObjectByName('xr-plate-hover-ring');
+    expect(ring?.visible).toBe(true);
+    expect(ring?.position.x).toBe((5 - (PANEL_SIZE - 1) / 2) * PITCH);
+    expect(ring?.position.z).toBe((5 - (PANEL_SIZE - 1) / 2) * PITCH);
+    mesh.getColorAt(5 * PANEL_SIZE + 5, c);
+    expect(c.getHexString()).toBe(emptyBefore);
+    mesh.getColorAt(0, c);
+    expect(c.getHexString()).toBe(placedBefore);
+    plate.setGhost(null);
+    expect(ring?.visible).toBe(false);
     plate.dispose();
   });
 });

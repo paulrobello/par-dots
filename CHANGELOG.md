@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- VR settings in the library and workspace, with Studio, Night sky, Sunset and Woodland environments and shared audio and haptics controls. VR now shows correct-dot progress and confirms when a hint finds no mistakes.
+- Plus and minus buttons for the new-picture Max colors slider.
+
 - VR controller help, a plate-completion fanfare and next-plate button, and reference symbols on empty overlay pegs.
 
 - VR builders can toggle a ghost of the reference colors on empty plate pegs and select available colors directly from the reference image.
@@ -28,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Uploaded images with transparency now composite over a chosen background color on the setup screen, defaulting to black instead of white, with black and white swatches plus a custom color picker.
 
 ### Changed
+
+- VR peg targeting uses a ring at the peg base without changing its color. Music remains available during immersive sessions even if the 2D document is hidden.
 
 - Enlarged VR plate pegs and refreshed the VR library with picture previews and pointer feedback. Either controller can select library items.
 

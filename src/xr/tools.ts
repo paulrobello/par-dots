@@ -8,7 +8,7 @@
 
 import * as THREE from 'three';
 
-export type ToolId = 'place' | 'remove' | 'hint' | 'undo' | 'redo' | 'ghost' | 'help';
+export type ToolId = 'place' | 'remove' | 'hint' | 'undo' | 'redo' | 'ghost' | 'help' | 'settings';
 
 export const TOOL_ORDER: readonly ToolId[] = [
   'place',
@@ -18,6 +18,7 @@ export const TOOL_ORDER: readonly ToolId[] = [
   'redo',
   'ghost',
   'help',
+  'settings',
 ];
 
 /**
@@ -49,6 +50,7 @@ const LABELS: Record<ToolId, string> = {
   redo: 'Redo',
   ghost: 'Ghost',
   help: 'Help',
+  settings: 'Settings',
 };
 
 function drawToolIcon(ctx: CanvasRenderingContext2D, id: ToolId, x: number, color: string): void {
@@ -94,6 +96,16 @@ function drawToolIcon(ctx: CanvasRenderingContext2D, id: ToolId, x: number, colo
     ctx.moveTo(x, 34);
     ctx.lineTo(x, 70);
     ctx.stroke();
+  } else if (id === 'settings') {
+    ctx.arc(x, 49, 15, 0, Math.PI * 2);
+    ctx.stroke();
+    for (let i = 0; i < 8; i++) {
+      const angle = (i * Math.PI) / 4;
+      ctx.beginPath();
+      ctx.moveTo(x + Math.cos(angle) * 17, 49 + Math.sin(angle) * 17);
+      ctx.lineTo(x + Math.cos(angle) * 22, 49 + Math.sin(angle) * 22);
+      ctx.stroke();
+    }
   } else if (id === 'help') {
     ctx.arc(x, 49, 19, 0, Math.PI * 2);
     ctx.stroke();

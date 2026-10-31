@@ -100,7 +100,7 @@ export interface PlateHandle {
   root: THREE.Group;
   /** Re-scan `placed`/`target` into the stud instance colors (on change events, not per frame). */
   sync(): void;
-  /** Ghost-highlight the stud a placement would fill; null clears. */
+  /** Ring-highlight the stud a placement would fill; null clears. */
   setGhost(cell: Cell | null): void;
   /** Show the reference colors on empty pegs. */
   setReferenceOverlay(on: boolean): void;
@@ -136,6 +136,14 @@ export function createPlate(
   const studs = new THREE.InstancedMesh(studGeo, studMat, PANEL_SIZE * PANEL_SIZE);
   studs.name = 'xr-plate-studs';
   root.add(studs);
+  const hoverRingGeo = new THREE.TorusGeometry(STUD_RADIUS * 1.12, 0.00035, 8, 24);
+  const hoverRingMat = new THREE.MeshBasicMaterial({ color: 0xffb84d });
+  const hoverRing = new THREE.Mesh(hoverRingGeo, hoverRingMat);
+  hoverRing.name = 'xr-plate-hover-ring';
+  hoverRing.rotation.x = -Math.PI / 2;
+  hoverRing.position.y = PLATE_THICKNESS / 2 + 0.00015;
+  hoverRing.visible = false;
+  root.add(hoverRing);
   // One transparent canvas keeps the reference letters to a single extra draw call.
   // The DOM guard keeps the geometry usable in Node-side XR tests.
   let symbolTexture: THREE.CanvasTexture | null = null;
@@ -168,7 +176,6 @@ export function createPlate(
   // studio light otherwise washes them out entirely.
   const pegColor = new THREE.Color(0x9a968a);
   const tmp = new THREE.Color();
-  const ghostTint = new THREE.Color(0xffffff);
   const warn = new THREE.Color(0xe5484d);
   let ghostCell: Cell | null = null;
   let referenceOverlay = false;
@@ -207,14 +214,7 @@ export function createPlate(
         m.makeTranslation(c.x, PLATE_THICKNESS / 2 + STUD_HEIGHT / 2, c.z);
         studs.setMatrixAt(i, m);
         const { placed, target } = source.cellAt(x, y);
-        if (ghostCell && ghostCell.x === x && ghostCell.y === y) {
-          if (placed === EMPTY) {
-            tmp.set(palette[target]?.hex ?? PLATE_HEX);
-          } else {
-            tmp.set(palette[placed]?.hex ?? PLATE_HEX);
-            tmp.lerp(ghostTint, 0.12);
-          }
-        } else if (placed === EMPTY) {
+        if (placed === EMPTY) {
           if (referenceOverlay) tmp.set(palette[target]?.hex ?? PLATE_HEX).lerp(pegColor, 0.5);
           else tmp.copy(pegColor);
         } else {
@@ -232,7 +232,14 @@ export function createPlate(
   const setGhost = (cell: Cell | null): void => {
     if (cell?.x === ghostCell?.x && cell?.y === ghostCell?.y) return;
     ghostCell = cell;
-    sync(false);
+    if (cell) {
+      const c = cellCenter(cell);
+      hoverRing.position.x = c.x;
+      hoverRing.position.z = c.z;
+      hoverRing.visible = true;
+    } else {
+      hoverRing.visible = false;
+    }
   };
 
   const setReferenceOverlay = (on: boolean): void => {
@@ -270,6 +277,8 @@ export function createPlate(
     studGeo.dispose();
     studMat.dispose();
     studs.dispose();
+    hoverRingGeo.dispose();
+    hoverRingMat.dispose();
     symbolTexture?.dispose();
     symbolGeo?.dispose();
     symbolMat?.dispose();

@@ -77,6 +77,19 @@ describe('music', () => {
     expect(a.paused).toBe(false);
   });
 
+  it('keeps music active in XR when the document is hidden and pauses on exit', async () => {
+    const { music, target } = await load();
+    target.dispatchEvent(new Event('pointerdown'));
+    const audio = FakeAudio.made[0];
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    music.syncMusic();
+    expect(audio.paused).toBe(true);
+    music.setImmersiveMusicActive(true);
+    expect(audio.paused).toBe(false);
+    music.setImmersiveMusicActive(false);
+    expect(audio.paused).toBe(true);
+  });
+
   it('does not play when music is off at the first gesture', async () => {
     const { settings, target } = await load();
     settings.setSettings({ music: false });
