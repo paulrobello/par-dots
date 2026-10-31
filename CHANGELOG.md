@@ -53,6 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- VR tray count labels remain readable as the number of remaining colors decreases.
+
 - Aligned VR grab push/pull with the laser beam and advanced to the next available color when a color is completed.
 
 - Kept the 2D reference and XR controls within their panel at short desktop heights and made Overview visually distinct from panel navigation.

@@ -13,7 +13,7 @@ import { createTray, type TrayDeps } from '../src/xr/tray';
 interface PaintLog {
   clears: number;
   /** fillText calls. */
-  texts: Array<{ text: string; x: number; y: number }>;
+  texts: Array<{ text: string; x: number; y: number; font: string }>;
   /** arc+fill calls (count-label circles) with the active fillStyle. */
   dots: Array<{ x: number; y: number; r: number; style: string }>;
 }
@@ -35,7 +35,7 @@ const makeCtx = (): { log: PaintLog; ctx: CanvasRenderingContext2D } => {
     },
     fill: () => undefined,
     fillText: (text: string, x: number, y: number) => {
-      log.texts.push({ text, x, y });
+      log.texts.push({ text, x, y, font: String(ctx.font) });
     },
   } as unknown as CanvasRenderingContext2D;
   return { log, ctx };
@@ -102,6 +102,35 @@ describe('createTray (batched runtime object)', () => {
     const chipsMesh = tray.root.children.find((o) => o instanceof THREE.InstancedMesh)!;
     expect((chipsMesh as THREE.InstancedMesh).count).toBe(2);
     expect(lastPaint(before)).toHaveLength(2);
+    tray.dispose();
+  });
+
+  it('keeps the count label and badge the same physical size as the tray shrinks', () => {
+    const colors = [...Array(32).keys()];
+    const tray = createTray(deps(colors, Array(32).fill(9)));
+    const quad = tray.root.children.find(
+      (o) => o instanceof THREE.Mesh && (o.material as THREE.MeshBasicMaterial).map !== null,
+    ) as THREE.Mesh;
+    let expectedRadius = 0;
+    let expectedFontSize = 0;
+    for (const n of [32, 16, 8, 4, 2, 1]) {
+      colors.length = n;
+      tray.sync();
+      const extent = (quad.geometry as THREE.PlaneGeometry).parameters.width;
+      const radius = log.dots.at(-1)?.r ?? 0;
+      const font = log.texts.at(-1)?.font ?? '';
+      const fontPixels = Number.parseFloat(font.split(' ')[1]);
+      const worldRadius = (radius / 512) * extent;
+      const worldFontSize = (fontPixels / 512) * extent;
+      if (n === 32) {
+        expectedRadius = worldRadius;
+        expectedFontSize = worldFontSize;
+      }
+      expect(worldRadius).toBeCloseTo(expectedRadius, 8);
+      expect(worldFontSize).toBeCloseTo(expectedFontSize, 8);
+      expect(worldRadius).toBeGreaterThan(0.009);
+      expect(worldFontSize).toBeGreaterThan(0.011);
+    }
     tray.dispose();
   });
 

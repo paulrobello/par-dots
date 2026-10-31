@@ -118,7 +118,7 @@ Scope (three independent work units):
   panel's reference mosaic (target colors, A/B/C symbols, toggleable progress
   overlay — the 2D Overlay feature); grip to move, grip and trigger plus thumbstick to scale;
   default offset beside the plate.
-- **Color tray:** floating chip grid mirroring 2D tray semantics — remaining
+- **Color tray:** floating chip grid with consistently sized count labels, mirroring 2D tray semantics — remaining
   counts, current-color ring, zero-but-wrong chips dimmed, correctly-complete
   chips shrink away; trigger selects; selection exits Remove (parity); XR
   selection and 2D tray stay consistent through the shared store.

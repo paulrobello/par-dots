@@ -113,15 +113,18 @@ export function createTray(deps: TrayDeps): TrayHandle {
     ctx.clearRect(0, 0, STRIP_PX, STRIP_PX);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    const pixelsPerMeter = STRIP_PX / stripExtent;
+    const labelRadius = CHIP_RADIUS * 0.7 * pixelsPerMeter;
+    const fontSize = CHIP_RADIUS * 0.85 * pixelsPerMeter;
     for (let i = 0; i < states.length; i++) {
       const { px, py } = slotPx(slots[i]);
       ctx.fillStyle = 'rgba(15,16,18,0.85)';
       ctx.beginPath();
-      ctx.arc(px, py, STRIP_PX * 0.045, 0, Math.PI * 2);
+      ctx.arc(px, py, labelRadius, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#ffffff';
-      ctx.font = `700 ${Math.floor(STRIP_PX * 0.055)}px system-ui, sans-serif`;
-      ctx.fillText(countLabel(states[i].count), px, py);
+      ctx.font = `700 ${fontSize}px system-ui, sans-serif`;
+      ctx.fillText(countLabel(states[i].count), px, py, labelRadius * 1.75);
     }
     stripTex.needsUpdate = true;
   };
