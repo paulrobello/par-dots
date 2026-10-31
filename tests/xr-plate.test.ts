@@ -60,7 +60,7 @@ describe('createPlate', () => {
     mesh.getColorAt(0, c);
     expect(c.getHexString()).toBe('00ff00');
     mesh.getColorAt(1, c);
-    expect(c.getHexString()).toBe('d6d2c4');
+    expect(c.getHexString()).toBe('9a968a');
     plate.dispose();
   });
 

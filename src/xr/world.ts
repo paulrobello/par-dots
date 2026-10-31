@@ -12,6 +12,7 @@ import type { XrPanelLayout } from '../types';
 import { createBridge } from './bridge';
 import { createFrame } from './frame';
 import { createInputModel, type PadState, readGamepad } from './input';
+import { createLibrary, type LibraryRow } from './library';
 import { createPlacer, type HitPose, offsetsFrom } from './place';
 import { type Cell, createPlate } from './plate';
 import type { Studio, XrWorld } from './scene';
@@ -522,4 +523,79 @@ export function createPanelWorld(
   });
 
   return { update, layout, dispose };
+}
+
+/**
+ * A world that can replace its contents mid-session (XR P5): the gallery launcher swaps the
+ * library picker for a panel world when a picture is chosen and back when it finishes.
+ */
+export function createSwapWorld(initial: XrWorld): XrWorld & {
+  swap(next: XrWorld): void;
+  current(): XrWorld;
+  repaint(): void;
+} {
+  let current: XrWorld = initial;
+  return {
+    update(time, frame) {
+      current.update(time, frame);
+    },
+    layout: () => null,
+    repaint() {
+      current.repaint?.();
+    },
+    dispose() {
+      current.dispose();
+    },
+    swap(next) {
+      current.dispose();
+      current = next;
+    },
+    current: () => current,
+  };
+}
+
+/** The library world's deps: fixed rows at construction, pick and exit callbacks. */
+export interface LibraryWorldDeps {
+  rows: () => LibraryRow[];
+  onPick(id: string): void;
+  onExit(): void;
+}
+
+/** The in-VR picture picker as a world: ray + trigger selects a row. */
+export function createLibraryWorld(
+  studio: Studio,
+  xrSession: XRSession,
+  deps: LibraryWorldDeps,
+): XrWorld {
+  const library = createLibrary({ rows: deps.rows, onPick: deps.onPick });
+  library.root.position.set(0, 1.35, -0.5);
+  library.root.lookAt(0, 1.6, 0.2);
+  studio.scene.add(library.root);
+
+  const pos = new THREE.Vector3();
+  const dir = new THREE.Vector3();
+  let prevTrigger = false;
+  const update = (_time: number, _frame?: XRFrame): void => {
+    const { pad, index } = readPad(xrSession);
+    if (index < 0) return;
+    const ctl = studio.renderer.xr.getController(index);
+    pos.setFromMatrixPosition(ctl.matrixWorld);
+    dir.set(0, 0, -1).transformDirection(ctl.matrixWorld);
+    const row = library.pickRow({ origin: pos, dir });
+    const down = pad?.trigger === true && !prevTrigger;
+    if (down && row !== null) {
+      const id = deps.rows()[row]?.id;
+      if (id) {
+        pulse(xrSession, 0.5, 12);
+        deps.onPick(id);
+      }
+    }
+    prevTrigger = pad?.trigger === true;
+  };
+
+  const dispose = (): void => {
+    library.dispose();
+  };
+
+  return { update, layout: () => null, repaint: library.repaint, dispose };
 }

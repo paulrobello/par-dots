@@ -48,6 +48,8 @@ export interface XrWorld {
   update(time: number, frame?: XRFrame): void;
   /** Snapshot the workspace layout for persistence on session end (XR P4). */
   layout(): XrPanelLayout | null;
+  /** Repaint canvas-backed surfaces after their content changes (library rows). */
+  repaint?(): void;
   dispose(): void;
 }
 
