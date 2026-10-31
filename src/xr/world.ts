@@ -10,12 +10,13 @@ import { play } from '../audio/sfx';
 import type { PanelSession } from '../game/panelSession';
 import type { XrPanelLayout } from '../types';
 import { createBridge } from './bridge';
-import { clampFrameScale, createFrame, grabbedPosition } from './frame';
-import { createInputModel, type PadState } from './input';
+import { createFrame } from './frame';
+import { createInputModel, type PadState, readGamepad } from './input';
 import { createPlacer, type HitPose, offsetsFrom } from './place';
 import { type Cell, createPlate } from './plate';
 import type { Studio, XrWorld } from './scene';
 import { createTools, nextBuzz, type ToolId } from './tools';
+import { createGrab, faceTray, localRay } from './transforms';
 import { createTray } from './tray';
 
 /** Panel-play-provided handles; injected so world.ts stays free of ui/ imports. */
@@ -48,15 +49,7 @@ const readPad = (xrSession: XRSession): { pad: PadState | null; index: number } 
   for (let i = 0; i < xrSession.inputSources.length; i++) {
     const src = xrSession.inputSources[i];
     if (src.handedness === 'right' && src.gamepad) {
-      const b = src.gamepad.buttons;
-      const stickY = src.gamepad.axes[1];
-      pad = {
-        trigger: !!b[0]?.pressed,
-        a: !!b[4]?.pressed,
-        b: !!b[5]?.pressed,
-        grip: !!b[1]?.pressed,
-        stickY: typeof stickY === 'number' ? stickY : 0,
-      };
+      pad = readGamepad(src.gamepad);
       index = i;
     }
   }
@@ -179,8 +172,7 @@ export function createPanelWorld(
     frame.root.rotation.y = yaw;
     frame.root.lookAt(0, 1.6, 0.2);
     tray.root.position.set(off.tray.x, off.tray.y, off.tray.z);
-    tray.root.rotation.y = yaw;
-    tray.root.lookAt(0, 1.6, 0.2);
+    faceTray(tray.root, new THREE.Vector3(0, 1.6, 0.2));
     plate.sync();
     frame.sync();
     tray.sync();
@@ -235,12 +227,14 @@ export function createPanelWorld(
     const l = deps.layout;
     plate.root.position.set(l.plate.pos.x, l.plate.pos.y, l.plate.pos.z);
     plate.root.quaternion.set(l.plate.quat.x, l.plate.quat.y, l.plate.quat.z, l.plate.quat.w);
+    plate.root.scale.setScalar(l.plate.scale);
     frame.root.position.set(l.frame.pos.x, l.frame.pos.y, l.frame.pos.z);
     frame.root.quaternion.set(l.frame.quat.x, l.frame.quat.y, l.frame.quat.z, l.frame.quat.w);
     frame.setScale(l.frame.scale);
     frame.setOverlay(l.overlay);
     tray.root.position.set(l.tray.pos.x, l.tray.pos.y, l.tray.pos.z);
     tray.root.quaternion.set(l.tray.quat.x, l.tray.quat.y, l.tray.quat.z, l.tray.quat.w);
+    tray.root.scale.setScalar(l.tray.scale);
     plate.sync();
     frame.sync();
     tray.sync();
@@ -340,23 +334,19 @@ export function createPanelWorld(
   const pos = new THREE.Vector3();
   const dir = new THREE.Vector3();
   const inv = new THREE.Matrix4();
-  const localOrigin = new THREE.Vector3();
-  const localDir = new THREE.Vector3();
-  const plateQuat = new THREE.Quaternion();
-  const wp = new THREE.Vector3();
-  const scl = new THREE.Vector3();
-  const invQ = new THREE.Quaternion();
-  const gripPos = new THREE.Vector3();
-  const grabOffset = new THREE.Vector3();
+  const plateRay = new THREE.Ray();
+  let grab: ReturnType<typeof createGrab> | null = null;
   const raycaster = new THREE.Raycaster();
-  let grabbing = false;
   let grabbed: THREE.Object3D | null = null;
   let prevGrip = false;
   let prevOverlayX = false;
   let prevSelectTrig = false;
   let placed = !isAr;
 
-  const update = (_time: number, frame?: XRFrame): void => {
+  let lastTime: number | null = null;
+  const update = (time: number, frame?: XRFrame): void => {
+    const dt = lastTime === null ? 0 : (time - lastTime) / 1000;
+    lastTime = time;
     const { pad, index } = readPad(xrSession);
     let snap: Cell | null = null;
     let chip: number | null = null;
@@ -369,13 +359,8 @@ export function createPanelWorld(
         chip = tray.pickChip({ origin: pos, dir });
         tool = chip === null ? tools.pickTool({ origin: pos, dir }) : null;
         if (chip === null && tool === null) {
-          plate.root.updateWorldMatrix(true, false);
-          inv.copy(plate.root.matrixWorld).invert();
-          localOrigin.copy(pos).applyMatrix4(inv);
-          plate.root.matrixWorld.decompose(wp, plateQuat, scl);
-          invQ.copy(plateQuat).invert();
-          localDir.copy(dir).applyQuaternion(invQ);
-          snap = plate.pickCell({ origin: localOrigin, dir: localDir }, mode());
+          localRay(plate.root, pos, dir, plateRay, inv);
+          snap = plate.pickCell({ origin: plateRay.origin, dir: plateRay.direction }, mode());
         }
       }
     }
@@ -387,8 +372,8 @@ export function createPanelWorld(
       else if (down && tool !== null) handleTool(tool);
     }
     prevSelectTrig = pad?.trigger === true;
-    model.update(snap, pad);
-    updateGrab(pad, index, pos, dir);
+    model.update(pad?.grip ? null : snap, pad);
+    updateGrab(pad, index, pos, dir, dt);
     updateOverlayToggle();
   };
 
@@ -442,12 +427,13 @@ export function createPanelWorld(
     pulse(xrSession, 0.4, 12);
   };
 
-  /** Grip grabs any world object under the ray; thumbstick scales a gripped frame. */
+  /** Grip follows controller position/orientation; thumbstick adjusts yaw and scale. */
   const updateGrab = (
     pad: PadState | null,
     index: number,
     o: THREE.Vector3,
     d: THREE.Vector3,
+    dt: number,
   ): void => {
     const grip = pad?.grip === true;
     const down = grip && !prevGrip;
@@ -457,31 +443,18 @@ export function createPanelWorld(
       const roots = [plate.root, frame.root, tray.root].filter((r) => r.visible);
       const hits = raycaster.intersectObjects(roots, true);
       if (hits.length > 0) {
-        grabbing = true;
         let cur: THREE.Object3D = hits[0].object;
         while (cur.parent && cur.parent !== studio.scene) cur = cur.parent;
         grabbed = cur;
-        gripPos.setFromMatrixPosition(studio.renderer.xr.getControllerGrip(index).matrixWorld);
-        grabOffset.set(
-          grabbed.position.x - gripPos.x,
-          grabbed.position.y - gripPos.y,
-          grabbed.position.z - gripPos.z,
-        );
+        grab = createGrab(grabbed, studio.renderer.xr.getControllerGrip(index));
       }
     }
-    if (grabbing && grip && index >= 0 && grabbed) {
-      gripPos.setFromMatrixPosition(studio.renderer.xr.getControllerGrip(index).matrixWorld);
-      const p = grabbedPosition(
-        { x: gripPos.x, y: gripPos.y, z: gripPos.z },
-        { x: grabOffset.x, y: grabOffset.y, z: grabOffset.z },
-      );
-      grabbed.position.set(p.x, p.y, p.z);
-      if (grabbed === frame.root && pad && Math.abs(pad.stickY) > 0.15) {
-        frame.setScale(clampFrameScale(frame.getScale() * (1 + pad.stickY * 0.02)));
-      }
+    if (grip && index >= 0 && grabbed && grab && pad) {
+      grab.update(pad.stickX, pad.stickY, dt);
+      if (grabbed === frame.root) frame.setScale(grabbed.scale.x);
     }
-    if (up) {
-      grabbing = false;
+    if (up || index < 0) {
+      grab = null;
       grabbed = null;
     }
     prevGrip = grip;
@@ -523,6 +496,7 @@ export function createPanelWorld(
         z: plate.root.quaternion.z,
         w: plate.root.quaternion.w,
       },
+      scale: plate.root.scale.x,
     },
     frame: {
       pos: { x: frame.root.position.x, y: frame.root.position.y, z: frame.root.position.z },
@@ -542,6 +516,7 @@ export function createPanelWorld(
         z: tray.root.quaternion.z,
         w: tray.root.quaternion.w,
       },
+      scale: tray.root.scale.x,
     },
     overlay: frame.isOverlayOn(),
   });

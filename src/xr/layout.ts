@@ -25,25 +25,30 @@ export function validateLayout(v: unknown): XrPanelLayout | null {
     num((x as XrQuat).y) &&
     num((x as XrQuat).z) &&
     num((x as XrQuat).w);
+  const scale = (x: unknown): boolean => x === undefined || (num(x) && x > 0);
+  const safeScale = (x: number | undefined): number => Math.min(3, Math.max(0.4, x ?? 1));
   const o = v as XrPanelLayout;
   if (
     typeof v !== 'object' ||
     v === null ||
     !vec(o.plate?.pos) ||
     !quat(o.plate?.quat) ||
+    !scale(o.plate?.scale) ||
     !vec(o.frame?.pos) ||
     !quat(o.frame?.quat) ||
     !num(o.frame?.scale) ||
+    o.frame.scale <= 0 ||
     typeof o.overlay !== 'boolean' ||
     !vec(o.tray?.pos) ||
-    !quat(o.tray?.quat)
+    !quat(o.tray?.quat) ||
+    !scale(o.tray?.scale)
   ) {
     return null;
   }
   return {
-    plate: { pos: { ...o.plate.pos }, quat: { ...o.plate.quat } },
-    frame: { pos: { ...o.frame.pos }, quat: { ...o.frame.quat }, scale: o.frame.scale },
-    tray: { pos: { ...o.tray.pos }, quat: { ...o.tray.quat } },
+    plate: { pos: { ...o.plate.pos }, quat: { ...o.plate.quat }, scale: safeScale(o.plate.scale) },
+    frame: { pos: { ...o.frame.pos }, quat: { ...o.frame.quat }, scale: safeScale(o.frame.scale) },
+    tray: { pos: { ...o.tray.pos }, quat: { ...o.tray.quat }, scale: safeScale(o.tray.scale) },
     overlay: o.overlay,
   };
 }

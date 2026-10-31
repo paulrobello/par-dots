@@ -31,8 +31,27 @@ export interface PadState {
   b: boolean;
   /** Grip held (grab modifier); read by world.ts, not the stroke model. */
   grip: boolean;
+  /** Thumbstick X in -1..1 (grab-rotate); read by world.ts, not the stroke model. */
+  stickX: number;
   /** Thumbstick Y in -1..1 (grab-scale); read by world.ts, not the stroke model. */
   stickY: number;
+}
+
+/** xr-standard reserves axes 0/1 for the touchpad and 2/3 for the thumbstick. */
+export function readGamepad(gamepad: Pick<Gamepad, 'buttons' | 'axes'>): PadState {
+  const b = gamepad.buttons;
+  const axis = (i: number): number => {
+    const v = gamepad.axes[i];
+    return Number.isFinite(v) ? Math.max(-1, Math.min(1, v)) : 0;
+  };
+  return {
+    trigger: !!b[0]?.pressed,
+    grip: !!b[1]?.pressed,
+    a: !!b[4]?.pressed,
+    b: !!b[5]?.pressed,
+    stickX: axis(2),
+    stickY: axis(3),
+  };
 }
 
 const sameCell = (a: Cell, b: Cell): boolean => a.x === b.x && a.y === b.y;

@@ -11,6 +11,7 @@
 import * as THREE from 'three';
 import { MAX_COLORS } from '../types';
 import type { XrBridge } from './bridge';
+import { localRay } from './transforms';
 
 /** One chip's parity-relevant state; pure and unit-tested against the 2D tray fixtures. */
 export interface ChipState {
@@ -167,21 +168,9 @@ export function createTray(deps: TrayDeps): TrayHandle {
   // constant is the negated height. Oblique controller rays miss when it is off by this much.
   const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -CHIP_HEIGHT / 2);
   const inv = new THREE.Matrix4();
-  const originL = new THREE.Vector3();
-  const rootQuat = new THREE.Quaternion();
-  const tmpP = new THREE.Vector3();
-  const tmpQ = new THREE.Quaternion();
-  const tmpS = new THREE.Vector3();
-  const localDir = new THREE.Vector3();
   const pickChip = (r: { origin: THREE.Vector3; dir: THREE.Vector3 }): number | null => {
     if (states.length === 0) return null;
-    root.updateWorldMatrix(true, true);
-    inv.copy(root.matrixWorld).invert();
-    originL.copy(r.origin).applyMatrix4(inv);
-    root.matrixWorld.decompose(tmpP, rootQuat, tmpS);
-    localDir.copy(r.dir).normalize().applyQuaternion(tmpQ.copy(rootQuat).invert());
-    ray.origin.copy(originL);
-    ray.direction.copy(localDir);
+    localRay(root, r.origin, r.dir, ray, inv);
     const p = hitP;
     if (!ray.intersectPlane(plane, p)) return null;
     const reach = CHIP_RADIUS * 1.4;

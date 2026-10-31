@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { VitePWA } from 'vite-plugin-pwa';
 import { defineConfig } from 'vitest/config';
 
@@ -31,6 +32,32 @@ export default defineConfig({
           injectTo: 'head-prepend',
         },
       ],
+    },
+    {
+      name: 'build-fingerprint',
+      apply: 'build',
+      enforce: 'post',
+      generateBundle(_options, bundle) {
+        const hash = createHash('sha256');
+        for (const name of Object.keys(bundle).sort()) {
+          const entry = bundle[name];
+          hash.update(name);
+          hash.update(entry.type === 'chunk' ? entry.code : entry.source);
+        }
+        const fingerprint = hash.digest('hex');
+        const html = bundle['index.html'];
+        if (html?.type === 'asset') {
+          html.source = String(html.source).replace(
+            '</head>',
+            `<meta name="build-fingerprint" content="${fingerprint}"></head>`,
+          );
+        }
+        this.emitFile({
+          type: 'asset',
+          fileName: 'version.json',
+          source: JSON.stringify({ fingerprint }),
+        });
+      },
     },
     VitePWA({
       registerType: 'prompt',
@@ -68,8 +95,13 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{html,css,js,svg,png,webp,json,webmanifest,mp3}'],
+        globIgnores: ['version.json'],
         // Music tracks are a few MB each; the default 2 MiB cap would drop them from the precache.
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+        // Fresh deploys take over uncontrolled pages as soon as the prompt policy activates
+        // them, and outdated precache revisions never linger after an activation.
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
       },
     }),
   ],

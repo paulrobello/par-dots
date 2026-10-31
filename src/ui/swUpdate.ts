@@ -4,7 +4,7 @@
  */
 
 /** How often a long-open page checks for a new deploy. */
-export const UPDATE_CHECK_MS = 60 * 60 * 1000;
+export const UPDATE_CHECK_MS = 5 * 60 * 1000;
 
 /** The slice of ServiceWorkerRegistration this module uses. */
 interface Registration {
@@ -14,6 +14,36 @@ type VisibilitySource = Pick<
   Document,
   'visibilityState' | 'addEventListener' | 'removeEventListener'
 >;
+
+let immersiveActive = false;
+export const setImmersiveActive = (active: boolean): void => {
+  immersiveActive = active;
+};
+export const isImmersiveActive = (): boolean => immersiveActive;
+
+/** The manifest is network-only, never a service-worker precache entry. */
+export async function checkBuild(
+  current: string,
+  changed: () => void,
+  fetcher: typeof fetch = fetch,
+): Promise<void> {
+  if (!current) return;
+  try {
+    const response = await fetcher('/version.json', { cache: 'no-store' });
+    if (!response.ok) return;
+    const latest: unknown = await response.json();
+    const fingerprint = (latest as { fingerprint?: unknown } | null)?.fingerprint;
+    if (
+      typeof fingerprint === 'string' &&
+      /^[a-f0-9]{64}$/.test(fingerprint) &&
+      fingerprint !== current
+    ) {
+      changed();
+    }
+  } catch {
+    // Offline pages keep their working build and check again when connected.
+  }
+}
 
 /** Start polling `reg` for updates. Returns a function that stops polling. */
 export function watchForUpdates(
@@ -28,6 +58,7 @@ export function watchForUpdates(
   const onVisibility = (): void => {
     if (doc.visibilityState === 'visible') check();
   };
+  check();
   const timer = setInterval(check, intervalMs);
   doc.addEventListener('visibilitychange', onVisibility);
   return () => {

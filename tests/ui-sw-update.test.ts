@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { applyWhenHidden, UPDATE_CHECK_MS, watchForUpdates } from '../src/ui/swUpdate';
+import {
+  applyWhenHidden,
+  checkBuild,
+  isImmersiveActive,
+  setImmersiveActive,
+  UPDATE_CHECK_MS,
+  watchForUpdates,
+} from '../src/ui/swUpdate';
 
 function fakeDoc(): {
   doc: Parameters<typeof watchForUpdates>[1];
@@ -32,31 +39,64 @@ function fakeDoc(): {
   };
 }
 
+describe('build fingerprints', () => {
+  it('bypasses HTTP cache and detects a changed content hash', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(JSON.stringify({ fingerprint: 'b'.repeat(64) })));
+    const changed = vi.fn();
+    await checkBuild('a'.repeat(64), changed, fetcher);
+    expect(fetcher).toHaveBeenCalledWith('/version.json', { cache: 'no-store' });
+    expect(changed).toHaveBeenCalledOnce();
+  });
+
+  it('does not request a reload for unchanged, invalid or offline builds', async () => {
+    const changed = vi.fn();
+    const fetcher = vi.fn<typeof fetch>();
+    for (const fingerprint of ['a'.repeat(64), '', 'invalid']) {
+      fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ fingerprint })));
+      await checkBuild('a'.repeat(64), changed, fetcher);
+    }
+    fetcher.mockRejectedValueOnce(new Error('offline'));
+    await checkBuild('a'.repeat(64), changed, fetcher);
+    expect(changed).not.toHaveBeenCalled();
+  });
+
+  it('tracks immersive activity independently of page visibility', () => {
+    setImmersiveActive(true);
+    expect(isImmersiveActive()).toBe(true);
+    setImmersiveActive(false);
+    expect(isImmersiveActive()).toBe(false);
+  });
+});
+
 describe('watchForUpdates', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it('checks every 60 minutes', () => {
+  it('checks immediately and then every 5 minutes', () => {
     const reg = { update: vi.fn(() => Promise.resolve()) };
     const { doc } = fakeDoc();
     watchForUpdates(reg, doc);
-    expect(UPDATE_CHECK_MS).toBe(60 * 60 * 1000);
-    vi.advanceTimersByTime(UPDATE_CHECK_MS - 1);
-    expect(reg.update).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(1);
+    expect(UPDATE_CHECK_MS).toBe(5 * 60 * 1000);
     expect(reg.update).toHaveBeenCalledTimes(1);
-    vi.advanceTimersByTime(UPDATE_CHECK_MS);
+    vi.advanceTimersByTime(UPDATE_CHECK_MS - 1);
+    expect(reg.update).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(1);
     expect(reg.update).toHaveBeenCalledTimes(2);
+    vi.advanceTimersByTime(UPDATE_CHECK_MS);
+    expect(reg.update).toHaveBeenCalledTimes(3);
   });
 
   it('checks when the page becomes visible, not when it hides', () => {
     const reg = { update: vi.fn(() => Promise.resolve()) };
     const f = fakeDoc();
     watchForUpdates(reg, f.doc);
-    f.setVisibility('hidden');
-    expect(reg.update).not.toHaveBeenCalled();
-    f.setVisibility('visible');
     expect(reg.update).toHaveBeenCalledTimes(1);
+    f.setVisibility('hidden');
+    expect(reg.update).toHaveBeenCalledTimes(1);
+    f.setVisibility('visible');
+    expect(reg.update).toHaveBeenCalledTimes(2);
   });
 
   it('swallows a failed check and stops on dispose', async () => {
@@ -69,7 +109,7 @@ describe('watchForUpdates', () => {
     expect(f.listeners()).toBe(0);
     vi.advanceTimersByTime(UPDATE_CHECK_MS * 3);
     f.setVisibility('visible');
-    expect(reg.update).toHaveBeenCalledTimes(1);
+    expect(reg.update).toHaveBeenCalledTimes(2);
   });
 });
 

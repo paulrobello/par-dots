@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- XR workspace: grip-grab now tracks the controller's full orientation — pitch, roll and yaw — not just position, and while gripping the right thumbstick rotates (left/right) and resizes (up/down, 0.4x–3x) whatever is held. The color tray now tilts like a desk console facing you instead of standing edge-on, so it is selectable from oblique angles. Saved workspaces from earlier builds restore unchanged.
+- Faster, cache-safe update detection: the page checks for a new deploy immediately and every 5 minutes (was 60) via a network-only `/version.json` build fingerprint, and the service-worker script registers with `updateViaCache: 'none'`. A changed fingerprint triggers the normal safe apply path; nothing reloads during active XR play.
 - Buy parts: the frame export is now a buildable raised frame — a backing plate one stud larger than the panels, a brick ring to panel-top height, a plate layer to dot height, and a smooth tile cap one plate above the dots, corners left studded — replacing the 1x16 brick border ring, which the pin-hole canvases cannot hold.
 - Buy parts: the pin budget now matches the assembly guide's three connectors per shared edge (was five).
 - The palette swap button has its own arrows icon instead of the pan tool's.

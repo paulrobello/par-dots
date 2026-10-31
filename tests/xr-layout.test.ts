@@ -4,13 +4,13 @@ import { getLayout, setLayout, validateLayout } from '../src/xr/layout';
 
 const IDENT = { x: 0, y: 0, z: 0, w: 1 };
 const layout = (): XrPanelLayout => ({
-  plate: { pos: { x: 0, y: 0.95, z: -0.35 }, quat: IDENT },
+  plate: { pos: { x: 0, y: 0.95, z: -0.35 }, quat: IDENT, scale: 1 },
   frame: {
     pos: { x: -0.24, y: 1.12, z: -0.42 },
     quat: { x: 0.1, y: 0.3, z: 0, w: 0.95 },
     scale: 1.4,
   },
-  tray: { pos: { x: 0.24, y: 1.05, z: -0.4 }, quat: { x: 0, y: -0.2, z: 0, w: 0.98 } },
+  tray: { pos: { x: 0.24, y: 1.05, z: -0.4 }, quat: { x: 0, y: -0.2, z: 0, w: 0.98 }, scale: 1.1 },
   overlay: true,
 });
 
@@ -38,6 +38,28 @@ const makeSave = (): PictureSave => {
 describe('validateLayout', () => {
   it('accepts a well-formed record', () => {
     expect(validateLayout(layout())).toEqual(layout());
+  });
+
+  it('preserves legacy transforms when plate and tray scales are absent', () => {
+    const old = layout();
+    const { scale: _plate, ...plate } = old.plate;
+    const { scale: _tray, ...tray } = old.tray;
+    expect(validateLayout({ ...old, plate, tray })).toEqual({
+      ...old,
+      plate: { ...plate, scale: 1 },
+      tray: { ...tray, scale: 1 },
+    });
+  });
+
+  it('clamps positive scales and rejects invalid scales', () => {
+    const value = layout();
+    value.plate.scale = 100;
+    value.frame.scale = 0.01;
+    expect(validateLayout(value)?.plate.scale).toBe(3);
+    expect(validateLayout(value)?.frame.scale).toBe(0.4);
+    for (const scale of [NaN, Infinity, 0, -1, 'big']) {
+      expect(validateLayout({ ...value, tray: { ...value.tray, scale } })).toBeNull();
+    }
   });
 
   it('rejects malformed records', () => {

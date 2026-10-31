@@ -32,6 +32,7 @@ const pad = (trigger: boolean, a = false, b = false) => ({
   a,
   b,
   grip: false,
+  stickX: 0,
   stickY: 0,
 });
 

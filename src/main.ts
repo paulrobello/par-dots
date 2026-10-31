@@ -22,7 +22,7 @@ import { whenSaved } from './ui/saves';
 import type { Cleanup, Navigate, ScreenContext } from './ui/screen';
 import { mountSetup } from './ui/setup';
 import { mountSource } from './ui/source';
-import { applyWhenHidden, watchForUpdates } from './ui/swUpdate';
+import { applyWhenHidden, checkBuild, isImmersiveActive, watchForUpdates } from './ui/swUpdate';
 import { initTooltips } from './ui/tooltips';
 
 const app = document.getElementById('app');
@@ -64,6 +64,7 @@ function render(): void {
   window.scrollTo(0, 0);
   trackPageView();
   maybeApplyUpdate();
+  void checkLatestBuild();
 }
 
 /** Mount one screen per route name. */
@@ -115,7 +116,7 @@ let needReload = false;
 
 /** Activate or reload into a new deploy only where no in-progress work can be lost. */
 function maybeApplyUpdate(): void {
-  if (!applyUpdate && !needReload) return;
+  if (isImmersiveActive() || (!applyUpdate && !needReload)) return;
   const hidden = document.visibilityState === 'hidden';
   if (!shouldApplyUpdate(parseRoute(location.hash).name, isOverlayOpen(), hidden)) return;
   if (needReload) {
@@ -127,6 +128,20 @@ function maybeApplyUpdate(): void {
   const apply = applyUpdate;
   applyUpdate = null;
   void apply?.();
+}
+
+const buildFingerprint =
+  document.querySelector<HTMLMetaElement>('meta[name="build-fingerprint"]')?.content ?? '';
+let registration: ServiceWorkerRegistration | undefined;
+async function checkLatestBuild(): Promise<void> {
+  await checkBuild(buildFingerprint, () => {
+    if (navigator.serviceWorker?.controller) {
+      void registration?.update().catch(() => {});
+    } else {
+      needReload = true;
+      maybeApplyUpdate();
+    }
+  });
 }
 
 window.addEventListener('hashchange', render);
@@ -159,8 +174,20 @@ const updateSW = registerSW({
     needReload = true;
     maybeApplyUpdate();
   },
-  onRegisteredSW: (_url, reg) => {
-    if (reg) watchForUpdates(reg, document);
+  onRegisteredSW: (url, reg) => {
+    registration = reg;
+    if (reg) {
+      void navigator.serviceWorker.register(url, { updateViaCache: 'none' }).catch(() => {});
+      watchForUpdates(
+        {
+          update: async () => {
+            await checkLatestBuild();
+            await reg.update();
+          },
+        },
+        document,
+      );
+    }
   },
 });
 // Waits for the panel screen's own hide-time IndexedDB save so the reload cannot lose it.

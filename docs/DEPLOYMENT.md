@@ -76,8 +76,8 @@ An HTTP 200 alone is not acceptance. After the `deploy` job finishes:
 
 A new deploy does not interrupt players.
 
-- Open pages check for a new service worker every 60 minutes and whenever they become visible again.
-- A waiting update is applied only when the page is hidden, or when it shows the gallery or a picture overview with no sheet or dialog open. A player in the middle of a panel or on the setup screen keeps the old version until they return to the gallery or overview.
+- Open pages poll a `/version.json` build fingerprint (network-only) immediately and every 5 minutes, and on becoming visible; a changed fingerprint asks the service worker to check for the new deploy.
+- A waiting update is applied only when the page is hidden, or when it shows the gallery or a picture overview with no sheet or dialog open. A player in the middle of a panel or on the setup screen keeps the old version until they return to the gallery or overview, and an active VR/MR session is never interrupted.
 - To pick up a deploy immediately, open the gallery (`#/`) or switch away from the tab and back.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md#pwa-and-updates) for the implementation.

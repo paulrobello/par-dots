@@ -32,6 +32,7 @@ import { loadSave, persistSave } from './saves';
 import type { Cleanup, ScreenContext } from './screen';
 import { openSettingsSheet } from './settingsSheet';
 import { setTransitionHint } from './state';
+import { setImmersiveActive } from './swUpdate';
 import { trayCounts } from './trayModel';
 
 /**
@@ -397,6 +398,8 @@ export function mountPanelPlay(
         const xrSession = await (mode === 'vr'
           ? srn.requestVrSession(xr)
           : srn.requestArSession(xr));
+        setImmersiveActive(true);
+        xrSession.addEventListener('end', () => setImmersiveActive(false), { once: true });
         const [scn, wrld] = await Promise.all([import('../xr/scene'), import('../xr/world')]).catch(
           (err) => {
             void xrSession.end().catch(() => undefined);

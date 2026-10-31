@@ -89,9 +89,9 @@ export interface PictureSave extends Mosaic {
 
 /** Where the XR workspace objects sat when a panel's XR session ended (XR P4). */
 export interface XrPanelLayout {
-  plate: { pos: XrVec3; quat: XrQuat };
+  plate: { pos: XrVec3; quat: XrQuat; scale: number };
   frame: { pos: XrVec3; quat: XrQuat; scale: number };
-  tray: { pos: XrVec3; quat: XrQuat };
+  tray: { pos: XrVec3; quat: XrQuat; scale: number };
   /** The reference frame's progress-overlay toggle state. */
   overlay: boolean;
 }
