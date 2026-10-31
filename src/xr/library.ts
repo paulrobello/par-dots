@@ -19,13 +19,15 @@ export interface LibraryRow {
   id: string;
   /** 'Name — 42%' as painted. */
   label: string;
+  percent?: number;
 }
 
 /** Trim to the visible window and render labels; pure and unit-tested. */
 export function libraryRows(saves: LibraryEntryInfo[]): LibraryRow[] {
-  return saves.slice(0, MAX_LIBRARY_ROWS).map((s) => ({
+  return saves.map((s) => ({
     id: s.id,
     label: `${truncate(s.name, 24)} — ${Math.round(s.percent)}%`,
+    percent: Math.max(0, Math.min(100, s.percent)),
   }));
 }
 
@@ -42,6 +44,7 @@ export interface LibraryHandle {
   /** World-space ray to the picked row index, or null. */
   pickRow(ray: { origin: THREE.Vector3; dir: THREE.Vector3 }): number | null;
   repaint(): void;
+  pageBy(delta: number): void;
   dispose(): void;
 }
 
@@ -73,9 +76,12 @@ export function createLibrary(deps: LibraryDeps): LibraryHandle {
   face.name = 'xr-library-face';
   root.add(face);
 
+  let page = 0;
   const repaint = (): void => {
     if (!ctx) return;
-    const rows = deps.rows();
+    const allRows = deps.rows();
+    page = Math.min(page, Math.max(0, Math.ceil(allRows.length / MAX_LIBRARY_ROWS) - 1));
+    const rows = allRows.slice(page * MAX_LIBRARY_ROWS, (page + 1) * MAX_LIBRARY_ROWS);
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     ctx.fillStyle = '#202329';
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
@@ -84,6 +90,14 @@ export function createLibrary(deps: LibraryDeps): LibraryHandle {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText('Library', 28, 56);
+    ctx.textAlign = 'right';
+    ctx.font = '500 24px system-ui, sans-serif';
+    ctx.fillText(
+      `B: Exit   |   Stick: Page ${page + 1}/${Math.max(1, Math.ceil(allRows.length / MAX_LIBRARY_ROWS))}`,
+      CANVAS_W - 28,
+      56,
+    );
+    ctx.textAlign = 'left';
     ctx.font = '600 40px system-ui, sans-serif';
     const rowH = (CANVAS_H - 110) / MAX_LIBRARY_ROWS;
     rows.forEach((row, i) => {
@@ -91,11 +105,15 @@ export function createLibrary(deps: LibraryDeps): LibraryHandle {
       ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)';
       ctx.fillRect(16, 110 + rowH * i + 4, CANVAS_W - 32, rowH - 8);
       ctx.fillStyle = '#e6e6e6';
-      ctx.fillText(row.label, 32, y);
+      ctx.fillText(row.label, 32, y - 6);
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillRect(32, y + rowH / 2 - 16, CANVAS_W - 64, 5);
+      ctx.fillStyle = '#6fd9bb';
+      ctx.fillRect(32, y + rowH / 2 - 16, (CANVAS_W - 64) * ((row.percent ?? 0) / 100), 5);
     });
     if (rows.length === 0) {
       ctx.fillStyle = 'rgba(230,230,230,0.6)';
-      ctx.fillText('No pictures yet', 32, 200);
+      ctx.fillText('No unfinished pictures', 32, 200);
     }
     tex.needsUpdate = true;
   };
@@ -130,7 +148,8 @@ export function createLibrary(deps: LibraryDeps): LibraryHandle {
     const dy = top - p.y;
     if (dy < 0) return null;
     const idx = Math.floor(dy / rowH);
-    return idx >= 0 && idx < rows.length ? idx : null;
+    const absolute = page * MAX_LIBRARY_ROWS + idx;
+    return idx >= 0 && idx < MAX_LIBRARY_ROWS && absolute < rows.length ? absolute : null;
   };
 
   const dispose = (): void => {
@@ -141,6 +160,11 @@ export function createLibrary(deps: LibraryDeps): LibraryHandle {
     backMat.dispose();
   };
 
+  const pageBy = (delta: number): void => {
+    const last = Math.max(0, Math.ceil(deps.rows().length / MAX_LIBRARY_ROWS) - 1);
+    page = Math.max(0, Math.min(last, page + delta));
+    repaint();
+  };
   repaint();
-  return { root, pickRow, repaint, dispose };
+  return { root, pickRow, repaint, pageBy, dispose };
 }

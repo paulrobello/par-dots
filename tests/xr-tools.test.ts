@@ -110,7 +110,7 @@ describe('createTools strip texture and flash (recording 2D context)', () => {
       expect(lastPaintOf('undo')).toBe('#4d8dff');
       expect(lastPaintOf('place')).toBe('#4d8dff'); // still the active tool
       vi.advanceTimersByTime(180);
-      expect(lastPaintOf('undo')).toBe('#2a2d31');
+      expect(lastPaintOf('undo')).toBe('#354657');
       expect(lastPaintOf('place')).toBe('#4d8dff');
       tools.dispose();
     } finally {
@@ -132,7 +132,7 @@ describe('createTools strip texture and flash (recording 2D context)', () => {
       );
       vi.advanceTimersByTime(1);
       expect(log.buttons.filter((_, bi) => bi % TOOL_ORDER.length === i).at(-1)!.style).toBe(
-        '#2a2d31',
+        '#354657',
       );
       tools.flash('redo');
       const paints = log.buttons.length;

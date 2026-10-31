@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- XR library lists all unfinished photo projects with progress bars and thumbstick paging. Gallery-launched workspaces save their VR layout and defer updates until the immersive session ends. When MR hit testing is available, placement requires a visible surface reticle; otherwise the workspace appears at the default position.
+
 - Replaced seven bundled pictures with simple, boldly outlined fox, submarine, dinosaur, mushroom-house, owl, rocket and sea turtle illustrations for mosaic building.
 - Simplified Pixel Beach into a limited-palette scene with larger shapes for mosaic building.
 - Replaced Autumn Tree's plaid background with a plain sky.
@@ -35,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The palette swap button has its own arrows icon instead of the pan tool's.
 
 ### Fixed
+
+- VR gallery controllers now appear and select pictures or exit with B. Controller input follows connection slots, tray selection updates immediately, and highlighted pegs retain their color. Grip proximity highlights the controller marker, and the restyled tool panel can be moved.
 
 - The raised frame's ring recipe was four studs short per studded layer: the side runs used the cap's inset length (D−4) instead of the full border span (D−2), so the backing border, brick ring and plate layer each came up one to two pieces short at the four corner junctions. Corrected per-side piece lists now appear on the Frame page and in the Buy parts exports; for a 9-panel picture the brick bill changes from ten to twelve 1x16 bricks and the plate 1x6 and 1x8/1x4 bricks drop out.
 - Draw-editor partial repaints no longer stack seam and grid lines, which made white seams appear after undo and the grid brighten with every tool use.

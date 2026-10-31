@@ -160,6 +160,7 @@ export function launchVr(
     try {
       world = opts.buildWorld(studio);
     } catch (err) {
+      studio.dispose();
       void session.end().catch(() => undefined);
       throw err;
     }
@@ -180,7 +181,14 @@ export function launchVr(
       studio.render();
     });
   };
-  const result = studio.renderer.xr.setSession(session);
+  let result: unknown;
+  try {
+    result = studio.renderer.xr.setSession(session);
+  } catch (err) {
+    void session.end().catch(() => undefined);
+    exit();
+    throw err;
+  }
   if (result && typeof (result as Promise<unknown>).then === 'function') {
     void (result as Promise<unknown>).then(onSetSession, () => {
       void session.end().catch(() => undefined);

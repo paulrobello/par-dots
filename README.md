@@ -73,7 +73,7 @@ Everything runs on-device: uploads never leave your phone, progress is saved loc
 - **Private by Design**: No backend; saves live in IndexedDB and uploads never leave the device
 - **Safe Updates**: New versions apply only when no play state can be lost
 - **Fast Quantization**: Deterministic color quantization in a Web Worker with a main-thread fallback
-- **Tested**: Vitest unit tests with a coverage threshold and a Playwright smoke test in CI
+- **Tested**: Vitest unit tests with a coverage threshold and local Playwright browser suites
 
 ## Documentation
 
@@ -121,7 +121,7 @@ make typecheck   # tsc --noEmit
 make build       # build the image library, then the static site into dist/
 make preview     # serve dist/ on http://localhost:4231
 make e2e         # build, serve dist/, and run the Playwright smoke test
-make checkall    # lint, typecheck, test, build (the CI gate, minus e2e)
+make checkall    # lint, typecheck, test, build (the CI gate)
 make library     # build the image library only if public/library/ is missing
 make clean       # remove dist/, public/library/ and coverage/
 bun run icons    # regenerate the favicon and PWA icons from scripts/build-icons.ts

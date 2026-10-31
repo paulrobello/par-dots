@@ -202,6 +202,13 @@ describe('buildMosaic maxColors', () => {
       }
     }
   });
+  it('rejects non-finite color limits', () => {
+    for (const mode of ['lego', 'free'] as const) {
+      for (const limit of [NaN, Infinity, -Infinity]) {
+        expect(() => buildMosaic(noise(1, 1), 1, 1, mode, limit)).toThrow(RangeError);
+      }
+    }
+  });
   it('clamps out-of-range limits to MIN_COLORS..MAX_COLORS', () => {
     expect(buildMosaic(noise(48, 48), 48, 48, 'free', 1).palette.length).toBe(MIN_COLORS);
     expect(buildMosaic(noise(48, 48), 48, 48, 'free', 99).palette.length).toBeLessThanOrEqual(32);

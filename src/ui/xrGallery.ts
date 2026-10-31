@@ -9,7 +9,8 @@ import { nextUnfinishedPanel, overallProgress, PanelSession } from '../game';
 import type { PictureSave } from '../types';
 import { h, icon, toast } from './dom';
 import { paletteSymbols, userMessage } from './pure';
-import { listSaves, loadSave, persistSave } from './saves';
+import { listSaves, loadSave, persistSave, whenSaved } from './saves';
+import { setImmersiveActive } from './swUpdate';
 
 type WorldModule = typeof import('../xr/world');
 type LibraryModule = typeof import('../xr/library');
@@ -56,18 +57,24 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
     // Session request before the heavy chunk loads (transient user activation).
     const [srn, lay] = await Promise.all([import('../xr/session'), import('../xr/layout')]);
     const xrSession = await (mode === 'vr' ? srn.requestVrSession(xr) : srn.requestArSession(xr));
+    setImmersiveActive(true);
+    xrSession.addEventListener('end', () => setImmersiveActive(false), { once: true });
     const [scn, wrld, lib] = await Promise.all([
       import('../xr/scene'),
       import('../xr/world'),
       import('../xr/library'),
-    ]);
+    ]).catch((error) => {
+      void xrSession.end().catch(() => undefined);
+      throw error;
+    });
     let xrLaunch: { end(): Promise<void> } | null = null;
     let swapHandle: ReturnType<WorldModule['createSwapWorld']> | null = null;
     let studioRef: Studio | null = null;
     let touched = false;
+    let alive = true;
 
     const openPanel = (save: PictureSave, panel: number): void => {
-      if (!studioRef || !swapHandle) return;
+      if (!alive || !studioRef || !swapHandle) return;
       const session = new PanelSession(save, panel);
       const selected = { color: session.trayColors()[0] ?? -1 };
       const world = wrld.createPanelWorld(studioRef, xrSession, {
@@ -89,9 +96,12 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
       // Completion auto-advances to the next unfinished panel, or returns to the library
       // when the picture is done. The subscription dies with the world it belongs to.
       const off = session.onChange((event) => {
+        const colors = session.trayColors();
+        if (!colors.includes(selected.color)) selected.color = colors[0] ?? -1;
         if (event.type !== 'complete') return;
         touched = true;
         void persistSave(save).then(() => {
+          if (!alive) return;
           const next = nextUnfinishedPanel(save, panel);
           if (next !== null && next !== panel) openPanel(save, next);
           else openLibrary();
@@ -103,13 +113,19 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
         repaint: world.repaint,
         dispose: () => {
           off();
+          const layout = world.layout();
+          if (layout && mode === 'vr') {
+            lay.setLayout(save, panel, layout);
+            touched = true;
+            void persistSave(save);
+          }
           world.dispose();
         },
       });
     };
 
     const openLibrary = (): void => {
-      if (!studioRef || !swapHandle) return;
+      if (!alive || !studioRef || !swapHandle) return;
       const rowsHolder = { rows: [] as ReturnType<LibraryModule['libraryRows']> };
       const library = wrld.createLibraryWorld(studioRef, xrSession, {
         rows: () => rowsHolder.rows,
@@ -118,7 +134,10 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
       });
       swapHandle.swap(library);
       void listSaves().then((all) => {
-        const infos = all.map(libraryInfo);
+        if (!alive) return;
+        const infos = all
+          .filter((save) => save.origin !== 'drawn' && nextUnfinishedPanel(save, -1) !== null)
+          .map(libraryInfo);
         sortInfos(infos);
         rowsHolder.rows = lib.libraryRows(infos);
         library.repaint?.();
@@ -127,7 +146,7 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
 
     const pick = async (id: string): Promise<void> => {
       const save = await loadSave(id);
-      if (!save) return;
+      if (!alive || !save) return;
       if (save.origin === 'drawn') {
         toast('Drawings open in the 2D editor', 2500);
         return;
@@ -144,10 +163,11 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
     xrLaunch = scn.launchVr(xrSession, {
       mode,
       onEnd: () => {
+        alive = false;
         xrLaunch = null;
         chip.disabled = false;
         // The gallery mounted before XR ran; reload so its cards show XR-made progress.
-        if (touched) location.reload();
+        if (touched) void whenSaved().then(() => location.reload());
       },
       buildWorld: (studio) => {
         studioRef = studio;
@@ -161,7 +181,10 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
         );
         swapHandle = initial;
         void listSaves().then((all) => {
-          const infos = all.map(libraryInfo);
+          if (!alive) return;
+          const infos = all
+            .filter((save) => save.origin !== 'drawn' && nextUnfinishedPanel(save, -1) !== null)
+            .map(libraryInfo);
           sortInfos(infos);
           initialRows.rows = lib.libraryRows(infos);
           initial.repaint();

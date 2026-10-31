@@ -43,18 +43,17 @@ export interface PanelWorldDeps {
 
 const SPAWN: HitPose = { x: 0, y: 0.95, z: -0.35 };
 
-/** Reads the right controller's buttons from the session's input sources. */
-const readPad = (xrSession: XRSession): { pad: PadState | null; index: number } => {
-  let pad: PadState | null = null;
-  let index = -1;
-  for (let i = 0; i < xrSession.inputSources.length; i++) {
-    const src = xrSession.inputSources[i];
-    if (src.handedness === 'right' && src.gamepad) {
-      pad = readGamepad(src.gamepad);
-      index = i;
+/** Resolve the right-hand source by three.js controller slot, not inputSources order. */
+const readPad = (studio: Studio): { pad: PadState | null; index: number } => {
+  for (let i = 0; i < 2; i++) {
+    const source = studio.renderer.xr.getController(i).userData.xrSource as
+      | XRInputSource
+      | undefined;
+    if (source?.handedness === 'right' && source.gamepad) {
+      return { pad: readGamepad(source.gamepad), index: i };
     }
   }
-  return { pad, index };
+  return { pad: null, index: -1 };
 };
 
 /** Pulse every controller's haptic actuator (Quest: the hand holding the tool feels it). */
@@ -110,38 +109,73 @@ const createHintLabel = (
   return { show, hide, dispose };
 };
 
+/** Attach tracked controller poses in every world and remove only this world's visuals. */
+function attachControllers(studio: Studio): {
+  markers: THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>[];
+  dispose(): void;
+} {
+  const visuals: THREE.Object3D[] = [];
+  const listeners: Array<() => void> = [];
+  const markers: THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>[] = [];
+  for (let i = 0; i < 2; i++) {
+    const target = studio.renderer.xr.getController(i);
+    const grip = studio.renderer.xr.getControllerGrip(i);
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(),
+        new THREE.Vector3(0, 0, -1.2),
+      ]),
+      new THREE.LineBasicMaterial({ color: 0x8fd0ff, transparent: true, opacity: 0.65 }),
+    );
+    const marker = new THREE.Mesh(
+      new THREE.SphereGeometry(0.012, 16, 12),
+      new THREE.MeshStandardMaterial({ color: 0xd6d8dc, roughness: 0.35 }),
+    );
+    const connected = (event: { data: XRInputSource }): void => {
+      target.userData.xrSource = event.data;
+    };
+    const disconnected = (): void => {
+      delete target.userData.xrSource;
+    };
+    const events = target as unknown as THREE.EventDispatcher<{
+      connected: { data: XRInputSource };
+      disconnected: Record<string, never>;
+    }>;
+    events.addEventListener('connected', connected);
+    events.addEventListener('disconnected', disconnected);
+    listeners.push(() => {
+      events.removeEventListener('connected', connected);
+      events.removeEventListener('disconnected', disconnected);
+    });
+    target.add(line);
+    grip.add(marker);
+    studio.scene.add(target);
+    studio.scene.add(grip);
+    visuals.push(line, marker);
+    markers.push(marker);
+  }
+  return {
+    markers,
+    dispose() {
+      for (const remove of listeners) remove();
+      for (const visual of visuals) {
+        visual.removeFromParent();
+        if (visual instanceof THREE.Mesh || visual instanceof THREE.Line) {
+          visual.geometry.dispose();
+          visual.material.dispose();
+        }
+      }
+    },
+  };
+}
+
 /** Build the XR world: bridge + plate + input model wired to the studio. */
 export function createPanelWorld(
   studio: Studio,
   xrSession: XRSession,
   deps: PanelWorldDeps,
 ): XrWorld {
-  // three's controller groups carry matrixAutoUpdate=false: poses land only when they are
-  // part of the scene traversal, so they must be added before any matrixWorld read. Rays and
-  // grip markers are parented to those groups, so they follow the pose with no per-frame math
-  // (lookAt on a plain Object3D aims +Z, which put the ray backwards - do not re-introduce it).
-  for (let i = 0; i < 2; i++) {
-    const targetRay = studio.renderer.xr.getController(i);
-    const grip = studio.renderer.xr.getControllerGrip(i);
-    const rayGeo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(0, 0, -1.2),
-    ]);
-    targetRay.add(
-      new THREE.Line(
-        rayGeo,
-        new THREE.LineBasicMaterial({ color: 0x8fd0ff, transparent: true, opacity: 0.65 }),
-      ),
-    );
-    grip.add(
-      new THREE.Mesh(
-        new THREE.SphereGeometry(0.012, 16, 12),
-        new THREE.MeshStandardMaterial({ color: 0xd6d8dc, roughness: 0.35 }),
-      ),
-    );
-    studio.scene.add(targetRay);
-    studio.scene.add(grip);
-  }
+  const controllers = attachControllers(studio);
   const bridge = createBridge({
     session: deps.panel,
     selected: deps.selected,
@@ -160,8 +194,6 @@ export function createPanelWorld(
   studio.scene.add(tray.root);
 
   const tools = createTools();
-  tools.root.position.set(0.24, 0.94, -0.36);
-  tools.root.lookAt(0, 1.6, 0.2);
   studio.scene.add(tools.root);
 
   /** Spawn everything around the plate at pos/yaw (VR spawn or MR reticle drop). */
@@ -174,6 +206,8 @@ export function createPanelWorld(
     frame.root.lookAt(0, 1.6, 0.2);
     tray.root.position.set(off.tray.x, off.tray.y, off.tray.z);
     faceTray(tray.root, new THREE.Vector3(0, 1.6, 0.2));
+    tools.root.position.set(off.tools.x, off.tools.y, off.tools.z);
+    tools.root.lookAt(0, 1.6, 0.2);
     plate.sync();
     frame.sync();
     tray.sync();
@@ -342,13 +376,19 @@ export function createPanelWorld(
   let prevGrip = false;
   let prevOverlayX = false;
   let prevSelectTrig = false;
+  let awaitTriggerRelease = true;
   let placed = !isAr;
 
+  const grabBounds = new THREE.Box3();
+  const gripPosition = new THREE.Vector3();
+  const grabRoots = [plate.root, frame.root, tray.root, tools.root];
   let lastTime: number | null = null;
   const update = (time: number, frame?: XRFrame): void => {
     const dt = lastTime === null ? 0 : (time - lastTime) / 1000;
     lastTime = time;
-    const { pad, index } = readPad(xrSession);
+    const { pad: rawPad, index } = readPad(studio);
+    if (rawPad && !rawPad.trigger) awaitTriggerRelease = false;
+    const pad = rawPad && awaitTriggerRelease ? { ...rawPad, trigger: false } : rawPad;
     let snap: Cell | null = null;
     let chip: number | null = null;
     let tool: ToolId | null = null;
@@ -374,6 +414,20 @@ export function createPanelWorld(
     }
     prevSelectTrig = pad?.trigger === true;
     model.update(pad?.grip ? null : snap, pad);
+    for (let i = 0; i < controllers.markers.length; i++) {
+      const marker = controllers.markers[i];
+      marker.getWorldPosition(gripPosition);
+      const near =
+        i === index &&
+        placed &&
+        grabRoots.some((root) => {
+          if (!root.visible) return false;
+          grabBounds.setFromObject(root);
+          return grabBounds.distanceToPoint(gripPosition) <= 0.015;
+        });
+      marker.material.color.setHex(near || (grabbed !== null && i === index) ? 0x56dbb1 : 0xd6d8dc);
+      marker.material.emissive.setHex(near ? 0x195a48 : 0x000000);
+    }
     updateGrab(pad, index, pos, dir, dt);
     updateOverlayToggle();
   };
@@ -425,6 +479,7 @@ export function createPanelWorld(
     removeMode = false;
     syncToolsActive();
     deps.onSelect(c);
+    tray.sync();
     pulse(xrSession, 0.4, 12);
   };
 
@@ -440,15 +495,22 @@ export function createPanelWorld(
     const down = grip && !prevGrip;
     const up = !grip && prevGrip;
     if (down && index >= 0 && placed) {
-      raycaster.set(o, d);
-      const roots = [plate.root, frame.root, tray.root].filter((r) => r.visible);
-      const hits = raycaster.intersectObjects(roots, true);
-      if (hits.length > 0) {
-        let cur: THREE.Object3D = hits[0].object;
-        while (cur.parent && cur.parent !== studio.scene) cur = cur.parent;
-        grabbed = cur;
-        grab = createGrab(grabbed, studio.renderer.xr.getControllerGrip(index));
+      const roots = grabRoots.filter((r) => r.visible);
+      studio.renderer.xr.getControllerGrip(index).getWorldPosition(gripPosition);
+      grabbed =
+        roots.find(
+          (root) => grabBounds.setFromObject(root).distanceToPoint(gripPosition) <= 0.015,
+        ) ?? null;
+      if (!grabbed) {
+        raycaster.set(o, d);
+        const hits = raycaster.intersectObjects(roots, true);
+        if (hits.length > 0) {
+          let cur: THREE.Object3D = hits[0].object;
+          while (cur.parent && cur.parent !== studio.scene) cur = cur.parent;
+          grabbed = cur;
+        }
       }
+      if (grabbed) grab = createGrab(grabbed, studio.renderer.xr.getControllerGrip(index));
     }
     if (grip && index >= 0 && grabbed && grab && pad) {
       grab.update(pad.stickX, pad.stickY, dt);
@@ -481,6 +543,9 @@ export function createPanelWorld(
     hitTestSource?.cancel();
     reticle.geometry.dispose();
     (reticle.material as THREE.MeshBasicMaterial).dispose();
+    controllers.dispose();
+    for (const root of [plate.root, frame.root, tray.root, tools.root, reticle])
+      root.removeFromParent();
     plate.dispose();
     frame.dispose();
     tray.dispose();
@@ -567,6 +632,7 @@ export function createLibraryWorld(
   xrSession: XRSession,
   deps: LibraryWorldDeps,
 ): XrWorld {
+  const controllers = attachControllers(studio);
   const library = createLibrary({ rows: deps.rows, onPick: deps.onPick });
   library.root.position.set(0, 1.35, -0.5);
   library.root.lookAt(0, 1.6, 0.2);
@@ -575,9 +641,16 @@ export function createLibraryWorld(
   const pos = new THREE.Vector3();
   const dir = new THREE.Vector3();
   let prevTrigger = false;
+  let prevB = false;
+  let stickHeld = false;
   const update = (_time: number, _frame?: XRFrame): void => {
-    const { pad, index } = readPad(xrSession);
+    const { pad, index } = readPad(studio);
     if (index < 0) return;
+    if (pad?.b && !prevB) deps.onExit();
+    prevB = pad?.b === true;
+    const stick = pad?.stickX ?? 0;
+    if (Math.abs(stick) > 0.6 && !stickHeld) library.pageBy(stick > 0 ? 1 : -1);
+    stickHeld = Math.abs(stick) > 0.3;
     const ctl = studio.renderer.xr.getController(index);
     pos.setFromMatrixPosition(ctl.matrixWorld);
     dir.set(0, 0, -1).transformDirection(ctl.matrixWorld);
@@ -594,6 +667,8 @@ export function createLibraryWorld(
   };
 
   const dispose = (): void => {
+    controllers.dispose();
+    library.root.removeFromParent();
     library.dispose();
   };
 

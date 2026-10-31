@@ -309,9 +309,11 @@ async function main(): Promise<void> {
     throw new Error('Previous panel enabled on panel 0');
   await page.keyboard.press('ArrowRight');
   await page.waitForURL(new RegExp(`#/play/${saveId}/1$`));
+  await page.getByRole('application', { name: /^Panel 2 board/ }).waitFor();
   console.log('ArrowRight moved to panel 1');
   await page.keyboard.press('ArrowLeft');
   await page.waitForURL(new RegExp(`#/play/${saveId}/0$`));
+  await page.getByRole('application', { name: /^Panel 1 board/ }).waitFor();
   await page.locator('.tray-dot').first().waitFor();
   await placeFirstStud();
   const nextPanel = page.getByRole('dialog').getByRole('button', { name: /^Next panel/ });

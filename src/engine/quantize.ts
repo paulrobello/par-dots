@@ -452,6 +452,7 @@ export function buildMosaic(
   dither = false,
 ): Mosaic {
   const count = width * height;
+  if (!Number.isFinite(maxColors)) throw new RangeError(`Invalid color limit ${maxColors}`);
   const limit = Math.max(MIN_COLORS, Math.min(MAX_COLORS, Math.round(maxColors)));
   if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0) {
     throw new RangeError(`Invalid mosaic size ${width}x${height}`);

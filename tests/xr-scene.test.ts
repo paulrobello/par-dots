@@ -56,6 +56,38 @@ describe('disposeTree', () => {
 });
 
 describe('launchVr', () => {
+  it('releases the studio and ends the session if world creation fails', () => {
+    const studio = makeStudio();
+    const session = makeSession();
+    expect(() =>
+      launchVr(
+        session,
+        {
+          onEnd: vi.fn(),
+          buildWorld: () => {
+            throw new Error('world');
+          },
+        },
+        () => studio,
+      ),
+    ).toThrow('world');
+    expect(studio.dispose).toHaveBeenCalledOnce();
+    expect(session.end).toHaveBeenCalledOnce();
+  });
+
+  it('cleans up if binding the session throws synchronously', () => {
+    const studio = makeStudio();
+    const session = makeSession();
+    const onEnd = vi.fn();
+    vi.mocked(studio.renderer.xr.setSession).mockImplementation(() => {
+      throw new Error('bind');
+    });
+    expect(() => launchVr(session, { onEnd }, () => studio)).toThrow('bind');
+    expect(studio.dispose).toHaveBeenCalledOnce();
+    expect(session.end).toHaveBeenCalledOnce();
+    expect(onEnd).toHaveBeenCalledOnce();
+  });
+
   it('binds the session and starts the render loop', async () => {
     const studio = makeStudio();
     const session = makeSession();

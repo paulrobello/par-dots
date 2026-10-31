@@ -5,7 +5,7 @@
 | **Product** | par-dots XR — WebXR panel-play mode for PAR Dots |
 | **Repo** | `~/Repos/par-dots` |
 | **Owner** | Paul Robello |
-| **Status** | Planned |
+| **Status** | In progress; headset acceptance pending |
 | **Date** | 2026-10-30 |
 | **Companion doc** | `PRD.md` (2D game) — this PRD covers XR only |
 
@@ -31,7 +31,7 @@ panel in XR, finish it on the phone.
 
 ## 3. Non-Goals
 
-- Gallery, picture setup, draw mode, or overview screens in XR (panel play only).
+- Picture setup, draw mode, or overview screens in XR. The XR gallery lists unfinished photo projects.
 - Hand tracking, gaze input, or Meta VR Glasses readiness (later; controllers
   only for this PRD).
 - Locomotion of any kind — the workspace is arm-reach; you move objects, not
@@ -70,7 +70,7 @@ panel in XR, finish it on the phone.
   on change. Target: ≤ 11 ms/frame at 72 Hz in Quest Browser; ≤ ~8 draw calls.
 - **Input map (right controller):** Trigger = tool action (place/remove/hint
   target, tray select, button press); **A held = sweep modifier** (trigger
-  drag = one stroke); **Grip held = grab** plate/frame/tray (fixed grab
+  drag = one stroke); **Grip held = grab** plate/frame/tray/tool panel/tool panel (fixed grab
   offset, follows the controller's full orientation); thumbstick left/right
   while gripping = rotate the held object, up/down = resize it (0.4x–3x, any
   gripped object); B = exit to 2D (plus panel-button exit).
@@ -85,6 +85,8 @@ panel in XR, finish it on the phone.
   history (10 moves, stroke = one move, new move clears redo). XR strokes go
   through the same commit path, so saves fire at the same points (stroke end,
   undo/redo, session end ≈ page-hidden, panel complete).
+
+The gallery lists unfinished photo projects with progress bars. The right thumbstick pages through the list; trigger selects and B exits. Gallery-launched VR saves the panel workspace layout. When MR hit testing is available, placement requires a currently visible surface reticle. If hit testing is unavailable or denied, the workspace appears at the default position.
 
 ## 6. Phases
 

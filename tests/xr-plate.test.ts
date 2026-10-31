@@ -72,7 +72,7 @@ describe('createPlate', () => {
     ) as THREE.InstancedMesh;
     const c = new THREE.Color();
     mesh.getColorAt(5 * PANEL_SIZE + 5, c);
-    expect(c.getHexString()).not.toBe('d6d2c4');
+    expect(c.getHexString()).toBe('0000ff');
     plate.dispose();
   });
 });

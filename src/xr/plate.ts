@@ -134,7 +134,6 @@ export function createPlate(
   studs.name = 'xr-plate-studs';
   root.add(studs);
   const m = new THREE.Matrix4();
-  const plateColor = new THREE.Color(PLATE_COLOR);
   // Empty studs read as recessed pegs: distinctly darker than the base, which under bright
   // studio light otherwise washes them out entirely.
   const pegColor = new THREE.Color(0x9a968a);
@@ -155,10 +154,9 @@ export function createPlate(
         if (ghostCell && ghostCell.x === x && ghostCell.y === y) {
           if (placed === EMPTY) {
             tmp.set(palette[target]?.hex ?? PLATE_HEX);
-            tmp.lerp(plateColor, 0.45);
           } else {
             tmp.set(palette[placed]?.hex ?? PLATE_HEX);
-            tmp.lerp(ghostTint, 0.4);
+            tmp.lerp(ghostTint, 0.12);
           }
         } else if (placed === EMPTY) {
           tmp.copy(pegColor);

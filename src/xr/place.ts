@@ -23,7 +23,11 @@ export function placementYaw(head: HitPose, hit: HitPose): number {
 }
 
 /** Frame/tray world positions spawned at fixed plate-local offsets, rotated by yaw. */
-export function offsetsFrom(placement: Placement): { frame: HitPose; tray: HitPose } {
+export function offsetsFrom(placement: Placement): {
+  frame: HitPose;
+  tray: HitPose;
+  tools: HitPose;
+} {
   const s = Math.sin(placement.yaw);
   const c = placement.yaw === 0 ? 1 : Math.cos(placement.yaw);
   const at = (dx: number, dy: number, dz: number): HitPose => ({
@@ -31,7 +35,7 @@ export function offsetsFrom(placement: Placement): { frame: HitPose; tray: HitPo
     y: placement.pos.y + dy,
     z: placement.pos.z - dx * s + dz * c,
   });
-  return { frame: at(-0.24, 0.17, -0.07), tray: at(0.24, 0.1, -0.05) };
+  return { frame: at(-0.24, 0.17, -0.07), tray: at(0.24, 0.1, -0.05), tools: at(0, -0.19, -0.02) };
 }
 
 /** Reticle placement state machine: track the latest hit and head, drop once on the edge. */
@@ -39,18 +43,14 @@ export function createPlacer(deps: { onDrop(p: Placement): void }): {
   update(hit: HitPose | null, head: HitPose | null, triggerDown: boolean): void;
 } {
   let placed = false;
-  let lastHit: HitPose | null = null;
-  let lastHead: HitPose | null = null;
   return {
     update(hit, head, triggerDown) {
       if (placed) return;
-      if (hit) lastHit = hit;
-      if (head) lastHead = head;
-      if (triggerDown && lastHit && lastHead) {
+      if (triggerDown && hit && head) {
         placed = true;
         deps.onDrop({
-          pos: lastHit,
-          yaw: placementYaw(lastHead, lastHit),
+          pos: hit,
+          yaw: placementYaw(head, hit),
         });
       }
     },

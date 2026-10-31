@@ -56,6 +56,12 @@ export function createTools(): ToolsHandle & { flash(id: ToolId): void } {
   const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6, transparent: true });
   const strip = new THREE.Mesh(new THREE.PlaneGeometry(total, BTN), mat);
   strip.name = 'xr-tools-strip';
+  const backing = new THREE.Mesh(
+    new THREE.BoxGeometry(total + 0.018, BTN + 0.018, 0.006),
+    new THREE.MeshStandardMaterial({ color: 0x161f2a, roughness: 0.8 }),
+  );
+  backing.position.z = -0.004;
+  root.add(backing);
   root.add(strip);
 
   let activeId: 'place' | 'remove' | null = 'place';
@@ -68,7 +74,7 @@ export function createTools(): ToolsHandle & { flash(id: ToolId): void } {
     for (let i = 0; i < TOOL_ORDER.length; i++) {
       const id = TOOL_ORDER[i];
       const x0 = i * LABEL_PX;
-      ctx.fillStyle = id === activeId || flashing.has(id) ? '#4d8dff' : '#2a2d31';
+      ctx.fillStyle = id === activeId || flashing.has(id) ? '#4d8dff' : '#354657';
       ctx.beginPath();
       const width = (BTN / (BTN + BTN_GAP)) * LABEL_PX;
       ctx.roundRect(x0 + (LABEL_PX - width) / 2, 6, width, LABEL_PX - 12, 18);
@@ -141,6 +147,8 @@ export function createTools(): ToolsHandle & { flash(id: ToolId): void } {
     tex.dispose();
     mat.dispose();
     strip.geometry.dispose();
+    backing.geometry.dispose();
+    backing.material.dispose();
   };
 
   paint();
