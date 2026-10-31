@@ -123,10 +123,30 @@ export function createPanelWorld(
   deps: PanelWorldDeps,
 ): XrWorld {
   // three's controller groups carry matrixAutoUpdate=false: poses land only when they are
-  // part of the scene traversal, so they must be added before any matrixWorld read.
+  // part of the scene traversal, so they must be added before any matrixWorld read. Rays and
+  // grip markers are parented to those groups, so they follow the pose with no per-frame math
+  // (lookAt on a plain Object3D aims +Z, which put the ray backwards - do not re-introduce it).
   for (let i = 0; i < 2; i++) {
-    studio.scene.add(studio.renderer.xr.getController(i));
-    studio.scene.add(studio.renderer.xr.getControllerGrip(i));
+    const targetRay = studio.renderer.xr.getController(i);
+    const grip = studio.renderer.xr.getControllerGrip(i);
+    const rayGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0, 0, -1.2),
+    ]);
+    targetRay.add(
+      new THREE.Line(
+        rayGeo,
+        new THREE.LineBasicMaterial({ color: 0x8fd0ff, transparent: true, opacity: 0.65 }),
+      ),
+    );
+    grip.add(
+      new THREE.Mesh(
+        new THREE.SphereGeometry(0.012, 16, 12),
+        new THREE.MeshStandardMaterial({ color: 0xd6d8dc, roughness: 0.35 }),
+      ),
+    );
+    studio.scene.add(targetRay);
+    studio.scene.add(grip);
   }
   const bridge = createBridge({
     session: deps.panel,
@@ -175,17 +195,6 @@ export function createPanelWorld(
   reticle.rotation.x = -Math.PI / 2;
   reticle.visible = false;
   studio.scene.add(reticle);
-
-  /** Aim ray: a faint line along the right controller's target-ray space (F4). */
-  const rayLine = new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(0, 0, -1.2),
-    ]),
-    new THREE.LineBasicMaterial({ color: 0x8fd0ff, transparent: true, opacity: 0.65 }),
-  );
-  rayLine.visible = false;
-  studio.scene.add(rayLine);
 
   const isAr = deps.mode === 'ar';
   if (isAr) {
@@ -340,7 +349,6 @@ export function createPanelWorld(
   const gripPos = new THREE.Vector3();
   const grabOffset = new THREE.Vector3();
   const raycaster = new THREE.Raycaster();
-  const rayTarget = new THREE.Vector3();
   let grabbing = false;
   let grabbed: THREE.Object3D | null = null;
   let prevGrip = false;
@@ -357,10 +365,6 @@ export function createPanelWorld(
       const ctl = studio.renderer.xr.getController(index);
       pos.setFromMatrixPosition(ctl.matrixWorld);
       dir.set(0, 0, -1).transformDirection(ctl.matrixWorld);
-      rayLine.position.copy(pos);
-      rayTarget.copy(pos).add(dir);
-      rayLine.lookAt(rayTarget);
-      rayLine.visible = true;
       if (!isAr || placed) {
         chip = tray.pickChip({ origin: pos, dir });
         tool = chip === null ? tools.pickTool({ origin: pos, dir }) : null;
@@ -374,8 +378,6 @@ export function createPanelWorld(
           snap = plate.pickCell({ origin: localOrigin, dir: localDir }, mode());
         }
       }
-    } else {
-      rayLine.visible = false;
     }
     const down = pad?.trigger === true && !prevSelectTrig;
     if (isAr && !placed) {
@@ -505,8 +507,6 @@ export function createPanelWorld(
     hitTestSource?.cancel();
     reticle.geometry.dispose();
     (reticle.material as THREE.MeshBasicMaterial).dispose();
-    rayLine.geometry.dispose();
-    (rayLine.material as THREE.LineBasicMaterial).dispose();
     plate.dispose();
     frame.dispose();
     tray.dispose();
