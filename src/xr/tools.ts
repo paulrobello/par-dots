@@ -44,97 +44,105 @@ export function createTools(): ToolsHandle & { flash(id: ToolId): void } {
   const root = new THREE.Group();
   root.name = 'xr-tools';
 
-  interface Btn {
-    id: ToolId;
-    mesh: THREE.Mesh;
-    mat: THREE.MeshStandardMaterial;
-    tex: THREE.CanvasTexture;
-    ctx: CanvasRenderingContext2D | null;
-    base: string;
-  }
-  const buttons: Btn[] = [];
-  const total = TOOL_ORDER.length * BTN + (TOOL_ORDER.length - 1) * BTN_GAP;
-  let x = -total / 2 + BTN / 2;
-
-  const paint = (b: Btn, active: boolean): void => {
-    const ctx = b.ctx;
-    if (!ctx) return;
-    ctx.clearRect(0, 0, LABEL_PX, LABEL_PX);
-    ctx.fillStyle = active ? '#4d8dff' : b.base;
-    ctx.beginPath();
-    ctx.roundRect(6, 6, LABEL_PX - 12, LABEL_PX - 12, 18);
-    ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `700 ${Math.floor(LABEL_PX * 0.22)}px system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(LABELS[b.id], LABEL_PX / 2, LABEL_PX / 2);
-    b.tex.needsUpdate = true;
-  };
-
-  for (const id of TOOL_ORDER) {
-    const canvas = document.createElement('canvas');
-    canvas.width = LABEL_PX;
-    canvas.height = LABEL_PX;
-    const ctx = canvas.getContext('2d');
-    const tex = new THREE.CanvasTexture(canvas);
-    const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 });
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(BTN, BTN, 0.006), mat);
-    mesh.name = `xr-tool-${id}`;
-    mesh.position.set(x, 0, 0);
-    root.add(mesh);
-    const b: Btn = { id, mesh, mat, tex, ctx, base: '#2a2d31' };
-    paint(b, false);
-    buttons.push(b);
-    x += BTN + BTN_GAP;
-  }
+  // The strip plane is exactly TOOL_ORDER.length texture slots wide, so each LABEL_PX slot of
+  // the canvas maps to one physical BTN+BTN_GAP pitch and painted buttons coincide with pick
+  // zones (a width of BTN+gap*(n-1) stretches the texture pitch and drifts the outer buttons).
+  const total = TOOL_ORDER.length * (BTN + BTN_GAP);
+  const stripCanvas = document.createElement('canvas');
+  stripCanvas.width = LABEL_PX * TOOL_ORDER.length;
+  stripCanvas.height = LABEL_PX;
+  const ctx = stripCanvas.getContext('2d');
+  const tex = new THREE.CanvasTexture(stripCanvas);
+  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6, transparent: true });
+  const strip = new THREE.Mesh(new THREE.PlaneGeometry(total, BTN), mat);
+  strip.name = 'xr-tools-strip';
+  root.add(strip);
 
   let activeId: 'place' | 'remove' | null = 'place';
+  const flashing = new Set<ToolId>();
 
-  const paintAll = (): void => {
-    for (const b of buttons) paint(b, b.id === activeId);
+  /** Repaint the whole strip (state changes are rare; five 128px slots are cheap). */
+  const paint = (): void => {
+    if (!ctx) return;
+    ctx.clearRect(0, 0, stripCanvas.width, LABEL_PX);
+    for (let i = 0; i < TOOL_ORDER.length; i++) {
+      const id = TOOL_ORDER[i];
+      const x0 = i * LABEL_PX;
+      ctx.fillStyle = id === activeId || flashing.has(id) ? '#4d8dff' : '#2a2d31';
+      ctx.beginPath();
+      const width = (BTN / (BTN + BTN_GAP)) * LABEL_PX;
+      ctx.roundRect(x0 + (LABEL_PX - width) / 2, 6, width, LABEL_PX - 12, 18);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `700 ${Math.floor(LABEL_PX * 0.22)}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(LABELS[id], x0 + LABEL_PX / 2, LABEL_PX / 2);
+    }
+    tex.needsUpdate = true;
   };
 
-  const ray = new THREE.Raycaster();
+  /** Local-space slot center for a tool id (strip plane spans -total/2..total/2 on x). */
+  const slotCenter = (id: ToolId): number =>
+    (TOOL_ORDER.indexOf(id) - (TOOL_ORDER.length - 1) / 2) * (BTN + BTN_GAP);
+
+  const ray = new THREE.Ray();
+  const hitP = new THREE.Vector3();
+  const inv = new THREE.Matrix4();
+  const originL = new THREE.Vector3();
+  const rootQuat = new THREE.Quaternion();
+  const tmpP = new THREE.Vector3();
+  const tmpQ = new THREE.Quaternion();
+  const tmpS = new THREE.Vector3();
+  const localDir = new THREE.Vector3();
+  const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 
   const pickTool = (r: { origin: THREE.Vector3; dir: THREE.Vector3 }): ToolId | null => {
     root.updateWorldMatrix(true, true);
-    ray.set(r.origin, r.dir);
-    const hits = ray.intersectObjects(
-      buttons.map((b) => b.mesh),
-      false,
-    );
-    if (hits.length === 0) return null;
-    const name = hits[0].object.name.replace('xr-tool-', '');
-    return (TOOL_ORDER as readonly string[]).includes(name) ? (name as ToolId) : null;
+    inv.copy(root.matrixWorld).invert();
+    originL.copy(r.origin).applyMatrix4(inv);
+    root.matrixWorld.decompose(tmpP, rootQuat, tmpS);
+    localDir.copy(r.dir).normalize().applyQuaternion(tmpQ.copy(rootQuat).invert());
+    ray.origin.copy(originL);
+    ray.direction.copy(localDir);
+    const p = hitP;
+    if (!ray.intersectPlane(plane, p)) return null;
+    if (Math.abs(p.x) > total / 2 || Math.abs(p.y) > BTN / 2) return null;
+    const slot = Math.floor((p.x + total / 2) / (BTN + BTN_GAP));
+    const id = TOOL_ORDER[Math.min(slot, TOOL_ORDER.length - 1)];
+    const cx = slotCenter(id);
+    return Math.abs(p.x - cx) <= BTN / 2 + BTN_GAP / 2 ? id : null;
   };
 
   const setActive = (id: 'place' | 'remove' | null): void => {
     activeId = id;
-    paintAll();
+    paint();
   };
 
-  const flashTimers = new Set<ReturnType<typeof setTimeout>>();
+  const flashTimers = new Map<ToolId, ReturnType<typeof setTimeout>>();
   const flash = (id: ToolId): void => {
-    const b = buttons.find((btn) => btn.id === id);
-    if (!b) return;
-    paint(b, true);
-    const t = setTimeout(() => {
-      flashTimers.delete(t);
-      paint(b, b.id === activeId);
-    }, 180);
-    flashTimers.add(t);
+    clearTimeout(flashTimers.get(id));
+    flashing.add(id);
+    paint();
+    flashTimers.set(
+      id,
+      setTimeout(() => {
+        flashTimers.delete(id);
+        flashing.delete(id);
+        paint();
+      }, 180),
+    );
   };
 
   const dispose = (): void => {
-    for (const t of flashTimers) clearTimeout(t);
+    for (const t of flashTimers.values()) clearTimeout(t);
     flashTimers.clear();
-    for (const b of buttons) {
-      b.tex.dispose();
-      b.mat.dispose();
-      b.mesh.geometry.dispose();
-    }
+    flashing.clear();
+    tex.dispose();
+    mat.dispose();
+    strip.geometry.dispose();
   };
 
+  paint();
   return { root, pickTool, setActive, dispose, flash };
 }

@@ -1,12 +1,15 @@
 /**
- * XR color tray (XR P2b): a floating chip grid mirroring the 2D tray's semantics — one chip
- * per color still needed, remaining counts on the chip tops, the current-color ring, and
- * 2D parity: zero-count chips with wrong dots out stay listed but dimmed, correctly-complete
- * chips vanish, trigger selects. Chip membership/counts derive from the shared PanelSession
- * through the bridge, so XR and 2D cannot diverge. 1 unit = 1 m.
+ * XR color tray (XR P2b, draw-call batched in P4): a floating chip grid mirroring the 2D
+ * tray's semantics — one chip per color still needed, remaining counts on the chip tops, the
+ * current-color ring, and 2D parity: zero-count chips with wrong dots out stay listed but
+ * dimmed, correctly-complete chips vanish, trigger selects. Membership and counts derive from
+ * the shared PanelSession through the bridge, so XR and 2D cannot diverge. All chips render
+ * as one InstancedMesh and the count labels share one canvas strip, so the tray costs a
+ * constant three draw calls regardless of color count. 1 unit = 1 m.
  */
 
 import * as THREE from 'three';
+import { MAX_COLORS } from '../types';
 import type { XrBridge } from './bridge';
 
 /** One chip's parity-relevant state; pure and unit-tested against the 2D tray fixtures. */
@@ -48,54 +51,78 @@ export interface TrayHandle {
 const CHIP_RADIUS = 0.014;
 const CHIP_HEIGHT = 0.008;
 const CHIP_GAP = 0.036;
-const LABEL_PX = 96;
+const STRIP_PX = 512;
 
 export function createTray(deps: TrayDeps): TrayHandle {
   const root = new THREE.Group();
   root.name = 'xr-tray';
 
-  interface Chip {
-    c: number;
-    mesh: THREE.Mesh;
-    mat: THREE.MeshStandardMaterial;
-    labelCanvas: HTMLCanvasElement;
-    labelTex: THREE.CanvasTexture;
-    labelCtx: CanvasRenderingContext2D;
-    labelMesh: THREE.Mesh;
-  }
-  const chips = new Map<number, Chip>();
   const chipGeo = new THREE.CylinderGeometry(CHIP_RADIUS, CHIP_RADIUS, CHIP_HEIGHT, 20);
-  const labelGeo = new THREE.PlaneGeometry(CHIP_RADIUS * 2.2, CHIP_RADIUS * 2.2);
+  const chipMat = new THREE.MeshStandardMaterial({ roughness: 0.5 });
+  const chips = new THREE.InstancedMesh(chipGeo, chipMat, MAX_COLORS);
+  chips.name = 'xr-tray-chips';
+  chips.count = 0;
+  root.add(chips);
 
-  const countLabel = (n: number): string => (n > 99 ? '99+' : String(n));
-
-  const makeChip = (c: number): Chip => {
-    const mat = new THREE.MeshStandardMaterial({
-      color: deps.palette[c]?.hex ?? '#888888',
-      roughness: 0.5,
-    });
-    const mesh = new THREE.Mesh(chipGeo, mat);
-    const labelCanvas = document.createElement('canvas');
-    labelCanvas.width = LABEL_PX;
-    labelCanvas.height = LABEL_PX;
-    const labelCtx = labelCanvas.getContext('2d') as CanvasRenderingContext2D;
-    const labelTex = new THREE.CanvasTexture(labelCanvas);
-    const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true });
-    const labelMesh = new THREE.Mesh(labelGeo, labelMat);
-    labelMesh.position.set(0, CHIP_HEIGHT / 2 + 0.001, 0);
-    labelMesh.rotation.x = -Math.PI / 2;
-    mesh.add(labelMesh);
-    return { c, mesh, mat, labelCanvas, labelTex, labelCtx, labelMesh };
+  /** Chip slots in tray order: the square grid the labels, picking and ring all share. */
+  let states: ChipState[] = [];
+  const slots: Array<{ x: number; z: number }> = [];
+  /** Side of the label quad, grown with the grid; the strip canvas maps onto it 1:1. */
+  let stripExtent = CHIP_GAP;
+  const stripCanvas = document.createElement('canvas');
+  stripCanvas.width = STRIP_PX;
+  stripCanvas.height = STRIP_PX;
+  const stripCtx = stripCanvas.getContext('2d') as CanvasRenderingContext2D | null;
+  const stripTex = new THREE.CanvasTexture(stripCanvas);
+  const labelMat = new THREE.MeshBasicMaterial({ map: stripTex, transparent: true });
+  const labelQuad = new THREE.Mesh(new THREE.PlaneGeometry(stripExtent, stripExtent), labelMat);
+  labelQuad.rotation.x = -Math.PI / 2;
+  labelQuad.position.y = CHIP_HEIGHT / 2 + 0.001;
+  root.add(labelQuad);
+  const layout = (n: number): void => {
+    slots.length = 0;
+    const cols = Math.ceil(Math.sqrt(n || 1));
+    const rows = Math.max(1, Math.ceil(n / cols));
+    for (let i = 0; i < n; i++) {
+      slots.push({
+        x: ((i % cols) - (cols - 1) / 2) * CHIP_GAP,
+        z: Math.floor(i / cols) * CHIP_GAP,
+      });
+    }
+    const extent = Math.max(cols, rows) * CHIP_GAP;
+    if (extent !== stripExtent) {
+      stripExtent = extent;
+      labelQuad.geometry.dispose();
+      labelQuad.geometry = new THREE.PlaneGeometry(extent, extent);
+    }
+    labelQuad.position.z = ((rows - 1) / 2) * CHIP_GAP;
   };
 
-  const layout = (): void => {
-    const list = [...chips.values()];
-    const cols = Math.ceil(Math.sqrt(list.length || 1));
-    list.forEach((chip, i) => {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      chip.mesh.position.set((col - (cols - 1) / 2) * CHIP_GAP, 0, row * CHIP_GAP);
-    });
+  /** Canvas pixel coords for a slot, mapping the strip quad onto the label plane. */
+  const slotPx = (s: { x: number; z: number }): { px: number; py: number } => ({
+    px: STRIP_PX / 2 + (s.x / stripExtent) * STRIP_PX,
+    py: STRIP_PX / 2 + ((s.z - labelQuad.position.z) / stripExtent) * STRIP_PX,
+  });
+
+  const countLabel = (n: number): string => (n > 99 ? '99+' : n < 0 ? '0' : String(n));
+
+  const paintStrip = (): void => {
+    const ctx = stripCtx;
+    if (!ctx) return;
+    ctx.clearRect(0, 0, STRIP_PX, STRIP_PX);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i < states.length; i++) {
+      const { px, py } = slotPx(slots[i]);
+      ctx.fillStyle = 'rgba(15,16,18,0.85)';
+      ctx.beginPath();
+      ctx.arc(px, py, STRIP_PX * 0.045, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `700 ${Math.floor(STRIP_PX * 0.055)}px system-ui, sans-serif`;
+      ctx.fillText(countLabel(states[i].count), px, py);
+    }
+    stripTex.needsUpdate = true;
   };
 
   const ring = new THREE.Mesh(
@@ -106,52 +133,29 @@ export function createTray(deps: TrayDeps): TrayHandle {
   ring.position.y = CHIP_HEIGHT / 2 + 0.002;
   root.add(ring);
 
-  const paintLabel = (chip: Chip, n: number): void => {
-    chip.labelCtx.clearRect(0, 0, LABEL_PX, LABEL_PX);
-    chip.labelCtx.fillStyle = 'rgba(15,16,18,0.85)';
-    chip.labelCtx.beginPath();
-    chip.labelCtx.arc(LABEL_PX / 2, LABEL_PX / 2, LABEL_PX * 0.42, 0, Math.PI * 2);
-    chip.labelCtx.fill();
-    chip.labelCtx.fillStyle = '#ffffff';
-    chip.labelCtx.font = `700 ${Math.floor(LABEL_PX * 0.4)}px system-ui, sans-serif`;
-    chip.labelCtx.textAlign = 'center';
-    chip.labelCtx.textBaseline = 'middle';
-    chip.labelCtx.fillText(countLabel(n), LABEL_PX / 2, LABEL_PX / 2);
-    chip.labelTex.needsUpdate = true;
-  };
-
+  const dimColor = new THREE.Color(0x555555);
+  const tmpColor = new THREE.Color();
+  const tmpMatrix = new THREE.Matrix4();
   const sync = (): void => {
-    const states = chipStates(deps.bridge, deps.selected());
-    const next = new Set(states.map((s) => s.c));
-    for (const [c, chip] of chips) {
-      if (!next.has(c)) {
-        root.remove(chip.mesh);
-        chip.mat.dispose();
-        chip.labelTex.dispose();
-        (chip.labelMesh.material as THREE.MeshBasicMaterial).dispose();
-        chips.delete(c);
-      }
+    states = chipStates(deps.bridge, deps.selected());
+    layout(states.length);
+    for (let i = 0; i < states.length; i++) {
+      const s = slots[i];
+      tmpMatrix.makeTranslation(s.x, 0, s.z);
+      chips.setMatrixAt(i, tmpMatrix);
+      tmpColor.set(deps.palette[states[i].c]?.hex ?? '#888888');
+      if (states[i].dimmed) tmpColor.lerp(dimColor, 0.7);
+      chips.setColorAt(i, tmpColor);
     }
-    for (const s of states) {
-      let chip = chips.get(s.c);
-      if (!chip) {
-        chip = makeChip(s.c);
-        chips.set(s.c, chip);
-        root.add(chip.mesh);
-        layout();
-      }
-      chip.mat.opacity = s.dimmed ? 0.35 : 1;
-      chip.mat.transparent = s.dimmed;
-      paintLabel(chip, s.count);
-    }
-    const sel = states.find((s) => s.selected);
-    if (sel) {
-      const chip = chips.get(sel.c);
-      if (chip) {
-        ring.position.x = chip.mesh.position.x;
-        ring.position.z = chip.mesh.position.z;
-        ring.visible = true;
-      }
+    chips.count = states.length;
+    chips.instanceMatrix.needsUpdate = true;
+    if (chips.instanceColor) chips.instanceColor.needsUpdate = true;
+    paintStrip();
+    const sel = states.findIndex((s) => s.selected);
+    if (sel >= 0) {
+      ring.position.x = slots[sel].x;
+      ring.position.z = slots[sel].z;
+      ring.visible = true;
     } else {
       ring.visible = false;
     }
@@ -159,7 +163,9 @@ export function createTray(deps: TrayDeps): TrayHandle {
 
   const ray = new THREE.Ray();
   const hitP = new THREE.Vector3();
-  const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), CHIP_HEIGHT / 2);
+  // Chip tops sit at +CHIP_HEIGHT/2; a THREE.Plane satisfies normal*p + constant = 0, so the
+  // constant is the negated height. Oblique controller rays miss when it is off by this much.
+  const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -CHIP_HEIGHT / 2);
   const inv = new THREE.Matrix4();
   const originL = new THREE.Vector3();
   const rootQuat = new THREE.Quaternion();
@@ -168,6 +174,7 @@ export function createTray(deps: TrayDeps): TrayHandle {
   const tmpS = new THREE.Vector3();
   const localDir = new THREE.Vector3();
   const pickChip = (r: { origin: THREE.Vector3; dir: THREE.Vector3 }): number | null => {
+    if (states.length === 0) return null;
     root.updateWorldMatrix(true, true);
     inv.copy(root.matrixWorld).invert();
     originL.copy(r.origin).applyMatrix4(inv);
@@ -177,23 +184,22 @@ export function createTray(deps: TrayDeps): TrayHandle {
     ray.direction.copy(localDir);
     const p = hitP;
     if (!ray.intersectPlane(plane, p)) return null;
-    for (const chip of chips.values()) {
-      const dx = p.x - chip.mesh.position.x;
-      const dz = p.z - chip.mesh.position.z;
-      if (dx * dx + dz * dz <= CHIP_RADIUS * 1.4 * (CHIP_RADIUS * 1.4)) return chip.c;
+    const reach = CHIP_RADIUS * 1.4;
+    for (let i = 0; i < slots.length; i++) {
+      const dx = p.x - slots[i].x;
+      const dz = p.z - slots[i].z;
+      if (dx * dx + dz * dz <= reach * reach) return states[i].c;
     }
     return null;
   };
 
   const dispose = (): void => {
-    for (const chip of chips.values()) {
-      chip.mat.dispose();
-      chip.labelTex.dispose();
-      (chip.labelMesh.material as THREE.MeshBasicMaterial).dispose();
-    }
-    chips.clear();
     chipGeo.dispose();
-    labelGeo.dispose();
+    chipMat.dispose();
+    chips.dispose();
+    stripTex.dispose();
+    labelMat.dispose();
+    labelQuad.geometry.dispose();
     ring.geometry.dispose();
     (ring.material as THREE.MeshBasicMaterial).dispose();
   };
