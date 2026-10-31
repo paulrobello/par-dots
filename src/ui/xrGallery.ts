@@ -1,11 +1,11 @@
 /**
  * VR gallery entry (XR P5): adds the Enter VR chip to the gallery and runs the in-VR library
  * loop — pick a picture, build its next unfinished panel with the full XR toolchain, and
- * auto-advance on completion or return to the refreshed library when the picture is done.
+ * continue to another panel or return to the refreshed library when the picture is done.
  * All persistence goes through the same save repository the 2D screens use.
  */
 
-import { nextUnfinishedPanel, overallProgress, PanelSession } from '../game';
+import { nextUnfinishedPanel, overallProgress, PanelSession, pictureComplete } from '../game';
 import type { PictureSave } from '../types';
 import { h, icon, toast } from './dom';
 import { paletteSymbols, userMessage } from './pure';
@@ -16,12 +16,42 @@ type WorldModule = typeof import('../xr/world');
 type LibraryModule = typeof import('../xr/library');
 type Studio = import('../xr/scene').Studio;
 
-/** Info shape a library row renders, assembled from a save via the shared progress math. */
-export function libraryInfo(save: PictureSave): { id: string; name: string; percent: number } {
-  return { id: save.id, name: save.name, percent: overallProgress(save).percent };
+/** Small target-picture preview for the in-world library, generated from the saved mosaic. */
+function libraryPreview(save: PictureSave): HTMLCanvasElement | undefined {
+  const canvas = document.createElement('canvas');
+  const ratio = save.width / save.height;
+  canvas.width = Math.max(1, Math.round(48 * Math.min(1, ratio)));
+  canvas.height = Math.max(1, Math.round(48 * Math.min(1, 1 / ratio)));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return undefined;
+  for (let y = 0; y < canvas.height; y++) {
+    const sy = Math.floor((y / canvas.height) * save.height);
+    for (let x = 0; x < canvas.width; x++) {
+      const sx = Math.floor((x / canvas.width) * save.width);
+      const color = save.target[sy * save.width + sx];
+      ctx.fillStyle = save.palette[color]?.hex ?? '#20282d';
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  return canvas;
 }
 
-/** Newest-first is the gallery's order; progress descends within it for building. */
+/** Info shape a library row renders, assembled from a save via the shared progress math. */
+export function libraryInfo(save: PictureSave): {
+  id: string;
+  name: string;
+  percent: number;
+  preview?: HTMLCanvasElement;
+} {
+  return {
+    id: save.id,
+    name: save.name,
+    percent: overallProgress(save).percent,
+    preview: libraryPreview(save),
+  };
+}
+
+/** Show projects with the most progress first, then sort ties by name. */
 function sortInfos(infos: Array<{ id: string; name: string; percent: number }>): void {
   infos.sort((a, b) => b.percent - a.percent || a.name.localeCompare(b.name));
 }
@@ -77,6 +107,7 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
       if (!alive || !studioRef || !swapHandle) return;
       const session = new PanelSession(save, panel);
       const selected = { color: session.trayColors()[0] ?? -1 };
+      let advancing = false;
       const world = wrld.createPanelWorld(studioRef, xrSession, {
         panel: session,
         palette: save.palette,
@@ -92,27 +123,32 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
           void persistSave(save);
         },
         onExit: () => void xrLaunch?.end(),
-      });
-      // Completion auto-advances to the next unfinished panel, or returns to the library
-      // when the picture is done. The subscription dies with the world it belongs to.
-      const off = session.onChange((event) => {
-        const colors = session.trayColors();
-        if (!colors.includes(selected.color)) selected.color = colors[0] ?? -1;
-        if (event.type !== 'complete') return;
-        touched = true;
-        void persistSave(save).then(() => {
-          if (!alive) return;
-          const next = nextUnfinishedPanel(save, panel);
-          if (next !== null && next !== panel) openPanel(save, next);
-          else openLibrary();
-        });
+        onComplete: () => {
+          if (pictureComplete(save)) save.completedAt ??= Date.now();
+        },
+        continueLabel: () => (nextUnfinishedPanel(save, panel) === null ? 'Library' : 'Next plate'),
+        onContinue: () => {
+          if (advancing) return;
+          advancing = true;
+          touched = true;
+          void persistSave(save)
+            .then(() => {
+              if (!alive) return;
+              const next = nextUnfinishedPanel(save, panel);
+              if (next !== null && next !== panel) openPanel(save, next);
+              else openLibrary();
+            })
+            .catch((error: unknown) => {
+              advancing = false;
+              console.error(error);
+            });
+        },
       });
       swapHandle.swap({
         update: world.update,
         layout: world.layout,
         repaint: world.repaint,
         dispose: () => {
-          off();
           const layout = world.layout();
           if (layout && mode === 'vr') {
             lay.setLayout(save, panel, layout);
@@ -144,20 +180,27 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
       });
     };
 
+    let picking = false;
     const pick = async (id: string): Promise<void> => {
-      const save = await loadSave(id);
-      if (!alive || !save) return;
-      if (save.origin === 'drawn') {
-        toast('Drawings open in the 2D editor', 2500);
-        return;
+      if (picking) return;
+      picking = true;
+      try {
+        const save = await loadSave(id);
+        if (!alive || !save) return;
+        if (save.origin === 'drawn') {
+          toast('Drawings open in the 2D editor', 2500);
+          return;
+        }
+        const panel = nextUnfinishedPanel(save, -1);
+        if (panel === null) {
+          toast('That picture is already complete', 2500);
+          return;
+        }
+        touched = true;
+        openPanel(save, panel);
+      } finally {
+        picking = false;
       }
-      const panel = nextUnfinishedPanel(save, -1);
-      if (panel === null) {
-        toast('That picture is already complete', 2500);
-        return;
-      }
-      touched = true;
-      openPanel(save, panel);
     };
 
     xrLaunch = scn.launchVr(xrSession, {

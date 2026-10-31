@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- VR controller help, a plate-completion fanfare and next-plate button, and reference symbols on empty overlay pegs.
+
 - VR builders can toggle a ghost of the reference colors on empty plate pegs and select available colors directly from the reference image.
 
 - Six bundled mosaic pictures: koi pond, camper at sunset, moonlit barn owl, butterfly garden, sunset balloon and a cozy reading scene.
@@ -27,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Enlarged VR plate pegs and refreshed the VR library with picture previews and pointer feedback. Either controller can select library items.
+
 - In XR, gripping and moving the thumbstick forward or backward pushes or pulls the held item; hold the trigger as well to scale it. Left/right rotation remains available while gripping.
 
 - Redesigned the VR tool palette with clear icons, labels and a high-contrast active tool.
@@ -43,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The palette swap button has its own arrows icon instead of the pan tool's.
 
 ### Fixed
+
+- Aligned VR grab push/pull with the laser beam and advanced to the next available color when a color is completed.
 
 - Kept the 2D reference and XR controls within their panel at short desktop heights and made Overview visually distinct from panel navigation.
 

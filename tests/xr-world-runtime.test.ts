@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { PanelSession } from '../src/game/panelSession';
 import { EMPTY, PANEL_SIZE, type PictureSave } from '../src/types';
 import type { Studio } from '../src/xr/scene';
+import { TOOL_ORDER } from '../src/xr/tools';
 import { createLibraryWorld, createPanelWorld } from '../src/xr/world';
 
 beforeEach(() => {
@@ -41,7 +42,7 @@ function fixture() {
     targets[1].quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), direction.normalize());
     scene.updateMatrixWorld(true);
   };
-  return { scene, targets, grips, studio, session, buttons, axes, connect, aim };
+  return { scene, targets, grips, studio, session, buttons, axes, source, connect, aim };
 }
 
 it('uses the connected controller slot for library selection and B exit', () => {
@@ -59,8 +60,9 @@ it('uses the connected controller slot for library selection and B exit', () => 
   const local = new THREE.Vector3(0, 0.19, 0).applyMatrix4(library.matrixWorld);
   const normal = new THREE.Vector3(0, 0, 1).transformDirection(library.matrixWorld);
   f.aim(local.clone().addScaledVector(normal, 0.2), normal.clone().negate());
-  f.buttons[0].pressed = true;
   world.update(0);
+  f.buttons[0].pressed = true;
+  world.update(1);
   expect(onPick).toHaveBeenCalledWith('one');
   f.buttons[5].pressed = true;
   world.update(1);
@@ -68,6 +70,66 @@ it('uses the connected controller slot for library selection and B exit', () => 
   expect(onExit).toHaveBeenCalledTimes(1);
   world.dispose();
   expect(f.scene.getObjectByName('xr-library')).toBeUndefined();
+});
+
+it('accepts a left-controller library trigger after it is released', () => {
+  const f = fixture();
+  Object.defineProperty(f.source, 'handedness', { value: 'left' });
+  const onPick = vi.fn();
+  const world = createLibraryWorld(f.studio, f.session, {
+    rows: () => [{ id: 'one', label: 'One' }],
+    onPick,
+    onExit: vi.fn(),
+  });
+  f.connect(1);
+  const library = f.scene.getObjectByName('xr-library') as THREE.Object3D;
+  library.updateWorldMatrix(true, true);
+  const point = new THREE.Vector3(0, 0.19, 0).applyMatrix4(library.matrixWorld);
+  const normal = new THREE.Vector3(0, 0, 1).transformDirection(library.matrixWorld);
+  f.aim(point.clone().addScaledVector(normal, 0.2), normal.negate());
+  f.buttons[0].pressed = true;
+  world.update(0);
+  expect(onPick).not.toHaveBeenCalled();
+  f.buttons[0].pressed = false;
+  world.update(1);
+  f.buttons[0].pressed = true;
+  world.update(2);
+  expect(onPick).toHaveBeenCalledWith('one');
+  world.dispose();
+});
+
+it('picks at most one library row when both controllers trigger in the same frame', () => {
+  const f = fixture();
+  const onPick = vi.fn();
+  const world = createLibraryWorld(f.studio, f.session, {
+    rows: () => [{ id: 'one', label: 'One' }],
+    onPick,
+    onExit: vi.fn(),
+  });
+  f.connect(1);
+  const leftButtons = Array.from({ length: 6 }, () => ({ pressed: false }));
+  const left = {
+    handedness: 'left',
+    gamepad: { buttons: leftButtons, axes: [] },
+  } as unknown as XRInputSource;
+  (
+    f.targets[0] as unknown as THREE.EventDispatcher<{ connected: { data: XRInputSource } }>
+  ).dispatchEvent({ type: 'connected', data: left });
+  const library = f.scene.getObjectByName('xr-library') as THREE.Object3D;
+  library.updateWorldMatrix(true, true);
+  const point = new THREE.Vector3(0, 0.19, 0).applyMatrix4(library.matrixWorld);
+  const normal = new THREE.Vector3(0, 0, 1).transformDirection(library.matrixWorld);
+  f.aim(point.clone().addScaledVector(normal, 0.2), normal.negate());
+  f.targets[0].position.copy(f.targets[1].position);
+  f.targets[0].quaternion.copy(f.targets[1].quaternion);
+  f.scene.updateMatrixWorld(true);
+  world.update(0);
+  leftButtons[0].pressed = true;
+  f.buttons[0].pressed = true;
+  world.update(1);
+  world.update(2);
+  expect(onPick).toHaveBeenCalledOnce();
+  world.dispose();
 });
 
 it('selects a tray chip, updates its ring, and grabs the tool panel on contact', () => {
@@ -150,7 +212,8 @@ it('selects a tray chip, updates its ring, and grabs the tool panel on contact',
   expect(selected).toBe(1);
   const tools = f.scene.getObjectByName('xr-tools')!;
   tools.updateWorldMatrix(true, true);
-  const ghostButton = new THREE.Vector3(0.155, 0, 0).applyMatrix4(tools.matrixWorld);
+  const ghostX = (TOOL_ORDER.indexOf('ghost') - (TOOL_ORDER.length - 1) / 2) * 0.062;
+  const ghostButton = new THREE.Vector3(ghostX, 0, 0).applyMatrix4(tools.matrixWorld);
   const toolsNormal = new THREE.Vector3(0, 0, 1).transformDirection(tools.matrixWorld);
   f.aim(ghostButton.clone().addScaledVector(toolsNormal, 0.15), toolsNormal.clone().negate());
   f.buttons[0].pressed = false;
@@ -163,21 +226,40 @@ it('selects a tray chip, updates its ring, and grabs the tool panel on contact',
   expect(ghostColor.getHexString()).toBe(
     new THREE.Color('#0000ff').lerp(new THREE.Color(0x9a968a), 0.5).getHexString(),
   );
+  const helpX = (TOOL_ORDER.indexOf('help') - (TOOL_ORDER.length - 1) / 2) * 0.062;
+  const helpButton = new THREE.Vector3(helpX, 0, 0).applyMatrix4(tools.matrixWorld);
+  f.aim(helpButton.clone().addScaledVector(toolsNormal, 0.15), toolsNormal.clone().negate());
+  f.buttons[0].pressed = false;
+  world.update(7);
+  f.buttons[0].pressed = true;
+  world.update(8);
+  const help = f.scene.getObjectByName('xr-help') as THREE.Object3D;
+  expect(help.visible).toBe(true);
+  help.updateWorldMatrix(true, true);
+  const close = new THREE.Vector3(0.13, 0.1, 0).applyMatrix4(help.matrixWorld);
+  const helpNormal = new THREE.Vector3(0, 0, 1).transformDirection(help.matrixWorld);
+  f.aim(close.clone().addScaledVector(helpNormal, 0.15), helpNormal.negate());
+  f.buttons[0].pressed = false;
+  world.update(9);
+  f.buttons[0].pressed = true;
+  world.update(10);
+  expect(help.visible).toBe(false);
+  expect(selected).toBe(1);
   f.buttons[0].pressed = false;
   const initialX = tools.position.x;
   f.grips[1].position.copy(tools.position);
   f.scene.updateMatrixWorld(true);
-  world.update(7);
+  world.update(11);
   const marker = f.grips[1].children[0] as THREE.Mesh<
     THREE.SphereGeometry,
     THREE.MeshStandardMaterial
   >;
   expect(marker.material.color.getHex()).toBe(0x56dbb1);
   f.buttons[1].pressed = true;
-  world.update(8);
+  world.update(12);
   f.grips[1].position.x += 0.1;
   f.scene.updateMatrixWorld(true);
-  world.update(24);
+  world.update(28);
   expect(tools.position.x).toBeCloseTo(initialX + 0.1);
   const initialZ = tools.position.z;
   f.axes[3] = -1;
@@ -306,4 +388,92 @@ it('starts the tool panel clear of the tray and reference frame from the default
     ).toBe(true);
   }
   world.dispose();
+});
+
+it('advances finished colors and waits for the completion button before continuing', () => {
+  const f = fixture();
+  const size = PANEL_SIZE * PANEL_SIZE;
+  const target = new Uint8Array(size).fill(1);
+  target[0] = 0;
+  const placed = new Uint8Array(size).fill(1);
+  placed[0] = EMPTY;
+  placed[1] = EMPTY;
+  const save = {
+    schemaVersion: 2,
+    id: 'complete',
+    createdAt: 1,
+    updatedAt: 1,
+    name: 'Complete',
+    sourceImageId: 'image',
+    aspect: '1:1',
+    width: PANEL_SIZE,
+    height: PANEL_SIZE,
+    palette: [
+      { hex: '#ff0000', name: 'Red' },
+      { hex: '#0000ff', name: 'Blue' },
+    ],
+    paletteMode: 'lego',
+    origin: 'photo',
+    target,
+    placed,
+    panelElapsedMs: [0],
+  } as PictureSave;
+  const session = new PanelSession(save, 0);
+  let selected = 0;
+  const onContinue = vi.fn();
+  const world = createPanelWorld(f.studio, f.session, {
+    panel: session,
+    palette: save.palette,
+    symbols: ['A', 'B'],
+    mode: 'vr',
+    selected: () => selected,
+    onSelect: (c) => {
+      selected = c;
+    },
+    persist: vi.fn(),
+    onExit: vi.fn(),
+    onContinue,
+    continueLabel: () => 'Next plate',
+  });
+  f.connect(1);
+  session.beginStroke('paint', 0);
+  session.applyAt(0, 0);
+  session.endStroke();
+  expect(selected).toBe(1);
+  session.beginStroke('paint', 1);
+  session.applyAt(1, 0);
+  session.endStroke();
+  const completion = f.scene.getObjectByName('xr-completion') as THREE.Object3D;
+  expect(completion.visible).toBe(true);
+  expect(onContinue).not.toHaveBeenCalled();
+  completion.updateWorldMatrix(true, true);
+  const targetPoint = new THREE.Vector3(0, -0.0334, 0).applyMatrix4(completion.matrixWorld);
+  const normal = new THREE.Vector3(0, 0, 1).transformDirection(completion.matrixWorld);
+  f.aim(targetPoint.clone().addScaledVector(normal, 0.2), normal.negate());
+  world.update(0);
+  f.buttons[0].pressed = true;
+  world.update(16);
+  world.update(32);
+  expect(onContinue).toHaveBeenCalledOnce();
+  world.dispose();
+
+  const reopenedComplete = vi.fn();
+  const reopened = createPanelWorld(f.studio, f.session, {
+    panel: new PanelSession(save, 0),
+    palette: save.palette,
+    symbols: ['A', 'B'],
+    mode: 'vr',
+    selected: () => -1,
+    onSelect: vi.fn(),
+    persist: vi.fn(),
+    onExit: vi.fn(),
+    onContinue: vi.fn(),
+    onComplete: reopenedComplete,
+    continueLabel: () => 'Next plate',
+  });
+  reopened.update(100);
+  reopened.update(116);
+  expect(f.scene.getObjectByName('xr-completion')?.visible).toBe(true);
+  expect(reopenedComplete).toHaveBeenCalledOnce();
+  reopened.dispose();
 });

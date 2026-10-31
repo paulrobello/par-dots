@@ -8,9 +8,17 @@
 
 import * as THREE from 'three';
 
-export type ToolId = 'place' | 'remove' | 'hint' | 'undo' | 'redo' | 'ghost';
+export type ToolId = 'place' | 'remove' | 'hint' | 'undo' | 'redo' | 'ghost' | 'help';
 
-export const TOOL_ORDER: readonly ToolId[] = ['place', 'remove', 'hint', 'undo', 'redo', 'ghost'];
+export const TOOL_ORDER: readonly ToolId[] = [
+  'place',
+  'remove',
+  'hint',
+  'undo',
+  'redo',
+  'ghost',
+  'help',
+];
 
 /**
  * Full-but-wrong buzz arming: re-armed whenever the panel is not full-but-wrong; stays
@@ -40,6 +48,7 @@ const LABELS: Record<ToolId, string> = {
   undo: 'Undo',
   redo: 'Redo',
   ghost: 'Ghost',
+  help: 'Help',
 };
 
 function drawToolIcon(ctx: CanvasRenderingContext2D, id: ToolId, x: number, color: string): void {
@@ -85,6 +94,13 @@ function drawToolIcon(ctx: CanvasRenderingContext2D, id: ToolId, x: number, colo
     ctx.moveTo(x, 34);
     ctx.lineTo(x, 70);
     ctx.stroke();
+  } else if (id === 'help') {
+    ctx.arc(x, 49, 19, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.font = '700 34px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('?', x, 49);
   } else {
     const sign = id === 'undo' ? 1 : -1;
     ctx.moveTo(x - sign * 18, 45);

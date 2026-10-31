@@ -28,7 +28,13 @@ export function createGrab(
   object: THREE.Object3D,
   grip: THREE.Object3D,
 ): {
-  update(stickX: number, stickY: number, scaling: boolean, seconds: number): void;
+  update(
+    stickX: number,
+    stickY: number,
+    scaling: boolean,
+    seconds: number,
+    rayDirection?: THREE.Vector3,
+  ): void;
 } {
   const gripPos = new THREE.Vector3();
   const gripQuat = new THREE.Quaternion();
@@ -37,11 +43,16 @@ export function createGrab(
   const inverse = gripQuat.clone().invert();
   const offset = object.position.clone().sub(gripPos).applyQuaternion(inverse);
   const relative = inverse.multiply(object.quaternion);
+  const rayDelta = new THREE.Vector3();
+  const gripInverse = new THREE.Quaternion();
+  const gripDirection = new THREE.Vector3(0, 0, -1);
   const turn = new THREE.Quaternion();
   const up = new THREE.Vector3(0, 1, 0);
   return {
-    update(stickX, stickY, scaling, seconds) {
+    update(stickX, stickY, scaling, seconds, currentRayDirection) {
       const dt = Math.max(0, Math.min(0.05, seconds));
+      grip.getWorldPosition(gripPos);
+      grip.getWorldQuaternion(gripQuat);
       if (Math.abs(stickX) > 0.15) {
         turn.setFromAxisAngle(up, -stickX * dt * 1.8);
         relative.premultiply(turn);
@@ -49,10 +60,19 @@ export function createGrab(
       if (Math.abs(stickY) > 0.15) {
         if (scaling)
           object.scale.setScalar(clampFrameScale(object.scale.x * Math.exp(-stickY * dt)));
-        else offset.z += stickY * dt * 0.5;
+        else {
+          gripDirection.set(0, 0, -1).applyQuaternion(gripQuat);
+          const direction = currentRayDirection ?? gripDirection;
+          if (direction.lengthSq() > 0) {
+            rayDelta
+              .copy(direction)
+              .normalize()
+              .multiplyScalar(-stickY * dt * 0.5)
+              .applyQuaternion(gripInverse.copy(gripQuat).invert());
+            offset.add(rayDelta);
+          }
+        }
       }
-      grip.getWorldPosition(gripPos);
-      grip.getWorldQuaternion(gripQuat);
       object.position.copy(offset).applyQuaternion(gripQuat).add(gripPos);
       object.quaternion.copy(gripQuat).multiply(relative);
     },

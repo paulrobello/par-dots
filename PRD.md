@@ -2,7 +2,7 @@
 
 **Status:** v1 as built (updated 2026-09-26) · **Owner:** Paul Robello
 
-This document describes par-dots as it ships. For how the code is organized, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The WebXR mode is specified separately in [PRD-XR.md](PRD-XR.md). In XR, the tool palette uses labeled icons, highlights the active tool, and can show reference colors on empty pegs. A trigger press on the reference image selects an available color. The gallery pages through unfinished pictures with the thumbstick, supports controller selection and B to exit, and saves VR workspace layout; the placement workspace has selectable colors, colored peg previews, grip proximity feedback, and a movable tool panel. Grip plus thumbstick pushes or pulls held objects; grip and trigger plus thumbstick scales them.
+This document describes par-dots as it ships. For how the code is organized, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The WebXR mode is specified separately in [PRD-XR.md](PRD-XR.md). In XR, the tool palette uses labeled icons, highlights the active tool, offers controller help, and can show reference colors and letters on empty pegs. A trigger press on the reference image selects an available color. The gallery pages through unfinished pictures with the thumbstick, supports controller selection and B to exit, and saves VR workspace layout; the placement workspace has selectable colors, colored peg previews, grip proximity feedback, and a movable tool panel. Grip plus thumbstick pushes or pulls held objects along the laser beam; grip and trigger plus thumbstick scales them.
 
 ## Table of Contents
 

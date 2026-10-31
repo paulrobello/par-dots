@@ -411,35 +411,97 @@ export function mountPanelPlay(
           return;
         }
         const worldRef: { current: { layout(): XrPanelLayout | null } | null } = { current: null };
+        let activePanel = panel;
+        let xrAlive = true;
         xrLaunch = scn.launchVr(xrSession, {
           mode,
           onEnd: () => {
+            xrAlive = false;
             const snap = worldRef.current?.layout();
-            if (snap) lay.setLayout(save, panel, snap);
+            if (snap && mode === 'vr') lay.setLayout(save, activePanel, snap);
             worldRef.current = null;
             xrLaunch = null;
             vrBtn.disabled = false;
             mrBtn.disabled = false;
             saveNow();
-            // Refresh the 2D screen from the mutations XR made (tray, HUD, completion).
+            if (activePanel !== panel) {
+              if (pictureComplete(save)) navigate(routeHash({ name: 'overview', id: save.id }));
+              else goToPanel(activePanel);
+              return;
+            }
             syncTray(false);
             updateHud();
             void finishIfComplete();
           },
           buildWorld: (studio) => {
-            const w = wrld.createPanelWorld(studio, xrSession, {
-              panel: session,
-              palette: save.palette,
-              symbols,
-              mode,
-              layout: mode === 'vr' ? lay.getLayout(save, panel) : null,
-              selected: () => selected,
-              onSelect: (c) => select(c),
-              persist: saveNow,
-              onExit: () => void xrLaunch?.end(),
-            });
-            worldRef.current = w;
-            return w;
+            let swap: ReturnType<typeof wrld.createSwapWorld> | null = null;
+            const makeWorld = (index: number): ReturnType<typeof wrld.createPanelWorld> => {
+              const activeSession = index === panel ? session : new PanelSession(save, index);
+              const activeTimer =
+                index === panel
+                  ? timer
+                  : createPanelTimer({
+                      now: () => performance.now(),
+                      initialMs: save.panelElapsedMs[index] ?? 0,
+                      visible: true,
+                      locked: activeSession.isComplete(),
+                    });
+              const persistActive = (): void => {
+                if (index !== panel) save.panelElapsedMs[index] = activeTimer.flush();
+                saveNow();
+              };
+              let activeColor = activeSession.trayColors()[0] ?? -1;
+              let advancing = false;
+              const world = wrld.createPanelWorld(studio, xrSession, {
+                panel: activeSession,
+                palette: save.palette,
+                symbols,
+                mode,
+                layout: mode === 'vr' ? lay.getLayout(save, index) : null,
+                selected: () => (index === panel ? selected : activeColor),
+                onSelect: (c) => {
+                  if (index === panel) select(c);
+                  else activeColor = c;
+                },
+                persist: persistActive,
+                onExit: () => void xrLaunch?.end(),
+                onComplete: () => {
+                  if (index === panel) recordTime(activeTimer.stop());
+                  else save.panelElapsedMs[index] = activeTimer.stop();
+                  if (pictureComplete(save)) save.completedAt ??= Date.now();
+                },
+                continueLabel: () =>
+                  nextUnfinishedPanel(save, index) === null ? 'Exit VR' : 'Next plate',
+                onContinue: () => {
+                  if (advancing) return;
+                  advancing = true;
+                  queueMicrotask(() => {
+                    if (!xrAlive || !swap) return;
+                    const next = nextUnfinishedPanel(save, index);
+                    if (next === null) {
+                      void xrLaunch?.end();
+                      return;
+                    }
+                    if (index === panel) recordTime(timer.stop());
+                    activePanel = next;
+                    swap.swap(makeWorld(next));
+                    saveNow();
+                  });
+                },
+              });
+              worldRef.current = world;
+              return {
+                ...world,
+                dispose: () => {
+                  if (index !== panel) save.panelElapsedMs[index] = activeTimer.stop();
+                  const snap = world.layout();
+                  if (snap && mode === 'vr') lay.setLayout(save, index, snap);
+                  world.dispose();
+                },
+              };
+            };
+            swap = wrld.createSwapWorld(makeWorld(panel));
+            return swap;
           },
         });
       } catch (err) {

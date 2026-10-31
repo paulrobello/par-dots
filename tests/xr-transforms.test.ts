@@ -87,20 +87,41 @@ describe('runtime workspace transforms', () => {
     expect(object.position.distanceTo(expected)).toBeCloseTo(0);
   });
 
-  it('pushes and pulls along the controller direction without changing scale', () => {
+  it('pushes and pulls along the laser ray, even when grip orientation differs', () => {
     const object = new THREE.Group();
     const grip = new THREE.Group();
     object.position.set(0, 0, -0.5);
     const grab = createGrab(object, grip);
     grip.rotation.y = Math.PI / 2;
-    for (let i = 0; i < 20; i++) grab.update(0, -1, false, 0.05);
-    expect(object.position.x).toBeCloseTo(-1);
+    const ray = new THREE.Vector3(0, 0, -1);
+    for (let i = 0; i < 20; i++) grab.update(0, -1, false, 0.05, ray);
+    expect(object.position.x).toBeCloseTo(-0.5);
+    expect(object.position.z).toBeCloseTo(-0.5);
     expect(object.scale.x).toBe(1);
-    for (let i = 0; i < 20; i++) grab.update(0, 1, false, 0.05);
-    expect(object.position.x).toBeCloseTo(-0.5);
-    for (let i = 0; i < 20; i++) grab.update(0, -1, true, 0.05);
-    expect(object.position.x).toBeCloseTo(-0.5);
+    ray.set(1, 0, 0);
+    for (let i = 0; i < 20; i++) grab.update(0, 1, false, 0.05, ray);
+    expect(object.position.x).toBeCloseTo(-1);
+    expect(object.position.z).toBeCloseTo(-0.5);
+    for (let i = 0; i < 20; i++) grab.update(0, -1, true, 0.05, ray);
+    expect(object.position.x).toBeCloseTo(-1);
+    expect(object.position.z).toBeCloseTo(-0.5);
     expect(object.scale.x).toBeCloseTo(Math.E);
+  });
+
+  it('rotates a prior push with the controller pose while held', () => {
+    const object = new THREE.Group();
+    const grip = new THREE.Group();
+    object.position.set(0, 0, -0.5);
+    const grab = createGrab(object, grip);
+    const ray = new THREE.Vector3(0, 0, -1);
+    for (let i = 0; i < 20; i++) grab.update(0, -1, false, 0.05, ray);
+    expect(object.position.x).toBeCloseTo(0);
+    expect(object.position.z).toBeCloseTo(-1);
+
+    grip.rotation.y = Math.PI / 2;
+    grab.update(0, 0, false, 0.05, ray);
+    expect(object.position.x).toBeCloseTo(-1);
+    expect(object.position.z).toBeCloseTo(0);
   });
 
   it('stick yaw and trigger-modified resize are time-based, up enlarges, and scale is clamped', () => {

@@ -10,7 +10,9 @@ import { play } from '../audio/sfx';
 import type { PanelSession } from '../game/panelSession';
 import type { XrPanelLayout } from '../types';
 import { createBridge } from './bridge';
+import { createCompletion } from './completion';
 import { createFrame } from './frame';
+import { createHelp } from './help';
 import { createInputModel, type PadState, readGamepad } from './input';
 import { createLibrary, type LibraryRow } from './library';
 import { createPlacer, type HitPose, offsetsFrom } from './place';
@@ -39,6 +41,10 @@ export interface PanelWorldDeps {
   persist(): void;
   /** B button: leave XR (ends the session). */
   onExit(): void;
+  /** Continue from a completed plate without leaving the immersive session. */
+  onContinue?(): void;
+  onComplete?(): void;
+  continueLabel?(): string;
 }
 
 const SPAWN: HitPose = { x: 0, y: 0.95, z: -0.35 };
@@ -181,7 +187,7 @@ export function createPanelWorld(
     selected: deps.selected,
     persist: deps.persist,
   });
-  const plate = createPlate(bridge, deps.palette);
+  const plate = createPlate(bridge, deps.palette, deps.symbols);
   studio.scene.add(plate.root);
 
   const frame = createFrame(bridge, deps.palette, deps.symbols);
@@ -195,6 +201,16 @@ export function createPanelWorld(
 
   const tools = createTools();
   studio.scene.add(tools.root);
+  const completion = createCompletion();
+  studio.scene.add(completion.root);
+  const help = createHelp();
+  studio.scene.add(help.root);
+  const viewerPosition = (): THREE.Vector3 => {
+    const camera = studio.renderer.xr.getCamera?.();
+    return camera
+      ? new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld)
+      : new THREE.Vector3(0, 1.6, 0.2);
+  };
 
   /** Spawn everything around the plate at pos/yaw (VR spawn or MR reticle drop). */
   const placeWorld = (p: HitPose, yaw: number): void => {
@@ -309,11 +325,23 @@ export function createPanelWorld(
     plate.sync();
     if (event.type === 'placed' || event.type === 'removed') {
       pulse(xrSession, 0.6, 18);
+    } else if (event.type === 'colorDone' && deps.selected() === event.colorIndex) {
+      const colors = bridge.trayColors();
+      const next = colors.find((c) => c > event.colorIndex) ?? colors.at(-1) ?? -1;
+      deps.onSelect(next);
+      tray.sync();
+    } else if (event.type === 'complete') {
+      deps.onComplete?.();
+      help.root.visible = false;
+      completion.show(deps.continueLabel?.() ?? 'Exit VR', plate.root, viewerPosition());
+      play('panelComplete');
+      pulse(xrSession, 0.8, 100);
     }
   });
 
   let removeMode = false;
   let referenceOverlay = false;
+  let initialCompletionPending = bridge.isComplete();
   const mode = (): 'paint' | 'remove' => (removeMode ? 'remove' : 'paint');
   const syncToolsActive = (): void => tools.setActive(removeMode ? 'remove' : 'place');
 
@@ -326,6 +354,8 @@ export function createPanelWorld(
     } else if (id === 'remove') {
       removeMode = !removeMode;
       syncToolsActive();
+    } else if (id === 'help') {
+      help.show(plate.root, viewerPosition());
     } else if (id === 'ghost') {
       referenceOverlay = !referenceOverlay;
       plate.setReferenceOverlay(referenceOverlay);
@@ -392,6 +422,11 @@ export function createPanelWorld(
   const update = (time: number, xrFrame?: XRFrame): void => {
     const dt = lastTime === null ? 0 : (time - lastTime) / 1000;
     lastTime = time;
+    if (initialCompletionPending && placed) {
+      initialCompletionPending = false;
+      deps.onComplete?.();
+      completion.show(deps.continueLabel?.() ?? 'Exit VR', plate.root, viewerPosition());
+    }
     const { pad: rawPad, index } = readPad(studio);
     if (!rawPad) awaitTriggerRelease = true;
     else if (!rawPad.trigger) awaitTriggerRelease = false;
@@ -420,7 +455,13 @@ export function createPanelWorld(
       }
     }
     const down = actionPad?.trigger === true && !prevSelectTrig;
-    if (isAr && !placed) {
+    const modalAtStart = completion.root.visible || help.root.visible;
+    if (completion.root.visible) {
+      completion.update(time);
+      if (down && index >= 0 && completion.pick(pos, dir)) (deps.onContinue ?? deps.onExit)();
+    } else if (help.root.visible) {
+      if (down && index >= 0 && help.pick(pos, dir)) suppressTriggerUntilRelease = true;
+    } else if (isAr && !placed) {
       updatePlacement(xrFrame, down);
     } else {
       if (down && chip !== null) traySelect(chip);
@@ -429,7 +470,9 @@ export function createPanelWorld(
       else if (down && tool !== null) handleTool(tool);
     }
     prevSelectTrig = actionPad?.trigger === true;
-    model.update(actionPad?.grip ? null : snap, actionPad);
+    const modal = modalAtStart || completion.root.visible || help.root.visible;
+    const inputPad = modal && actionPad ? { ...actionPad, trigger: false } : actionPad;
+    model.update(modal || inputPad?.grip ? null : snap, inputPad);
     for (let i = 0; i < controllers.markers.length; i++) {
       const marker = controllers.markers[i];
       marker.getWorldPosition(gripPosition);
@@ -444,7 +487,7 @@ export function createPanelWorld(
       marker.material.color.setHex(near || (grabbed !== null && i === index) ? 0x56dbb1 : 0xd6d8dc);
       marker.material.emissive.setHex(near ? 0x195a48 : 0x000000);
     }
-    updateGrab(pad, index, pos, dir, dt);
+    updateGrab(modal ? null : pad, index, pos, dir, dt);
     updateOverlayToggle();
   };
 
@@ -529,7 +572,7 @@ export function createPanelWorld(
       if (grabbed) grab = createGrab(grabbed, studio.renderer.xr.getControllerGrip(index));
     }
     if (grip && index >= 0 && grabbed && grab && pad) {
-      grab.update(pad.stickX, pad.stickY, pad.trigger, dt);
+      grab.update(pad.stickX, pad.stickY, pad.trigger, dt, d);
       if (grabbed === frame.root) frame.setScale(grabbed.scale.x);
     }
     if (up || index < 0) {
@@ -560,6 +603,8 @@ export function createPanelWorld(
     reticle.geometry.dispose();
     (reticle.material as THREE.MeshBasicMaterial).dispose();
     controllers.dispose();
+    completion.dispose();
+    help.dispose();
     for (const root of [plate.root, frame.root, tray.root, tools.root, reticle])
       root.removeFromParent();
     plate.dispose();
@@ -656,30 +701,45 @@ export function createLibraryWorld(
 
   const pos = new THREE.Vector3();
   const dir = new THREE.Vector3();
-  let prevTrigger = false;
-  let prevB = false;
-  let stickHeld = false;
+  const prevTrigger = [false, false];
+  const ready = [false, false];
+  const prevB = [false, false];
+  const stickHeld = [false, false];
   const update = (_time: number, _frame?: XRFrame): void => {
-    const { pad, index } = readPad(studio);
-    if (index < 0) return;
-    if (pad?.b && !prevB) deps.onExit();
-    prevB = pad?.b === true;
-    const stick = pad?.stickX ?? 0;
-    if (Math.abs(stick) > 0.6 && !stickHeld) library.pageBy(stick > 0 ? 1 : -1);
-    stickHeld = Math.abs(stick) > 0.3;
-    const ctl = studio.renderer.xr.getController(index);
-    pos.setFromMatrixPosition(ctl.matrixWorld);
-    dir.set(0, 0, -1).transformDirection(ctl.matrixWorld);
-    const row = library.pickRow({ origin: pos, dir });
-    const down = pad?.trigger === true && !prevTrigger;
-    if (down && row !== null) {
-      const id = deps.rows()[row]?.id;
-      if (id) {
-        pulse(xrSession, 0.5, 12);
-        deps.onPick(id);
+    let hovered: number | null = null;
+    let pickedThisFrame = false;
+    for (let index = 0; index < 2; index++) {
+      const ctl = studio.renderer.xr.getController(index);
+      const source = ctl.userData.xrSource as XRInputSource | undefined;
+      if (!source?.gamepad) {
+        ready[index] = false;
+        prevTrigger[index] = false;
+        prevB[index] = false;
+        stickHeld[index] = false;
+        continue;
       }
+      const pad = readGamepad(source.gamepad);
+      if (!pad.trigger) ready[index] = true;
+      if (pad.b && !prevB[index]) deps.onExit();
+      prevB[index] = pad.b;
+      if (Math.abs(pad.stickX) > 0.6 && !stickHeld[index]) library.pageBy(pad.stickX > 0 ? 1 : -1);
+      stickHeld[index] = Math.abs(pad.stickX) > 0.3;
+      pos.setFromMatrixPosition(ctl.matrixWorld);
+      dir.set(0, 0, -1).transformDirection(ctl.matrixWorld);
+      const row = library.pickRow({ origin: pos, dir });
+      if (hovered === null && row !== null) hovered = row;
+      const down = ready[index] && pad.trigger && !prevTrigger[index];
+      if (down && row !== null && !pickedThisFrame) {
+        const id = deps.rows()[row]?.id;
+        if (id) {
+          pulse(xrSession, 0.5, 12);
+          pickedThisFrame = true;
+          deps.onPick(id);
+        }
+      }
+      prevTrigger[index] = pad.trigger;
     }
-    prevTrigger = pad?.trigger === true;
+    library.setHover(hovered);
   };
 
   const dispose = (): void => {

@@ -7,6 +7,7 @@ import {
   PITCH,
   PLATE_THICKNESS,
   type PlateSource,
+  STUD_RADIUS,
   snapToEmpty,
   snapToOccupied,
 } from '../src/xr/plate';
@@ -62,6 +63,18 @@ describe('createPlate', () => {
     mesh.getColorAt(1, c);
     expect(c.getHexString()).toBe('9a968a');
     plate.dispose();
+  });
+
+  it('uses visibly larger pegs without crossing the eight millimetre pitch', () => {
+    expect(STUD_RADIUS).toBeGreaterThan(0.0024);
+    expect(STUD_RADIUS * 2).toBeLessThan(PITCH);
+  });
+
+  it('accepts optional palette symbols without changing the default plate API', () => {
+    const plate = createPlate(source, palette, ['A', 'B', 'C']);
+    expect(plate.root.name).toBe('xr-plate');
+    plate.dispose();
+    expect(() => createPlate(source, palette)).not.toThrow();
   });
 
   it('shows reference colors on empty pegs without changing placed dots', () => {

@@ -184,6 +184,16 @@ export function launchVr(
   let result: unknown;
   try {
     result = studio.renderer.xr.setSession(session);
+    const existing = Array.from(session.inputSources ?? []);
+    if (existing.length > 0) {
+      const event = new Event('inputsourceschange');
+      Object.defineProperties(event, {
+        added: { value: existing },
+        removed: { value: [] },
+        session: { value: session },
+      });
+      session.dispatchEvent(event);
+    }
   } catch (err) {
     void session.end().catch(() => undefined);
     exit();

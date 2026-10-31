@@ -88,6 +88,22 @@ describe('launchVr', () => {
     expect(onEnd).toHaveBeenCalledOnce();
   });
 
+  it('forwards already-connected input sources after renderer binding', () => {
+    const studio = makeStudio();
+    const session = makeSession();
+    const source = { handedness: 'right' } as XRInputSource;
+    Object.defineProperty(session, 'inputSources', { value: [source] });
+    const connected = vi.fn();
+    vi.mocked(studio.renderer.xr.setSession).mockImplementation(() => {
+      session.addEventListener('inputsourceschange', connected);
+    });
+    launchVr(session, { onEnd: vi.fn() }, () => studio);
+    expect(connected).toHaveBeenCalledOnce();
+    const event = connected.mock.calls[0][0] as XRInputSourcesChangeEvent;
+    expect(event.added).toEqual([source]);
+    expect(event.removed).toEqual([]);
+  });
+
   it('binds the session and starts the render loop', async () => {
     const studio = makeStudio();
     const session = makeSession();

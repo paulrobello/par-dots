@@ -1,6 +1,6 @@
 /**
  * XR build plate (XR P1): true-scale 16x16 LEGO plate — 128 mm square, 3.2 mm thick, studs
- * 4.8 mm dia x 1.8 mm tall on an 8 mm pitch — studs as one InstancedMesh with per-instance
+ * 6.4 mm dia x 1.8 mm tall on an 8 mm pitch — studs as one InstancedMesh with per-instance
  * colors straight from `placed` (EMPTY studs render plate-colored). Geometry helpers are pure
  * and unit-tested; the mesh work is CPU-side three.js that runs in Node tests too. 1 unit = 1 m.
  */
@@ -12,8 +12,8 @@ import { EMPTY, PANEL_SIZE } from '../types';
 export const PITCH = 0.008;
 /** Plate thickness in meters (true LEGO plate: 3.2 mm). */
 export const PLATE_THICKNESS = 0.0032;
-/** Stud radius in meters (true LEGO: 4.8 mm diameter). */
-export const STUD_RADIUS = 0.0024;
+/** Stud radius in meters. Enlarged for XR legibility while staying below half the pitch. */
+export const STUD_RADIUS = 0.0032;
 /** Stud height in meters (true LEGO: 1.8 mm). */
 export const STUD_HEIGHT = 0.0018;
 /** Snap-assist radius in studs: how far a ray hit may miss an empty stud and still snap. */
@@ -120,6 +120,7 @@ const PLATE_HEX = '#d6d2c4';
 export function createPlate(
   source: PlateSource,
   palette: ReadonlyArray<{ hex: string }>,
+  symbols: readonly string[] = [],
 ): PlateHandle {
   const root = new THREE.Group();
   root.name = 'xr-plate';
@@ -135,6 +136,33 @@ export function createPlate(
   const studs = new THREE.InstancedMesh(studGeo, studMat, PANEL_SIZE * PANEL_SIZE);
   studs.name = 'xr-plate-studs';
   root.add(studs);
+  // One transparent canvas keeps the reference letters to a single extra draw call.
+  // The DOM guard keeps the geometry usable in Node-side XR tests.
+  let symbolTexture: THREE.CanvasTexture | null = null;
+  let symbolGeo: THREE.PlaneGeometry | null = null;
+  let symbolMat: THREE.MeshBasicMaterial | null = null;
+  let symbolMesh: THREE.Mesh | null = null;
+  let symbolCtx: CanvasRenderingContext2D | null = null;
+  if (symbols.length > 0 && typeof document !== 'undefined') {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    symbolCtx = canvas.getContext('2d');
+    symbolTexture = new THREE.CanvasTexture(canvas);
+    symbolTexture.colorSpace = THREE.SRGBColorSpace;
+    symbolGeo = new THREE.PlaneGeometry(PANEL_SIZE * PITCH, PANEL_SIZE * PITCH);
+    symbolMat = new THREE.MeshBasicMaterial({
+      map: symbolTexture,
+      transparent: true,
+      depthWrite: false,
+    });
+    symbolMesh = new THREE.Mesh(symbolGeo, symbolMat);
+    symbolMesh.name = 'xr-plate-symbols';
+    symbolMesh.rotation.x = -Math.PI / 2;
+    symbolMesh.position.y = PLATE_THICKNESS / 2 + STUD_HEIGHT + 0.0001;
+    symbolMesh.visible = false;
+    root.add(symbolMesh);
+  }
   const m = new THREE.Matrix4();
   // Empty studs read as recessed pegs: distinctly darker than the base, which under bright
   // studio light otherwise washes them out entirely.
@@ -146,7 +174,32 @@ export function createPlate(
   let referenceOverlay = false;
   const flash = new Set<string>();
 
-  const sync = (): void => {
+  const paintSymbols = (): void => {
+    if (!symbolCtx || !symbolTexture) return;
+    symbolCtx.clearRect(0, 0, 512, 512);
+    symbolCtx.textAlign = 'center';
+    symbolCtx.textBaseline = 'middle';
+    const cellPx = 512 / PANEL_SIZE;
+    for (let y = 0; y < PANEL_SIZE; y++) {
+      for (let x = 0; x < PANEL_SIZE; x++) {
+        const { target, placed } = source.cellAt(x, y);
+        if (placed !== EMPTY) continue;
+        const symbol = symbols[target];
+        if (!symbol) continue;
+        symbolCtx.font = `700 ${symbol.length > 1 ? 14 : 19}px system-ui, sans-serif`;
+        const hex = palette[target]?.hex ?? PLATE_HEX;
+        const value = Number.parseInt(hex.slice(1), 16);
+        const luminance =
+          (0.299 * ((value >> 16) & 255) + 0.587 * ((value >> 8) & 255) + 0.114 * (value & 255)) /
+          255;
+        symbolCtx.fillStyle = luminance > 0.45 ? '#1b1b1b' : '#ffffff';
+        symbolCtx.fillText(symbol, (x + 0.5) * cellPx, (y + 0.5) * cellPx);
+      }
+    }
+    symbolTexture.needsUpdate = true;
+  };
+
+  const sync = (updateSymbols = true): void => {
     for (let y = 0; y < PANEL_SIZE; y++) {
       for (let x = 0; x < PANEL_SIZE; x++) {
         const i = y * PANEL_SIZE + x;
@@ -173,15 +226,18 @@ export function createPlate(
     }
     studs.instanceMatrix.needsUpdate = true;
     if (studs.instanceColor) studs.instanceColor.needsUpdate = true;
+    if (referenceOverlay && updateSymbols) paintSymbols();
   };
 
   const setGhost = (cell: Cell | null): void => {
+    if (cell?.x === ghostCell?.x && cell?.y === ghostCell?.y) return;
     ghostCell = cell;
-    sync();
+    sync(false);
   };
 
   const setReferenceOverlay = (on: boolean): void => {
     referenceOverlay = on;
+    if (symbolMesh) symbolMesh.visible = on;
     sync();
   };
 
@@ -214,6 +270,9 @@ export function createPlate(
     studGeo.dispose();
     studMat.dispose();
     studs.dispose();
+    symbolTexture?.dispose();
+    symbolGeo?.dispose();
+    symbolMat?.dispose();
   };
 
   sync();

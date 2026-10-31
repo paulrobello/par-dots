@@ -1,7 +1,7 @@
 /**
  * XR library (XR P5): the in-VR picture picker shown when VR is entered from the gallery.
- * One canvas strip lists the saved pictures (newest first, most recent 8) with overall
- * progress; the trigger picks a row. Row geometry is pure and unit-tested.
+ * One canvas panel pages through saved pictures with previews and overall progress;
+ * the trigger picks a row.
  */
 
 import * as THREE from 'three';
@@ -10,6 +10,7 @@ export interface LibraryEntryInfo {
   id: string;
   name: string;
   percent: number;
+  preview?: HTMLCanvasElement;
 }
 
 /** Visible rows: header + at most MAX_LIBRARY_ROWS saves. */
@@ -20,14 +21,16 @@ export interface LibraryRow {
   /** 'Name — 42%' as painted. */
   label: string;
   percent?: number;
+  preview?: HTMLCanvasElement;
 }
 
-/** Trim to the visible window and render labels; pure and unit-tested. */
+/** Render library row labels; the panel pages the resulting list. */
 export function libraryRows(saves: LibraryEntryInfo[]): LibraryRow[] {
   return saves.map((s) => ({
     id: s.id,
     label: `${truncate(s.name, 24)} — ${Math.round(s.percent)}%`,
     percent: Math.max(0, Math.min(100, s.percent)),
+    preview: s.preview,
   }));
 }
 
@@ -43,6 +46,8 @@ export interface LibraryHandle {
   root: THREE.Group;
   /** World-space ray to the picked row index, or null. */
   pickRow(ray: { origin: THREE.Vector3; dir: THREE.Vector3 }): number | null;
+  /** Set the absolute row currently under the controller, or clear the hover. */
+  setHover(row: number | null): void;
   repaint(): void;
   pageBy(delta: number): void;
   dispose(): void;
@@ -68,6 +73,7 @@ export function createLibrary(deps: LibraryDeps): LibraryHandle {
   canvas.height = CANVAS_H;
   const ctx = canvas.getContext('2d') as CanvasRenderingContext2D | null;
   const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
   const faceGeo = new THREE.PlaneGeometry(LIBRARY_WIDTH, LIBRARY_HEIGHT);
   const face = new THREE.Mesh(
     faceGeo,
@@ -77,6 +83,7 @@ export function createLibrary(deps: LibraryDeps): LibraryHandle {
   root.add(face);
 
   let page = 0;
+  let hoveredRow: number | null = null;
   const repaint = (): void => {
     if (!ctx) return;
     const allRows = deps.rows();
@@ -98,22 +105,48 @@ export function createLibrary(deps: LibraryDeps): LibraryHandle {
       56,
     );
     ctx.textAlign = 'left';
-    ctx.font = '600 40px system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(230,230,230,0.65)';
+    ctx.font = '500 22px system-ui, sans-serif';
+    ctx.fillText('Point at a picture, then press trigger to open it', 28, 88);
+    ctx.font = '600 34px system-ui, sans-serif';
     const rowH = (CANVAS_H - 110) / MAX_LIBRARY_ROWS;
     rows.forEach((row, i) => {
       const y = 110 + rowH * i + rowH / 2;
-      ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)';
-      ctx.fillRect(16, 110 + rowH * i + 4, CANVAS_W - 32, rowH - 8);
+      const rowTop = 110 + rowH * i + 4;
+      const absoluteRow = page * MAX_LIBRARY_ROWS + i;
+      const hovered = hoveredRow === absoluteRow;
+      const textX = row.preview ? 112 : 32;
+      ctx.fillStyle = hovered
+        ? 'rgba(111,217,187,0.28)'
+        : i % 2 === 0
+          ? 'rgba(255,255,255,0.10)'
+          : 'rgba(255,255,255,0.05)';
+      ctx.fillRect(16, rowTop, CANVAS_W - 32, rowH - 8);
+      ctx.fillStyle = hovered ? '#6fd9bb' : 'rgba(111,217,187,0.7)';
+      ctx.fillRect(16, rowTop, 6, rowH - 8);
+      if (row.preview) {
+        const scale = Math.min(64 / row.preview.width, 64 / row.preview.height);
+        const w = row.preview.width * scale;
+        const h = row.preview.height * scale;
+        ctx.drawImage(row.preview, 32 + (64 - w) / 2, y - h / 2, w, h);
+      }
       ctx.fillStyle = '#e6e6e6';
-      ctx.fillText(row.label, 32, y - 6);
+      ctx.fillText(row.label, textX, y - 6);
       ctx.fillStyle = 'rgba(255,255,255,0.12)';
-      ctx.fillRect(32, y + rowH / 2 - 16, CANVAS_W - 64, 5);
+      ctx.fillRect(textX, y + rowH / 2 - 16, CANVAS_W - textX - 32, 5);
       ctx.fillStyle = '#6fd9bb';
-      ctx.fillRect(32, y + rowH / 2 - 16, (CANVAS_W - 64) * ((row.percent ?? 0) / 100), 5);
+      ctx.fillRect(
+        textX,
+        y + rowH / 2 - 16,
+        (CANVAS_W - textX - 32) * ((row.percent ?? 0) / 100),
+        5,
+      );
     });
     if (rows.length === 0) {
       ctx.fillStyle = 'rgba(230,230,230,0.6)';
       ctx.fillText('No unfinished pictures', 32, 200);
+      ctx.font = '500 26px system-ui, sans-serif';
+      ctx.fillText('Create a picture in 2D to begin.', 32, 250);
     }
     tex.needsUpdate = true;
   };
@@ -122,10 +155,6 @@ export function createLibrary(deps: LibraryDeps): LibraryHandle {
   const hitP = new THREE.Vector3();
   const inv = new THREE.Matrix4();
   const originL = new THREE.Vector3();
-  const rootQuat = new THREE.Quaternion();
-  const tmpP = new THREE.Vector3();
-  const tmpQ = new THREE.Quaternion();
-  const tmpS = new THREE.Vector3();
   const localDir = new THREE.Vector3();
   const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 
@@ -134,8 +163,9 @@ export function createLibrary(deps: LibraryDeps): LibraryHandle {
     root.updateWorldMatrix(true, true);
     inv.copy(root.matrixWorld).invert();
     originL.copy(r.origin).applyMatrix4(inv);
-    root.matrixWorld.decompose(tmpP, rootQuat, tmpS);
-    localDir.copy(r.dir).normalize().applyQuaternion(tmpQ.copy(rootQuat).invert());
+    // Transform the direction by the full inverse matrix so nested rotation and scale
+    // affect picking exactly as they affect the visible panel.
+    localDir.copy(r.dir).transformDirection(inv);
     ray.origin.copy(originL);
     ray.direction.copy(localDir);
     const p = hitP;
@@ -165,6 +195,11 @@ export function createLibrary(deps: LibraryDeps): LibraryHandle {
     page = Math.max(0, Math.min(last, page + delta));
     repaint();
   };
+  const setHover = (row: number | null): void => {
+    if (hoveredRow === row) return;
+    hoveredRow = row;
+    repaint();
+  };
   repaint();
-  return { root, pickRow, repaint, pageBy, dispose };
+  return { root, pickRow, setHover, repaint, pageBy, dispose };
 }
