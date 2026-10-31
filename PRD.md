@@ -76,10 +76,10 @@ Targets: iOS Safari 17+, Android Chrome (latest two), desktop Chrome/Safari/Fire
 - "New Picture" button opens the picture source screen.
 
 ### 5.2 New Picture — Source
-- **Bundled library:** the 12 user-provided starter images in `images/` (owner-supplied, licensed for use), already cleaned: metadata stripped, orientation applied, max 1024 px long edge, JPEG. A build step copies them into `public/library/`, converts to WebP, and generates a thumbnail plus a manifest with each image's default aspect and default crop.
-  - Square defaults (1:1): pixel-beach, pixel-sheep-rider, sheep-in-space, leaping-bunnies, emotional-support-hotdog.
-  - Portrait defaults (3:4): dachshund-in-hat, lighthouse, concert-singer, autumn-tree (tall 9:19.5, center-cropped).
-  - Landscape defaults (4:3): cartoon-dachshunds, cheshire-cat, orange-sunset (16:9, center-cropped).
+- **Bundled library:** 12 JPEG source images in `images/`, including generated, limited-palette illustrations. A build step converts them to WebP in `public/library/` and generates a thumbnail plus a manifest with each image's default aspect and default crop.
+  - Square defaults (1:1): pixel-beach, pixel-sheep-rider, happy-fox, friendly-dinosaur, yellow-submarine, mushroom-house, friendly-owl, rocket-launch, sea-turtle.
+  - Portrait default (3:4): autumn-tree.
+  - Landscape defaults (4:3): cartoon-dachshunds, cheshire-cat.
   - Every library image can be re-cropped to any aspect in the crop editor.
 - **Upload:** file picker accepting any image type the browser can decode (JPEG, PNG, WebP, and HEIC where supported; camera capture on mobile). Max input 20 MB.
 - **Image link:** a URL field downloads an image from another site. Only `https:` links are accepted (a bare host such as `example.com/a.jpg` gets `https://` prepended). The request omits credentials and the referrer, the host must allow cross-origin reads (CORS), the body is streamed and aborted past 20 MB, and the download times out after 30 s. When the download fails, the app suggests saving the image and uploading it instead. The picture is named from the last path segment, falling back to the host name.

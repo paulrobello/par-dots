@@ -4,19 +4,22 @@ import { describe, expect, it } from 'vitest';
 import { buildManifest, defaultAspectFor, entryFor, titleFor } from '../scripts/build-library';
 
 describe('defaultAspectFor', () => {
-  it.each(['autumn-tree', 'dachshund-in-hat', 'lighthouse', 'concert-singer'])(
-    '%s is portrait 3:4',
-    (slug) => expect(defaultAspectFor(slug)).toBe('3:4'),
+  it.each(['autumn-tree'])('%s is portrait 3:4', (slug) =>
+    expect(defaultAspectFor(slug)).toBe('3:4'),
   );
-  it.each(['cartoon-dachshunds', 'cheshire-cat', 'orange-sunset'])('%s is landscape 4:3', (slug) =>
+  it.each(['cartoon-dachshunds', 'cheshire-cat'])('%s is landscape 4:3', (slug) =>
     expect(defaultAspectFor(slug)).toBe('4:3'),
   );
   it.each([
     'pixel-beach',
     'pixel-sheep-rider',
-    'sheep-in-space',
-    'leaping-bunnies',
-    'emotional-support-hotdog',
+    'happy-fox',
+    'yellow-submarine',
+    'friendly-dinosaur',
+    'mushroom-house',
+    'friendly-owl',
+    'rocket-launch',
+    'sea-turtle',
     'unknown-thing',
   ])('%s is square 1:1', (slug) => expect(defaultAspectFor(slug)).toBe('1:1'));
 });
@@ -35,13 +38,13 @@ describe('titleFor', () => {
 
 describe('manifest', () => {
   it('entry paths are relative with no leading slash', () => {
-    expect(entryFor('lighthouse')).toEqual({
-      slug: 'lighthouse',
-      title: 'Lighthouse',
+    expect(entryFor('autumn-tree')).toEqual({
+      slug: 'autumn-tree',
+      title: 'Autumn Tree',
       aspect: '3:4',
       crop: { zoom: 1, cx: 0.5, cy: 0.5 },
-      src: 'library/lighthouse.webp',
-      thumb: 'library/lighthouse-thumb.webp',
+      src: 'library/autumn-tree.webp',
+      thumb: 'library/autumn-tree-thumb.webp',
     });
   });
 
@@ -57,6 +60,6 @@ describe('manifest', () => {
     expect(m).toHaveLength(12);
     const counts = { '1:1': 0, '3:4': 0, '4:3': 0 };
     for (const e of m) counts[e.aspect]++;
-    expect(counts).toEqual({ '1:1': 5, '3:4': 4, '4:3': 3 });
+    expect(counts).toEqual({ '1:1': 9, '3:4': 1, '4:3': 2 });
   });
 });

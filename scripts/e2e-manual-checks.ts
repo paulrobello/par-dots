@@ -7,9 +7,9 @@ import { gpuArgs } from './browser';
 
 const base = process.argv[2] ?? 'http://localhost:4231/';
 
-async function startLighthouse(page: Page): Promise<string> {
+async function startAutumnTree(page: Page): Promise<string> {
   await page.goto(`${base}#/new`);
-  await page.getByRole('button', { name: 'Lighthouse' }).click();
+  await page.getByRole('button', { name: 'Autumn Tree' }).click();
   await page.locator('.preview-box canvas').waitFor();
   await page.getByRole('button', { name: 'Start' }).click();
   await page.waitForURL(/#\/play\/[^/]+$/);
@@ -46,7 +46,7 @@ async function main(): Promise<void> {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));
 
-  const id = await startLighthouse(page);
+  const id = await startAutumnTree(page);
 
   // ARC-003: gallery Restart empties the board.
   await page.goto(`${base}#/play/${id}/0`);

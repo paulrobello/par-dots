@@ -9,8 +9,8 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Aspect, LibraryEntry, NormalizedCrop } from '../src/types';
 
-const PORTRAIT = new Set(['autumn-tree', 'dachshund-in-hat', 'lighthouse', 'concert-singer']);
-const LANDSCAPE = new Set(['cartoon-dachshunds', 'cheshire-cat', 'orange-sunset']);
+const PORTRAIT = new Set(['autumn-tree']);
+const LANDSCAPE = new Set(['cartoon-dachshunds', 'cheshire-cat']);
 
 export const FULL_EDGE = 1024;
 export const THUMB_EDGE = 256;

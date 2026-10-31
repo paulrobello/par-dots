@@ -1,6 +1,6 @@
 /**
  * Mobile smoke test against a running preview (default http://localhost:4231):
- * pick the lighthouse, start, open a panel, paint, hint, undo, remove. Screenshots go to
+ * pick the autumn tree, start, open a panel, paint, hint, undo, remove. Screenshots go to
  * .claude/shots/. Run: bun run build && bunx vite preview --port 4231 --strictPort,
  * then bun run scripts/e2e-smoke.ts [baseUrl].
  */
@@ -39,10 +39,10 @@ async function main(): Promise<void> {
   await shot(page, '01-gallery-empty');
 
   await page.getByRole('button', { name: 'New Picture' }).click();
-  await page.getByRole('button', { name: 'Lighthouse' }).waitFor();
+  await page.getByRole('button', { name: 'Autumn Tree' }).waitFor();
   await shot(page, '02-source');
 
-  await page.getByRole('button', { name: 'Lighthouse' }).click();
+  await page.getByRole('button', { name: 'Autumn Tree' }).click();
   await page.waitForURL(/#\/setup/);
   await page.locator('.preview-box canvas').waitFor();
   await shot(page, '03-setup');
@@ -69,7 +69,7 @@ async function main(): Promise<void> {
   await shot(page, '03b-setup-dither');
   await page.reload();
   await page.waitForURL(/#\/new/);
-  await page.getByRole('button', { name: 'Lighthouse' }).click();
+  await page.getByRole('button', { name: 'Autumn Tree' }).click();
   await page.waitForURL(/#\/setup/);
   await page.locator('.preview-box canvas').waitFor();
   if (!(await page.getByRole('switch', { name: /Dither/ }).isChecked())) {
@@ -87,7 +87,7 @@ async function main(): Promise<void> {
   await page.locator('.panel-btn').first().waitFor();
   await shot(page, '04-overview');
 
-  // Parts list: whole-picture counts sum to width*height (Lighthouse is 3:4, 48x64), a panel's to 256.
+  // Parts list: whole-picture counts sum to width*height (Autumn Tree is 3:4, 48x64), a panel's to 256.
   await page.getByRole('button', { name: 'Parts' }).click();
   const parts = page.getByRole('dialog', { name: 'Parts' });
   await parts.waitFor();
@@ -521,7 +521,7 @@ async function main(): Promise<void> {
   await swCtx.setOffline(true);
   await sw.reload();
   await sw.getByRole('button', { name: 'New Picture' }).click();
-  await sw.getByRole('button', { name: 'Lighthouse' }).click();
+  await sw.getByRole('button', { name: 'Autumn Tree' }).click();
   await sw.locator('.preview-box canvas').waitFor({ timeout: 10000 });
   await sw.screenshot({ path: `${out}/23-offline-setup.png` });
   console.log('offline: setup preview rendered');
