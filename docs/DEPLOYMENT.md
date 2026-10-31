@@ -24,7 +24,7 @@ The app is a static site. `bun run build` generates the bundled picture library 
 
 | Job | Permissions | Steps |
 | --- | --- | --- |
-| `check` | `contents: read` (workflow default) | Checkout; set up the Bun version pinned in the workflow; `bun install --frozen-lockfile`; `bun run lint`; `bun run typecheck`; `bun run test`; `bun run build`; `bunx playwright install --with-deps chromium`; `./scripts/e2e.sh` (browser smoke test against `vite preview`); upload `dist/` as the Pages artifact |
+| `check` | `contents: read` (workflow default) | Checkout; set up the Bun version pinned in the workflow; `bun install --frozen-lockfile`; `bun run lint`; `bun run typecheck`; `bun run test`; `bun run build`; upload `dist/` as the Pages artifact |
 | `deploy` | `pages: write`, `id-token: write` | Runs only after `check` succeeds; deploys the artifact to the `github-pages` environment |
 
 Every action is pinned to a commit SHA with the release tag in a comment. When you update an action, pin the new SHA the same way.
@@ -106,11 +106,11 @@ Players receive the rolled-back version through the same service-worker update p
 
 **Verify:** `dig +short dots.pardev.net` lists `paulrobello.github.io`, and the site loads.
 
-### Problem: The `check` job fails in `./scripts/e2e.sh`
+### Problem: The local browser smoke test fails
 
 **Cause:** The browser smoke test found a regression, or `vite preview` did not start on port 4231.
 
-**Fix:** Reproduce locally with `make e2e`, which builds, serves `dist/` and runs the same test.
+**Fix:** Run `make e2e`, which builds, serves `dist/` and runs the browser tests locally.
 
 **Verify:** `make e2e` exits 0.
 
