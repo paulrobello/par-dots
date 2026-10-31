@@ -53,13 +53,13 @@ describe('manifest', () => {
     expect(m.map((e) => e.slug)).toEqual(['a', 'b']);
   });
 
-  it('covers all 12 bundled images', () => {
+  it('covers all 18 bundled images', () => {
     const dir = join(import.meta.dirname, '..', 'images');
     if (!existsSync(dir)) return;
     const m = buildManifest(readdirSync(dir));
-    expect(m).toHaveLength(12);
+    expect(m).toHaveLength(18);
     const counts = { '1:1': 0, '3:4': 0, '4:3': 0 };
     for (const e of m) counts[e.aspect]++;
-    expect(counts).toEqual({ '1:1': 9, '3:4': 1, '4:3': 2 });
+    expect(counts).toEqual({ '1:1': 15, '3:4': 1, '4:3': 2 });
   });
 });
