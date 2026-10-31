@@ -1,0 +1,85 @@
+import * as THREE from 'three';
+import { describe, expect, it } from 'vitest';
+import { EMPTY, PANEL_SIZE } from '../src/types';
+import {
+  cellFromLocal,
+  createPlate,
+  PITCH,
+  PLATE_THICKNESS,
+  type PlateSource,
+  snapToEmpty,
+  snapToOccupied,
+} from '../src/xr/plate';
+
+const cell = (x: number, y: number): { target: number; placed: number } => ({
+  target: x % 3,
+  placed: x === 0 && y === 0 ? 1 : EMPTY,
+});
+
+const source: PlateSource = { cellAt: (x, y) => cell(x, y) };
+
+describe('cellFromLocal', () => {
+  it('maps plate-local millimetres to cells', () => {
+    expect(cellFromLocal(-0.0639, -0.0639)).toEqual({ x: 0, y: 0 });
+    expect(cellFromLocal(0, 0)).toEqual({ x: 8, y: 8 });
+    expect(cellFromLocal(0.064, 0.064)).toBeNull();
+  });
+});
+
+describe('snapToEmpty', () => {
+  it('returns the hit cell when empty', () => {
+    const occ = (x: number, y: number): boolean => x === 4 && y === 4;
+    expect(snapToEmpty({ x: 5, y: 5 }, occ)).toEqual({ x: 5, y: 5 });
+  });
+
+  it('snaps to the nearest empty within radius over occupied cells', () => {
+    const occ = (): boolean => true;
+    expect(snapToEmpty({ x: 4, y: 4 }, occ, 1)).toBeNull();
+    const near = (x: number, y: number): boolean => !(x === 4 && y === 3);
+    expect(snapToEmpty({ x: 4, y: 4 }, near, 1)).toEqual({ x: 4, y: 3 });
+  });
+
+  it('remove snaps to occupied studs, never empty ones', () => {
+    expect(snapToOccupied({ x: 4, y: 4 }, (): boolean => true)).toEqual({ x: 4, y: 4 });
+    const oneDot = (x: number, y: number): boolean => x === 5 && y === 4;
+    expect(snapToOccupied({ x: 4, y: 4 }, oneDot, 1)).toEqual({ x: 5, y: 4 });
+    expect(snapToOccupied({ x: 4, y: 4 }, (): boolean => false, 2)).toBeNull();
+  });
+});
+
+describe('createPlate', () => {
+  const palette = [{ hex: '#ff0000' }, { hex: '#00ff00' }, { hex: '#0000ff' }];
+
+  it('builds 256 stud instances with colors from placed', () => {
+    const plate = createPlate(source, palette);
+    const studs = plate.root.children.find((c) => c.name === 'xr-plate-studs');
+    expect(studs).toBeDefined();
+    const mesh = studs as THREE.InstancedMesh;
+    expect(mesh.count).toBe(PANEL_SIZE * PANEL_SIZE);
+    const c = new THREE.Color();
+    mesh.getColorAt(0, c);
+    expect(c.getHexString()).toBe('00ff00');
+    mesh.getColorAt(1, c);
+    expect(c.getHexString()).toBe('d6d2c4');
+    plate.dispose();
+  });
+
+  it('ghosts an empty stud toward its target color', () => {
+    const plate = createPlate(source, palette);
+    plate.setGhost({ x: 5, y: 5 });
+    const mesh = plate.root.children.find(
+      (c) => c.name === 'xr-plate-studs',
+    ) as THREE.InstancedMesh;
+    const c = new THREE.Color();
+    mesh.getColorAt(5 * PANEL_SIZE + 5, c);
+    expect(c.getHexString()).not.toBe('d6d2c4');
+    plate.dispose();
+  });
+});
+
+describe('constants', () => {
+  it('uses true LEGO dimensions', () => {
+    expect(PITCH).toBe(0.008);
+    expect(PLATE_THICKNESS).toBe(0.0032);
+  });
+});

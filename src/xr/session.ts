@@ -38,3 +38,10 @@ export function requestVrSession(xr: XRSystem): Promise<XRSession> {
     optionalFeatures: ['local-floor', 'bounded-floor'],
   });
 }
+
+/** Request an immersive-ar (passthrough) session with hit-test for desk placement. */
+export function requestArSession(xr: XRSystem): Promise<XRSession> {
+  return xr.requestSession('immersive-ar', {
+    optionalFeatures: ['local-floor', 'hit-test'],
+  });
+}

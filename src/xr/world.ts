@@ -1,0 +1,550 @@
+/**
+ * XR panel world (XR P1-P4): assembles the bridge, plate, frame, tray, tools and input model
+ * into the studio scene — spawn placement (VR) or reticle drop (MR), per-frame controller/
+ * gamepad glue, event-driven syncs, controller haptics, layout snapshot/restore. Runs only
+ * inside the XR render loop; creates its own canvas-backed labels like render/ does.
+ */
+
+import * as THREE from 'three';
+import { play } from '../audio/sfx';
+import type { PanelSession } from '../game/panelSession';
+import type { XrPanelLayout } from '../types';
+import { createBridge } from './bridge';
+import { clampFrameScale, createFrame, grabbedPosition } from './frame';
+import { createInputModel, type PadState } from './input';
+import { createPlacer, type HitPose, offsetsFrom } from './place';
+import { type Cell, createPlate } from './plate';
+import type { Studio, XrWorld } from './scene';
+import { createTools, nextBuzz, type ToolId } from './tools';
+import { createTray } from './tray';
+
+/** Panel-play-provided handles; injected so world.ts stays free of ui/ imports. */
+export interface PanelWorldDeps {
+  /** The panel session the 2D screen is playing with; XR mutates the same save. */
+  panel: PanelSession;
+  palette: ReadonlyArray<{ hex: string }>;
+  /** Per-color symbols (the 2D building-sheet alphabet) for the reference frame. */
+  symbols: readonly string[];
+  /** 'vr' spawns in arm reach; 'ar' drops via the hit-test reticle on a real surface. */
+  mode: 'vr' | 'ar';
+  /** Saved workspace layout for this panel (VR entry restores it; MR re-places via reticle). */
+  layout?: XrPanelLayout | null;
+  /** Current color selection from the 2D tray until the XR tray exists (P2b). */
+  selected(): number;
+  /** The 2D screen's select: XR tray selection mirrors into it so both stay one store. */
+  onSelect(c: number): void;
+  /** The 2D screen's saveNow; XR saves at the same points a 2D stroke would. */
+  persist(): void;
+  /** B button: leave XR (ends the session). */
+  onExit(): void;
+}
+
+const SPAWN: HitPose = { x: 0, y: 0.95, z: -0.35 };
+
+/** Reads the right controller's buttons from the session's input sources. */
+const readPad = (xrSession: XRSession): { pad: PadState | null; index: number } => {
+  let pad: PadState | null = null;
+  let index = -1;
+  for (let i = 0; i < xrSession.inputSources.length; i++) {
+    const src = xrSession.inputSources[i];
+    if (src.handedness === 'right' && src.gamepad) {
+      const b = src.gamepad.buttons;
+      const stickY = src.gamepad.axes[1];
+      pad = {
+        trigger: !!b[0]?.pressed,
+        a: !!b[4]?.pressed,
+        b: !!b[5]?.pressed,
+        grip: !!b[1]?.pressed,
+        stickY: typeof stickY === 'number' ? stickY : 0,
+      };
+      index = i;
+    }
+  }
+  return { pad, index };
+};
+
+/** Pulse every controller's haptic actuator (Quest: the hand holding the tool feels it). */
+const pulse = (xrSession: XRSession, intensity: number, ms: number): void => {
+  for (let i = 0; i < xrSession.inputSources.length; i++) {
+    const h = xrSession.inputSources[i].gamepad?.hapticActuators?.[0];
+    h?.pulse?.(intensity, ms);
+  }
+};
+
+/** Floating count label above the plate (hint's "N wrong"); canvas-backed, hidden by default. */
+const createHintLabel = (
+  plateRoot: THREE.Object3D,
+): {
+  show(text: string): void;
+  hide(): void;
+  dispose(): void;
+} => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+  const tex = new THREE.CanvasTexture(canvas);
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.09, 0.0225),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true }),
+  );
+  mesh.position.set(0, 0.02, 0);
+  mesh.visible = false;
+  plateRoot.add(mesh);
+  const show = (text: string): void => {
+    ctx.clearRect(0, 0, 256, 64);
+    ctx.fillStyle = 'rgba(15,16,18,0.88)';
+    ctx.beginPath();
+    ctx.roundRect(4, 4, 248, 56, 14);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 30px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 128, 34);
+    tex.needsUpdate = true;
+    mesh.visible = true;
+  };
+  const hide = (): void => {
+    mesh.visible = false;
+  };
+  const dispose = (): void => {
+    tex.dispose();
+    (mesh.material as THREE.MeshBasicMaterial).dispose();
+    mesh.geometry.dispose();
+  };
+  return { show, hide, dispose };
+};
+
+/** Build the XR world: bridge + plate + input model wired to the studio. */
+export function createPanelWorld(
+  studio: Studio,
+  xrSession: XRSession,
+  deps: PanelWorldDeps,
+): XrWorld {
+  // three's controller groups carry matrixAutoUpdate=false: poses land only when they are
+  // part of the scene traversal, so they must be added before any matrixWorld read.
+  for (let i = 0; i < 2; i++) {
+    studio.scene.add(studio.renderer.xr.getController(i));
+    studio.scene.add(studio.renderer.xr.getControllerGrip(i));
+  }
+  const bridge = createBridge({
+    session: deps.panel,
+    selected: deps.selected,
+    persist: deps.persist,
+  });
+  const plate = createPlate(bridge, deps.palette);
+  studio.scene.add(plate.root);
+
+  const frame = createFrame(bridge, deps.palette, deps.symbols);
+  studio.scene.add(frame.root);
+  const tray = createTray({
+    bridge,
+    palette: deps.palette,
+    selected: deps.selected,
+  });
+  studio.scene.add(tray.root);
+
+  const tools = createTools();
+  tools.root.position.set(0.24, 0.94, -0.36);
+  tools.root.lookAt(0, 1.6, 0.2);
+  studio.scene.add(tools.root);
+
+  /** Spawn everything around the plate at pos/yaw (VR spawn or MR reticle drop). */
+  const placeWorld = (p: HitPose, yaw: number): void => {
+    plate.root.position.set(p.x, p.y, p.z);
+    plate.root.rotation.y = yaw;
+    const off = offsetsFrom({ pos: p, yaw });
+    frame.root.position.set(off.frame.x, off.frame.y, off.frame.z);
+    frame.root.rotation.y = yaw;
+    frame.root.lookAt(0, 1.6, 0.2);
+    tray.root.position.set(off.tray.x, off.tray.y, off.tray.z);
+    tray.root.rotation.y = yaw;
+    tray.root.lookAt(0, 1.6, 0.2);
+    plate.sync();
+    frame.sync();
+    tray.sync();
+  };
+  placeWorld(SPAWN, 0);
+
+  /** Amber reticle ring for MR desk placement; visible until the drop. */
+  const reticle = new THREE.Mesh(
+    new THREE.RingGeometry(0.07, 0.085, 32),
+    new THREE.MeshBasicMaterial({ color: 0xffb347, side: THREE.DoubleSide }),
+  );
+  reticle.rotation.x = -Math.PI / 2;
+  reticle.visible = false;
+  studio.scene.add(reticle);
+
+  /** Aim ray: a faint line along the right controller's target-ray space (F4). */
+  const rayLine = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0, 0, -1.2),
+    ]),
+    new THREE.LineBasicMaterial({ color: 0x8fd0ff, transparent: true, opacity: 0.65 }),
+  );
+  rayLine.visible = false;
+  studio.scene.add(rayLine);
+
+  const isAr = deps.mode === 'ar';
+  if (isAr) {
+    plate.root.visible = false;
+    frame.root.visible = false;
+    tray.root.visible = false;
+    tools.root.visible = false;
+  }
+  let hitTestSource: XRHitTestSource | null = null;
+  let floorSpace: XRReferenceSpace | null = null;
+  if (isAr) {
+    void xrSession
+      .requestReferenceSpace('viewer')
+      .then((vs) => xrSession.requestHitTestSource?.({ space: vs as XRReferenceSpace }))
+      .then((src) => {
+        hitTestSource = src ?? null;
+        // No hit-test (or denied): spawn at the default arm-reach spot instead of stranding
+        // the user in an empty room with no way to drop the workspace.
+        if (!hitTestSource) {
+          placeWorld(SPAWN, 0);
+          revealAr();
+          placed = true;
+        }
+      })
+      .catch(() => {
+        placeWorld(SPAWN, 0);
+        revealAr();
+        placed = true;
+      });
+    void xrSession
+      .requestReferenceSpace('local-floor')
+      .then((s) => {
+        floorSpace = s;
+      })
+      .catch(() => undefined);
+  }
+  if (!isAr && deps.layout) {
+    const l = deps.layout;
+    plate.root.position.set(l.plate.pos.x, l.plate.pos.y, l.plate.pos.z);
+    plate.root.quaternion.set(l.plate.quat.x, l.plate.quat.y, l.plate.quat.z, l.plate.quat.w);
+    frame.root.position.set(l.frame.pos.x, l.frame.pos.y, l.frame.pos.z);
+    frame.root.quaternion.set(l.frame.quat.x, l.frame.quat.y, l.frame.quat.z, l.frame.quat.w);
+    frame.setScale(l.frame.scale);
+    frame.setOverlay(l.overlay);
+    tray.root.position.set(l.tray.pos.x, l.tray.pos.y, l.tray.pos.z);
+    tray.root.quaternion.set(l.tray.quat.x, l.tray.quat.y, l.tray.quat.z, l.tray.quat.w);
+    plate.sync();
+    frame.sync();
+    tray.sync();
+  }
+
+  const model = createInputModel({
+    onPlace: (cell: Cell): void => {
+      if (mode() === 'paint' && bridge.selected() < 0) return;
+      bridge.beginStroke(mode(), mode() === 'paint' ? bridge.selected() : undefined);
+      bridge.applyCell(cell.x, cell.y);
+      bridge.endStroke();
+    },
+    onStrokeStart: (cell: Cell | null): void => {
+      if (mode() === 'paint' && bridge.selected() < 0) return;
+      bridge.beginStroke(mode(), mode() === 'paint' ? bridge.selected() : undefined);
+      if (cell) bridge.applyCell(cell.x, cell.y);
+    },
+    onStrokeMove: (from: Cell, to: Cell): void => {
+      bridge.applyLine(from.x, from.y, to.x, to.y);
+    },
+    onStrokeEnd: () => bridge.endStroke(),
+    onHover: (cell: Cell | null) => plate.setGhost(cell),
+    onExit: () => deps.onExit(),
+  });
+
+  let frameTimer: ReturnType<typeof setTimeout> | null = null;
+  const unsubFrame = bridge.onChange(() => {
+    if (frameTimer !== null) return;
+    frameTimer = setTimeout(() => {
+      frameTimer = null;
+      frame.sync();
+      tray.sync();
+    }, 120);
+  });
+
+  const unsub = bridge.onChange((event) => {
+    plate.sync();
+    if (event.type === 'placed' || event.type === 'removed') {
+      pulse(xrSession, 0.6, 18);
+    }
+  });
+
+  let removeMode = false;
+  const mode = (): 'paint' | 'remove' => (removeMode ? 'remove' : 'paint');
+  const syncToolsActive = (): void => tools.setActive(removeMode ? 'remove' : 'place');
+
+  const handleTool = (id: ToolId): void => {
+    pulse(xrSession, 0.5, 12);
+    play('place');
+    if (id === 'place') {
+      removeMode = false;
+      syncToolsActive();
+    } else if (id === 'remove') {
+      removeMode = !removeMode;
+      syncToolsActive();
+    } else if (id === 'hint') {
+      doHint();
+    } else if (id === 'undo') {
+      bridge.undo();
+    } else {
+      bridge.redo();
+    }
+  };
+
+  /** Hint: flash the wrong studs 3 s with a floating count. */
+  const hintLabel = createHintLabel(plate.root);
+  let hintTimer: ReturnType<typeof setTimeout> | null = null;
+  const doHint = (): void => {
+    const wrong = bridge.wrongCells();
+    if (wrong.length === 0) {
+      pulse(xrSession, 0.3, 30);
+      return;
+    }
+    plate.setFlash(wrong);
+    hintLabel.show(`${wrong.length} wrong`);
+    tools.flash('hint');
+    if (hintTimer !== null) clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => {
+      hintTimer = null;
+      plate.setFlash(null);
+      hintLabel.hide();
+    }, 3000);
+  };
+
+  /** Full-but-wrong buzz: haptic once per arming; the 2D feedback plays the sound. */
+  let buzzArmed = true;
+  const unsubBuzz = bridge.onChange(() => {
+    const filled = bridge.emptyCount() === 0;
+    const wrong = bridge.wrongCells().length > 0;
+    if (buzzArmed && filled && wrong) {
+      pulse(xrSession, 0.9, 160);
+      tools.flash('remove');
+    }
+    buzzArmed = nextBuzz(filled, wrong);
+  });
+
+  const pos = new THREE.Vector3();
+  const dir = new THREE.Vector3();
+  const inv = new THREE.Matrix4();
+  const localOrigin = new THREE.Vector3();
+  const localDir = new THREE.Vector3();
+  const plateQuat = new THREE.Quaternion();
+  const wp = new THREE.Vector3();
+  const scl = new THREE.Vector3();
+  const invQ = new THREE.Quaternion();
+  const gripPos = new THREE.Vector3();
+  const grabOffset = new THREE.Vector3();
+  const raycaster = new THREE.Raycaster();
+  const rayTarget = new THREE.Vector3();
+  let grabbing = false;
+  let grabbed: THREE.Object3D | null = null;
+  let prevGrip = false;
+  let prevOverlayX = false;
+  let prevSelectTrig = false;
+  let placed = !isAr;
+
+  const update = (_time: number, frame?: XRFrame): void => {
+    const { pad, index } = readPad(xrSession);
+    let snap: Cell | null = null;
+    let chip: number | null = null;
+    let tool: ToolId | null = null;
+    if (index >= 0) {
+      const ctl = studio.renderer.xr.getController(index);
+      pos.setFromMatrixPosition(ctl.matrixWorld);
+      dir.set(0, 0, -1).transformDirection(ctl.matrixWorld);
+      rayLine.position.copy(pos);
+      rayTarget.copy(pos).add(dir);
+      rayLine.lookAt(rayTarget);
+      rayLine.visible = true;
+      if (!isAr || placed) {
+        chip = tray.pickChip({ origin: pos, dir });
+        tool = chip === null ? tools.pickTool({ origin: pos, dir }) : null;
+        if (chip === null && tool === null) {
+          plate.root.updateWorldMatrix(true, false);
+          inv.copy(plate.root.matrixWorld).invert();
+          localOrigin.copy(pos).applyMatrix4(inv);
+          plate.root.matrixWorld.decompose(wp, plateQuat, scl);
+          invQ.copy(plateQuat).invert();
+          localDir.copy(dir).applyQuaternion(invQ);
+          snap = plate.pickCell({ origin: localOrigin, dir: localDir }, mode());
+        }
+      }
+    } else {
+      rayLine.visible = false;
+    }
+    const down = pad?.trigger === true && !prevSelectTrig;
+    if (isAr && !placed) {
+      updatePlacement(frame, down);
+    } else {
+      if (down && chip !== null) traySelect(chip);
+      else if (down && tool !== null) handleTool(tool);
+    }
+    prevSelectTrig = pad?.trigger === true;
+    model.update(snap, pad);
+    updateGrab(pad, index, pos, dir);
+    updateOverlayToggle();
+  };
+
+  /** MR desk placement: amber reticle follows real-surface hits; trigger drops the set. */
+  const placer = createPlacer({
+    onDrop: ({ pos: p, yaw }) => {
+      placed = true;
+      placeWorld(p, yaw);
+      revealAr();
+      pulse(xrSession, 0.7, 30);
+    },
+  });
+  const revealAr = (): void => {
+    plate.root.visible = true;
+    frame.root.visible = true;
+    tray.root.visible = true;
+    tools.root.visible = true;
+    reticle.visible = false;
+  };
+  const headPos = new THREE.Vector3();
+  const updatePlacement = (frame: XRFrame | undefined, triggerDown: boolean): void => {
+    let hit: HitPose | null = null;
+    if (frame && hitTestSource && floorSpace) {
+      const results = frame.getHitTestResults(hitTestSource);
+      if (results.length > 0) {
+        const pose = results[0].getPose(floorSpace);
+        if (pose) {
+          hit = {
+            x: pose.transform.position.x,
+            y: pose.transform.position.y,
+            z: pose.transform.position.z,
+          };
+        }
+      }
+    }
+    if (hit) {
+      reticle.visible = true;
+      reticle.position.set(hit.x, hit.y + 0.004, hit.z);
+    } else {
+      reticle.visible = false;
+    }
+    headPos.setFromMatrixPosition(studio.renderer.xr.getCamera().matrixWorld);
+    placer.update(hit, { x: headPos.x, y: headPos.y, z: headPos.z }, triggerDown);
+  };
+
+  /** Trigger select on a chip: mirrors into the 2D select, exits Remove (2D parity). */
+  const traySelect = (c: number): void => {
+    removeMode = false;
+    syncToolsActive();
+    deps.onSelect(c);
+    pulse(xrSession, 0.4, 12);
+  };
+
+  /** Grip grabs any world object under the ray; thumbstick scales a gripped frame. */
+  const updateGrab = (
+    pad: PadState | null,
+    index: number,
+    o: THREE.Vector3,
+    d: THREE.Vector3,
+  ): void => {
+    const grip = pad?.grip === true;
+    const down = grip && !prevGrip;
+    const up = !grip && prevGrip;
+    if (down && index >= 0 && placed) {
+      raycaster.set(o, d);
+      const roots = [plate.root, frame.root, tray.root].filter((r) => r.visible);
+      const hits = raycaster.intersectObjects(roots, true);
+      if (hits.length > 0) {
+        grabbing = true;
+        let cur: THREE.Object3D = hits[0].object;
+        while (cur.parent && cur.parent !== studio.scene) cur = cur.parent;
+        grabbed = cur;
+        gripPos.setFromMatrixPosition(studio.renderer.xr.getControllerGrip(index).matrixWorld);
+        grabOffset.set(
+          grabbed.position.x - gripPos.x,
+          grabbed.position.y - gripPos.y,
+          grabbed.position.z - gripPos.z,
+        );
+      }
+    }
+    if (grabbing && grip && index >= 0 && grabbed) {
+      gripPos.setFromMatrixPosition(studio.renderer.xr.getControllerGrip(index).matrixWorld);
+      const p = grabbedPosition(
+        { x: gripPos.x, y: gripPos.y, z: gripPos.z },
+        { x: grabOffset.x, y: grabOffset.y, z: grabOffset.z },
+      );
+      grabbed.position.set(p.x, p.y, p.z);
+      if (grabbed === frame.root && pad && Math.abs(pad.stickY) > 0.15) {
+        frame.setScale(clampFrameScale(frame.getScale() * (1 + pad.stickY * 0.02)));
+      }
+    }
+    if (up) {
+      grabbing = false;
+      grabbed = null;
+    }
+    prevGrip = grip;
+  };
+
+  /** Left-controller X edge toggles the reference overlay (mirrors the 2D Overlay button). */
+  const updateOverlayToggle = (): void => {
+    let x = false;
+    for (let i = 0; i < xrSession.inputSources.length; i++) {
+      const src = xrSession.inputSources[i];
+      if (src.handedness === 'left' && src.gamepad) x = !!src.gamepad.buttons[4]?.pressed;
+    }
+    if (x && !prevOverlayX) frame.toggleOverlay();
+    prevOverlayX = x;
+  };
+
+  const dispose = (): void => {
+    unsub();
+    unsubFrame();
+    unsubBuzz();
+    if (frameTimer !== null) clearTimeout(frameTimer);
+    if (hintTimer !== null) clearTimeout(hintTimer);
+    hitTestSource?.cancel();
+    reticle.geometry.dispose();
+    (reticle.material as THREE.MeshBasicMaterial).dispose();
+    rayLine.geometry.dispose();
+    (rayLine.material as THREE.LineBasicMaterial).dispose();
+    plate.dispose();
+    frame.dispose();
+    tray.dispose();
+    tools.dispose();
+    hintLabel.dispose();
+  };
+
+  const layout = (): XrPanelLayout | null => ({
+    plate: {
+      pos: { x: plate.root.position.x, y: plate.root.position.y, z: plate.root.position.z },
+      quat: {
+        x: plate.root.quaternion.x,
+        y: plate.root.quaternion.y,
+        z: plate.root.quaternion.z,
+        w: plate.root.quaternion.w,
+      },
+    },
+    frame: {
+      pos: { x: frame.root.position.x, y: frame.root.position.y, z: frame.root.position.z },
+      quat: {
+        x: frame.root.quaternion.x,
+        y: frame.root.quaternion.y,
+        z: frame.root.quaternion.z,
+        w: frame.root.quaternion.w,
+      },
+      scale: frame.getScale(),
+    },
+    tray: {
+      pos: { x: tray.root.position.x, y: tray.root.position.y, z: tray.root.position.z },
+      quat: {
+        x: tray.root.quaternion.x,
+        y: tray.root.quaternion.y,
+        z: tray.root.quaternion.z,
+        w: tray.root.quaternion.w,
+      },
+    },
+    overlay: frame.isOverlayOn(),
+  });
+
+  return { update, layout, dispose };
+}

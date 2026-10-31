@@ -83,6 +83,32 @@ export interface PictureSave extends Mosaic {
   panelElapsedMs: number[];
   /** Epoch milliseconds when the last panel was completed; absent until then. */
   completedAt?: number;
+  /** XR workspace layout per panel index ("0", "1", …); absent panels spawn at defaults. */
+  xrLayouts?: Record<string, XrPanelLayout>;
+}
+
+/** Where the XR workspace objects sat when a panel's XR session ended (XR P4). */
+export interface XrPanelLayout {
+  plate: { pos: XrVec3; quat: XrQuat };
+  frame: { pos: XrVec3; quat: XrQuat; scale: number };
+  tray: { pos: XrVec3; quat: XrQuat };
+  /** The reference frame's progress-overlay toggle state. */
+  overlay: boolean;
+}
+
+/** Meters in XR space. */
+export interface XrVec3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+/** Orientation as a unit quaternion (spawn orientation is a full rotation, not just yaw). */
+export interface XrQuat {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
 }
 
 /** Crop framing independent of image size: zoom >= 1, center as a 0..1 fraction of each edge. */

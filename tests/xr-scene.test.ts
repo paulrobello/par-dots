@@ -21,7 +21,7 @@ const makeStudio = (): Studio =>
       xr: { setSession: vi.fn(() => Promise.resolve(true)) },
       setAnimationLoop: vi.fn(),
     },
-    scene: { children: [] },
+    scene: { add: vi.fn(), children: [] },
     render: vi.fn(),
     dispose: vi.fn(),
   }) as unknown as Studio;

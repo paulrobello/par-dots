@@ -10,7 +10,7 @@
 import { haptic, play } from '../audio/sfx';
 import { nextUnfinishedPanel, PanelSession, panelCount, pictureComplete } from '../game';
 import { BoardRenderer } from '../render/boardRenderer';
-import type { PictureSave } from '../types';
+import type { PictureSave, XrPanelLayout } from '../types';
 import { bindBoardInput, type StrokeIntent } from './boardInput';
 import { celebratePanel } from './celebrate';
 import { h, icon, isOverlayOpen, openSheet, toast } from './dom';
@@ -368,7 +368,7 @@ export function mountPanelPlay(
     };
     document.addEventListener('keydown', onKey);
 
-    // ---- XR (P0): Enter VR entry, shown only when immersive-vr is supported --------------
+    // ---- XR (P0/P3): Enter VR / Enter MR, shown only when the mode is supported ---------
     // src/xr/ is reached only through these dynamic imports, so 2D-only sessions never
     // parse three.js; the click path imports scene.ts and requests the session.
     let xrLaunch: { end(): Promise<void> } | null = null;
@@ -378,40 +378,91 @@ export function mountPanelPlay(
       icon('box'),
       h('span', {}, 'Enter VR'),
     );
-    const enterVr = async (): Promise<void> => {
+    const mrBtn = h(
+      'button',
+      { type: 'button', class: 'chip', 'aria-label': 'Enter MR' },
+      icon('eye'),
+      h('span', {}, 'Enter MR'),
+    );
+    const enterXr = async (mode: 'vr' | 'ar'): Promise<void> => {
       const xr = navigator.xr;
       if (!xr || xrLaunch) return;
       vrBtn.disabled = true;
+      mrBtn.disabled = true;
       try {
-        const [{ requestVrSession }, { launchVr }] = await Promise.all([
-          import('../xr/session'),
-          import('../xr/scene'),
-        ]);
+        // Request the session while user activation is fresh: the tiny session module loads
+        // first, and the three.js chunk streams in only after the session is granted.
+        const [srn, lay] = await Promise.all([import('../xr/session'), import('../xr/layout')]);
         if (!alive) return;
-        const session = await requestVrSession(xr);
+        const xrSession = await (mode === 'vr'
+          ? srn.requestVrSession(xr)
+          : srn.requestArSession(xr));
+        const [scn, wrld] = await Promise.all([import('../xr/scene'), import('../xr/world')]).catch(
+          (err) => {
+            void xrSession.end().catch(() => undefined);
+            throw err;
+          },
+        );
         if (!alive) {
-          void session.end().catch(() => undefined);
+          void xrSession.end().catch(() => undefined);
           return;
         }
-        xrLaunch = launchVr(session, {
+        const worldRef: { current: { layout(): XrPanelLayout | null } | null } = { current: null };
+        xrLaunch = scn.launchVr(xrSession, {
+          mode,
           onEnd: () => {
+            const snap = worldRef.current?.layout();
+            if (snap) lay.setLayout(save, panel, snap);
+            worldRef.current = null;
             xrLaunch = null;
             vrBtn.disabled = false;
+            mrBtn.disabled = false;
             saveNow();
+            // Refresh the 2D screen from the mutations XR made (tray, HUD, completion).
+            syncTray(false);
+            updateHud();
+            void finishIfComplete();
+          },
+          buildWorld: (studio) => {
+            const w = wrld.createPanelWorld(studio, xrSession, {
+              panel: session,
+              palette: save.palette,
+              symbols,
+              mode,
+              layout: mode === 'vr' ? lay.getLayout(save, panel) : null,
+              selected: () => selected,
+              onSelect: (c) => select(c),
+              persist: saveNow,
+              onExit: () => void xrLaunch?.end(),
+            });
+            worldRef.current = w;
+            return w;
           },
         });
       } catch (err) {
         console.error(err);
-        toast(`Could not enter VR: ${userMessage(err)}`, 4000);
+        toast(`Could not enter XR: ${userMessage(err)}`, 4000);
         vrBtn.disabled = false;
+        mrBtn.disabled = false;
       }
     };
-    vrBtn.addEventListener('click', () => void enterVr());
+    vrBtn.addEventListener('click', () => void enterXr('vr'));
+    mrBtn.addEventListener('click', () => void enterXr('ar'));
     void import('../xr/session')
       .then(async ({ xrSupport }) => {
-        const { vr } = await xrSupport(navigator.xr);
-        if (!alive || !vr) return;
-        view.playSide.append(vrBtn);
+        const { vr, ar } = await xrSupport(navigator.xr);
+        if (!alive) return;
+        if (vr) view.playSide.append(vrBtn);
+        if (ar) view.playSide.append(mrBtn);
+        // Prewarm the heavy chunk while the user is still reading the screen, so first
+        // entry never races transient user activation against a cold three.js fetch.
+        if (navigator.xr) {
+          void Promise.all([
+            import('../xr/scene'),
+            import('../xr/world'),
+            import('../xr/layout'),
+          ]).catch(() => undefined);
+        }
       })
       .catch(() => undefined);
 
