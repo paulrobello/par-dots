@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Five bundled mosaic pictures: tabby cat, sailing boat, red panda, spiral galaxy and potted sunflower.
 - VR settings in the library and workspace, with Studio, Night sky, Sunset and Woodland environments and shared audio and haptics controls. VR now shows correct-dot progress and confirms when a hint finds no mistakes.
 - Plus and minus buttons for the new-picture Max colors slider.
 

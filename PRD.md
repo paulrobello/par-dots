@@ -76,8 +76,8 @@ Targets: iOS Safari 17+, Android Chrome (latest two), desktop Chrome/Safari/Fire
 - "New Picture" button opens the picture source screen.
 
 ### 5.2 New Picture — Source
-- **Bundled library:** 18 JPEG source images in `images/`, including generated, limited-palette illustrations. A build step converts them to WebP in `public/library/` and generates a thumbnail plus a manifest with each image's default aspect and default crop.
-  - Square defaults (1:1): pixel-beach, pixel-sheep-rider, happy-fox, friendly-dinosaur, yellow-submarine, mushroom-house, friendly-owl, rocket-launch, sea-turtle, koi-pond, camper-sunset, moonlit-barn-owl, butterfly-garden, balloon-sunset, cozy-reading.
+- **Bundled library:** 23 JPEG source images in `images/`, including generated, limited-palette illustrations. A build step converts them to WebP in `public/library/` and generates a thumbnail plus a manifest with each image's default aspect and default crop.
+  - Square defaults (1:1): pixel-beach, pixel-sheep-rider, happy-fox, friendly-dinosaur, yellow-submarine, mushroom-house, friendly-owl, rocket-launch, sea-turtle, koi-pond, camper-sunset, moonlit-barn-owl, butterfly-garden, balloon-sunset, cozy-reading, tabby-cat, sailing-boat, red-panda, spiral-galaxy, potted-sunflower.
   - Portrait default (3:4): autumn-tree.
   - Landscape defaults (4:3): cartoon-dachshunds, cheshire-cat.
   - Every library image can be re-cropped to any aspect in the crop editor.
