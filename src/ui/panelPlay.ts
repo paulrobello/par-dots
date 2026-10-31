@@ -11,6 +11,7 @@ import { haptic, play } from '../audio/sfx';
 import { nextUnfinishedPanel, PanelSession, panelCount, pictureComplete } from '../game';
 import { BoardRenderer } from '../render/boardRenderer';
 import type { PictureSave, XrPanelLayout } from '../types';
+import { registerUpdateFlush } from '../updateState';
 import { bindBoardInput, type StrokeIntent } from './boardInput';
 import { celebratePanel } from './celebrate';
 import { h, icon, isOverlayOpen, openSheet, toast } from './dom';
@@ -106,6 +107,11 @@ export function mountPanelPlay(
         toast(`Save failed: ${userMessage(err)}`, 4000);
       });
     };
+    const unregisterUpdateFlush = registerUpdateFlush(async () => {
+      if (session.strokeActive) session.endStroke();
+      recordTime(timer.flush());
+      await persistSave(save);
+    });
     const onVisibility = (): void => {
       const visible = document.visibilityState === 'visible';
       timer.setVisible(visible);
@@ -537,6 +543,7 @@ export function mountPanelPlay(
 
     return () => {
       unbindInput();
+      unregisterUpdateFlush();
       recordTime(timer.stop());
       if (!lockedAtOpen) saveNow();
       clearInterval(tick);

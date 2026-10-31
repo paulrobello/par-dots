@@ -77,8 +77,8 @@ An HTTP 200 alone is not acceptance. After the `deploy` job finishes:
 A new deploy does not interrupt players.
 
 - Open pages poll a `/version.json` build fingerprint (network-only) immediately and every 5 minutes, and on becoming visible; a changed fingerprint asks the service worker to check for the new deploy.
-- A waiting update is applied only when the page is hidden, or when it shows the gallery or a picture overview with no sheet or dialog open. A player in the middle of a panel or on the setup screen keeps the old version until they return to the gallery or overview, and an active VR/MR session is never interrupted.
-- To pick up a deploy immediately, open the gallery (`#/`) or switch away from the tab and back.
+- When an update is ready, a notice with a Reload button appears in 2D and in VR/MR. The app saves progress and exits an immersive session before activating the update. Picture setup asks for confirmation because it has unsaved changes.
+- Updates are applied when the player selects Reload; switching tabs does not interrupt play.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md#pwa-and-updates) for the implementation.
 
@@ -116,9 +116,9 @@ Players receive the rolled-back version through the same service-worker update p
 
 ### Problem: Players still see the old version
 
-**Cause:** The update is waiting for a safe moment (see [Service-Worker Updates](#service-worker-updates)).
+**Cause:** The update may not have been checked yet, or the player has not selected Reload.
 
-**Fix:** Open the gallery, or hide and show the tab.
+**Fix:** Return to the tab to check for updates and select Reload when the notice appears.
 
 **Verify:** The new behavior appears after the reload.
 

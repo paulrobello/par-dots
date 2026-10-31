@@ -17,6 +17,7 @@ import {
 import { DrawBoard } from '../render/drawBoard';
 import { zoomViewportAt } from '../render/layout';
 import type { PictureSave } from '../types';
+import { registerUpdateFlush } from '../updateState';
 import { confirmDialog, h, iconButton, openSheet, toast } from './dom';
 import { bindDrawInput, type StrokeIntent } from './drawInput';
 import { createDrawTray, type DrawTrayHandle } from './drawTray';
@@ -96,6 +97,10 @@ export function mountDrawEditor({ root, navigate }: ScreenContext, id: string): 
         toast(`Save failed: ${userMessage(err)}`, 4000);
       });
     };
+    const unregisterUpdateFlush = registerUpdateFlush(async () => {
+      flushPersist();
+      await persistSave(save);
+    });
     const schedulePersist = (): void => {
       dirty = true;
       if (persistTimer) clearTimeout(persistTimer);
@@ -535,6 +540,7 @@ export function mountDrawEditor({ root, navigate }: ScreenContext, id: string): 
 
     return () => {
       unbindInput();
+      unregisterUpdateFlush();
       flushPersist();
       offEvent();
       tray.dispose();

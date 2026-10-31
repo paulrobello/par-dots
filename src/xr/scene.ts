@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { setImmersiveMusicActive } from '../audio/music';
 import { getSettings, type XrEnvironment } from '../storage/settings';
 import type { XrPanelLayout } from '../types';
+import { registerImmersiveEnd } from '../updateState';
 import { createVrEnvironment } from './environment';
 
 /** Any scene-graph node whose GPU resources `disposeTree` can release. */
@@ -173,9 +174,11 @@ export function launchVr(
     }
   }
   let done = false;
+  let unregisterUpdateEnd = (): void => {};
   const exit = (): void => {
     if (done) return;
     done = true;
+    unregisterUpdateEnd();
     studio.renderer.setAnimationLoop(null);
     world?.dispose();
     studio.dispose();
@@ -217,6 +220,35 @@ export function launchVr(
     onSetSession();
   }
   session.addEventListener('end', exit);
+  unregisterUpdateEnd = registerImmersiveEnd(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        if (done) {
+          resolve();
+          return;
+        }
+        const timer = setTimeout(() => {
+          session.removeEventListener('end', onEnd);
+          reject(new Error('XR session did not end'));
+        }, 10000);
+        const onEnd = (): void => {
+          clearTimeout(timer);
+          resolve();
+        };
+        session.addEventListener('end', onEnd, { once: true });
+        try {
+          void session.end().catch((error: unknown) => {
+            clearTimeout(timer);
+            session.removeEventListener('end', onEnd);
+            reject(error);
+          });
+        } catch (error) {
+          clearTimeout(timer);
+          session.removeEventListener('end', onEnd);
+          reject(error);
+        }
+      }),
+  );
   return {
     session,
     end: () => session.end().catch(() => undefined),

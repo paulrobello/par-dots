@@ -10,6 +10,7 @@ import { play } from '../audio/sfx';
 import type { PanelSession } from '../game/panelSession';
 import { getSettings } from '../storage/settings';
 import type { XrPanelLayout } from '../types';
+import { getUpdateStatus, requestUpdate } from '../updateState';
 import { createBridge } from './bridge';
 import { createCompletion } from './completion';
 import { createFrame } from './frame';
@@ -24,6 +25,7 @@ import { createXrSettings } from './settings';
 import { createTools, nextBuzz, type ToolId } from './tools';
 import { createGrab, faceTray, localRay } from './transforms';
 import { createTray } from './tray';
+import { createXrUpdateNotice } from './updateNotice';
 
 /** Panel-play-provided handles; injected so world.ts stays free of ui/ imports. */
 export interface PanelWorldDeps {
@@ -213,6 +215,9 @@ export function createPanelWorld(
   studio.scene.add(help.root);
   const settings = createXrSettings(deps.mode, (preset) => studio.setEnvironment?.(preset));
   studio.scene.add(settings.root);
+  const updateNotice = createXrUpdateNotice();
+  studio.scene.add(updateNotice.root);
+  const fallbackHead = new THREE.Matrix4().makeTranslation(0, 1.6, 0.2);
   const viewerPosition = (): THREE.Vector3 => {
     const camera = studio.renderer.xr.getCamera?.();
     return camera
@@ -446,6 +451,13 @@ export function createPanelWorld(
       deps.onComplete?.();
       completion.show(deps.continueLabel?.() ?? 'Exit VR', plate.root, viewerPosition());
     }
+    const updateStatus = getUpdateStatus();
+    updateNotice.setVisible(
+      updateStatus.available,
+      studio.renderer.xr.getCamera?.().matrixWorld ?? fallbackHead,
+      updateStatus.busy,
+      updateStatus.error,
+    );
     const { pad: rawPad, index } = readPad(studio);
     if (!rawPad) awaitTriggerRelease = true;
     else if (!rawPad.trigger) awaitTriggerRelease = false;
@@ -474,8 +486,15 @@ export function createPanelWorld(
       }
     }
     const down = actionPad?.trigger === true && !prevSelectTrig;
-    const modalAtStart = completion.root.visible || help.root.visible || settings.root.visible;
-    if (completion.root.visible) {
+    const noticeHit = index >= 0 && !pad?.grip && updateNotice.hit(pos, dir);
+    const modalAtStart =
+      completion.root.visible || help.root.visible || settings.root.visible || noticeHit;
+    if (noticeHit) {
+      if (down) {
+        suppressTriggerUntilRelease = true;
+        if (updateNotice.pick(pos, dir)) void requestUpdate();
+      }
+    } else if (completion.root.visible) {
       completion.update(time);
       if (down && index >= 0 && completion.pick(pos, dir)) (deps.onContinue ?? deps.onExit)();
     } else if (help.root.visible) {
@@ -629,6 +648,7 @@ export function createPanelWorld(
     completion.dispose();
     help.dispose();
     settings.dispose();
+    updateNotice.dispose();
     for (const root of [plate.root, frame.root, tray.root, tools.root, reticle])
       root.removeFromParent();
     plate.dispose();
@@ -726,6 +746,9 @@ export function createLibraryWorld(
   studio.scene.add(library.root);
   const settings = createXrSettings(deps.mode ?? 'vr', (preset) => studio.setEnvironment?.(preset));
   studio.scene.add(settings.root);
+  const updateNotice = createXrUpdateNotice();
+  studio.scene.add(updateNotice.root);
+  const fallbackHead = new THREE.Matrix4().makeTranslation(0, 1.6, 0.2);
 
   const pos = new THREE.Vector3();
   const dir = new THREE.Vector3();
@@ -734,6 +757,13 @@ export function createLibraryWorld(
   const prevB = [false, false];
   const stickHeld = [false, false];
   const update = (_time: number, _frame?: XRFrame): void => {
+    const updateStatus = getUpdateStatus();
+    updateNotice.setVisible(
+      updateStatus.available,
+      studio.renderer.xr.getCamera?.().matrixWorld ?? fallbackHead,
+      updateStatus.busy,
+      updateStatus.error,
+    );
     let hovered: number | null = null;
     let pickedThisFrame = false;
     for (let index = 0; index < 2; index++) {
@@ -759,7 +789,13 @@ export function createLibraryWorld(
       pos.setFromMatrixPosition(ctl.matrixWorld);
       dir.set(0, 0, -1).transformDirection(ctl.matrixWorld);
       const down = ready[index] && pad.trigger && !prevTrigger[index];
-      if (settings.root.visible) {
+      if (updateNotice.hit(pos, dir)) {
+        if (down && !pickedThisFrame) {
+          pickedThisFrame = true;
+          ready[index] = false;
+          if (updateNotice.pick(pos, dir)) void requestUpdate();
+        }
+      } else if (settings.root.visible) {
         if (down && !pickedThisFrame) {
           const action = settings.pick(pos, dir);
           if (action) {
@@ -796,6 +832,7 @@ export function createLibraryWorld(
     library.root.removeFromParent();
     library.dispose();
     settings.dispose();
+    updateNotice.dispose();
   };
 
   return { update, layout: () => null, repaint: library.repaint, dispose };

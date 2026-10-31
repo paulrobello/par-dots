@@ -71,7 +71,15 @@ async function place(page: Page, x: number): Promise<void> {
 }
 
 async function canvasImage(page: Page): Promise<string> {
-  return page.locator('.board-canvas').evaluate((el) => (el as HTMLCanvasElement).toDataURL());
+  return page.locator('.board-canvas').evaluate(async (el) => {
+    const canvas = el as HTMLCanvasElement;
+    const pixels = canvas.getContext('2d')?.getImageData(0, 0, canvas.width, canvas.height).data;
+    if (!pixels) throw new Error('Board canvas unavailable');
+    const digest = await crypto.subtle.digest('SHA-256', pixels);
+    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join(
+      '',
+    );
+  });
 }
 
 async function main(): Promise<void> {
@@ -120,8 +128,23 @@ async function main(): Promise<void> {
       await overlay.click();
       await overlay.click();
       await overlay.click();
-      await page.waitForTimeout(220);
-      assert.equal(await canvasImage(page), plain, 'rapid toggle must restore the board exactly');
+      await page.waitForFunction(
+        async (expected) => {
+          const canvas = document.querySelector<HTMLCanvasElement>('.board-canvas');
+          const pixels = canvas
+            ?.getContext('2d')
+            ?.getImageData(0, 0, canvas.width, canvas.height).data;
+          if (!pixels) return false;
+          const digest = await crypto.subtle.digest('SHA-256', pixels);
+          return (
+            Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join(
+              '',
+            ) === expected
+          );
+        },
+        plain,
+        { timeout: 10000 },
+      );
 
       await page.getByRole('radio', { name: 'Blue, 1 left', exact: true }).click();
       await page.getByRole('radio', { name: 'Yellow, 1 left', exact: true }).click();

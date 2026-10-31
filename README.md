@@ -168,9 +168,9 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the layers fit together
 
 ### The app still shows the old version after a deploy
 
-**Cause:** Updates wait until nothing can be lost, so a new version only loads from the gallery or overview, or while the tab is in the background.
+**Cause:** The update may not have been checked yet, or Reload has not been selected.
 
-**Fix:** Open the gallery, or switch away from the tab and back.
+**Fix:** Return to the tab to check for updates and select Reload when the notice appears.
 
 ### `make dev` shows no bundled pictures
 

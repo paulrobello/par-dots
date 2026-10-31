@@ -1,0 +1,35 @@
+.update-notice {
+  position: fixed;
+  right: max(16px, var(--safe-r, 0px));
+  bottom: max(16px, var(--safe-b, 0px));
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px 10px 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  border-radius: 12px;
+  background: rgba(10, 10, 12, 0.94);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.update-notice[hidden] {
+  display: none;
+}
+
+.update-notice-message {
+  flex: 1 1 auto;
+  font-weight: 700;
+}
+
+.update-notice-error {
+  border-color: var(--red, #e8412f);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .update-notice {
+    transition: none;
+  }
+}

@@ -285,7 +285,7 @@ export interface PictureSave extends Mosaic {
 
 - Static build deployed to GitHub Pages by `.github/workflows/deploy.yml` on push to `main` (and on manual dispatch).
 - The `check` job installs dependencies with a frozen lockfile, runs `bun run lint`, `bun run typecheck`, `bun run test` and `bun run build`, then installs Playwright Chromium and runs the browser smoke test (`scripts/e2e.sh`) against `vite preview` before uploading `dist/` as the Pages artifact. The `deploy` job runs only after `check` succeeds.
-- Each build emits `/version.json`, a content-hash fingerprint the app polls (no-store) every 5 minutes; a changed hash starts the safe update flow below.
+- Each build emits `/version.json`, a content-hash fingerprint the app polls (no-store) every 5 minutes; a changed hash checks for an update. A Reload notice appears in 2D and VR/MR; selecting it saves progress and exits XR before reloading.
 - Canonical URL: `https://dots.pardev.net`, served from root, so Vite `base` stays `/`. Service worker scope and manifest `start_url` are `/`.
 - Domain setup, live verification and rollback are in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 - AC12. `https://dots.pardev.net` serves the app over HTTPS and it installs and plays offline.

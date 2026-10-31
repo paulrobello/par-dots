@@ -7,6 +7,7 @@
 
 import { nextUnfinishedPanel, overallProgress, PanelSession, pictureComplete } from '../game';
 import type { PictureSave } from '../types';
+import { getUpdateStatus, registerUpdateFlush } from '../updateState';
 import { h, icon, toast } from './dom';
 import { paletteSymbols, userMessage } from './pure';
 import { listSaves, loadSave, persistSave, whenSaved } from './saves';
@@ -102,9 +103,12 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
     let studioRef: Studio | null = null;
     let touched = false;
     let alive = true;
+    let activeSave: PictureSave | null = null;
+    let unregisterUpdateFlush = (): void => {};
 
     const openPanel = (save: PictureSave, panel: number): void => {
       if (!alive || !studioRef || !swapHandle) return;
+      activeSave = save;
       const session = new PanelSession(save, panel);
       const selected = { color: session.trayColors()[0] ?? -1 };
       let advancing = false;
@@ -208,10 +212,11 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
       mode,
       onEnd: () => {
         alive = false;
+        unregisterUpdateFlush();
         xrLaunch = null;
         chip.disabled = false;
         // The gallery mounted before XR ran; reload so its cards show XR-made progress.
-        if (touched) void whenSaved().then(() => location.reload());
+        if (touched && !getUpdateStatus().busy) void whenSaved().then(() => location.reload());
       },
       buildWorld: (studio) => {
         studioRef = studio;
@@ -236,6 +241,9 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
         });
         return initial;
       },
+    });
+    unregisterUpdateFlush = registerUpdateFlush(async () => {
+      if (activeSave) await persistSave(activeSave);
     });
   } catch (err) {
     console.error(err);

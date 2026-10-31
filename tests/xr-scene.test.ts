@@ -1,4 +1,10 @@
 import { describe, expect, it, type Mock, vi } from 'vitest';
+import {
+  configureUpdateHandler,
+  markUpdateAvailable,
+  registerUpdateFlush,
+  requestUpdate,
+} from '../src/updateState';
 import { disposeTree, launchVr, type Studio } from '../src/xr/scene';
 
 /** An XRSession stub backed by a real EventTarget, with `end` spied. */
@@ -155,5 +161,34 @@ describe('launchVr', () => {
       }),
     ).toThrow('no WebGL');
     expect(session.end).toHaveBeenCalled();
+  });
+
+  it('ends the immersive session and flushes saved work before an update', async () => {
+    const session = makeSession();
+    const order: string[] = [];
+    session.end.mockImplementation(() => {
+      order.push('end');
+      session.dispatchEvent(new Event('end'));
+      return Promise.resolve();
+    });
+    const unregister = registerUpdateFlush(async () => {
+      order.push('save');
+    });
+    configureUpdateHandler(async () => {
+      order.push('update');
+    });
+    markUpdateAvailable();
+    launchVr(
+      session,
+      {
+        onEnd: () => {
+          order.push('cleanup');
+        },
+      },
+      () => makeStudio(),
+    );
+    await requestUpdate();
+    expect(order).toEqual(['end', 'cleanup', 'save', 'update']);
+    unregister();
   });
 });

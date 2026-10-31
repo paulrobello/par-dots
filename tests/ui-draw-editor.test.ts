@@ -44,6 +44,7 @@ const { DrawBoard } = await import('../src/render/drawBoard');
 const { mountDrawEditor } = await import('../src/ui/drawEditor');
 
 import { EMPTY, type PictureSave, SAVE_SCHEMA_VERSION } from '../src/types';
+import { configureUpdateHandler, markUpdateAvailable, requestUpdate } from '../src/updateState';
 
 function drawnSave(): PictureSave {
   return {
@@ -267,5 +268,29 @@ describe('mountDrawEditor', () => {
     expect(cells).toHaveLength(5);
     cleanup();
     spy.mockRestore();
+  });
+
+  it('flushes a pending drawing save before applying a requested update', async () => {
+    const save = drawnSave();
+    vi.mocked(loadSave).mockResolvedValue(save);
+    const { ctx } = makeCtx();
+    const cleanup = mountDrawEditor(ctx, save.id);
+    await vi.waitFor(() => expect(document.querySelector('.draw-canvas')).toBeTruthy());
+    const canvas = document.querySelector<HTMLCanvasElement>('.draw-canvas') as HTMLCanvasElement;
+    const opts = { pointerId: 1, button: 0, pointerType: 'mouse', bubbles: true } as const;
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { ...opts, clientX: 50, clientY: 50 }));
+    canvas.dispatchEvent(new PointerEvent('pointerup', { ...opts, clientX: 50, clientY: 50 }));
+    const order: string[] = [];
+    vi.mocked(persistSave).mockImplementation(async () => {
+      order.push('save');
+    });
+    configureUpdateHandler(async () => {
+      order.push('update');
+    });
+    markUpdateAvailable();
+    await requestUpdate();
+    expect(order.at(-1)).toBe('update');
+    expect(order.slice(0, -1)).toContain('save');
+    cleanup();
   });
 });

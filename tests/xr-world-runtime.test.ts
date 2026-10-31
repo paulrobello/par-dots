@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { PanelSession } from '../src/game/panelSession';
 import { EMPTY, PANEL_SIZE, type PictureSave } from '../src/types';
+import { configureUpdateHandler, markUpdateAvailable } from '../src/updateState';
 import type { Studio } from '../src/xr/scene';
 import { TOOL_ORDER } from '../src/xr/tools';
 import { createLibraryWorld, createPanelWorld } from '../src/xr/world';
@@ -541,4 +542,64 @@ it('advances finished colors and waits for the completion button before continui
   expect(f.scene.getObjectByName('xr-completion')?.visible).toBe(true);
   expect(reopenedComplete).toHaveBeenCalledOnce();
   reopened.dispose();
+});
+
+it('shows the update notice in both XR worlds and reloads without selecting a library row', async () => {
+  const f = fixture();
+  const size = PANEL_SIZE * PANEL_SIZE;
+  const save = {
+    schemaVersion: 2,
+    id: 'update',
+    createdAt: 1,
+    updatedAt: 1,
+    name: 'Update',
+    sourceImageId: 'image',
+    aspect: '1:1',
+    width: PANEL_SIZE,
+    height: PANEL_SIZE,
+    palette: [{ hex: '#ff0000', name: 'Red' }],
+    paletteMode: 'lego',
+    origin: 'photo',
+    target: new Uint8Array(size),
+    placed: new Uint8Array(size).fill(EMPTY),
+    panelElapsedMs: [0],
+  } as PictureSave;
+  const reload = vi.fn(async () => undefined);
+  configureUpdateHandler(reload);
+  markUpdateAvailable();
+  const panel = createPanelWorld(f.studio, f.session, {
+    panel: new PanelSession(save, 0),
+    palette: save.palette,
+    symbols: ['A'],
+    mode: 'vr',
+    selected: () => 0,
+    onSelect: vi.fn(),
+    persist: vi.fn(),
+    onExit: vi.fn(),
+  });
+  f.connect(1);
+  panel.update(0);
+  expect(f.scene.getObjectByName('xr-update-notice')?.visible).toBe(true);
+  panel.dispose();
+
+  const onPick = vi.fn();
+  const library = createLibraryWorld(f.studio, f.session, {
+    rows: () => [{ id: 'one', label: 'One' }],
+    onPick,
+    onExit: vi.fn(),
+  });
+  f.connect(1);
+  f.buttons[0].pressed = false;
+  library.update(0);
+  const notice = f.scene.getObjectByName('xr-update-notice') as THREE.Object3D;
+  expect(notice.visible).toBe(true);
+  notice.updateWorldMatrix(true, true);
+  const target = new THREE.Vector3(0.12, -0.05, 0).applyMatrix4(notice.matrixWorld);
+  const normal = new THREE.Vector3(0, 0, 1).transformDirection(notice.matrixWorld);
+  f.aim(target.clone().addScaledVector(normal, 0.2), normal.negate());
+  f.buttons[0].pressed = true;
+  library.update(16);
+  await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce());
+  expect(onPick).not.toHaveBeenCalled();
+  library.dispose();
 });

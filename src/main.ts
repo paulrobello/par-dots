@@ -10,20 +10,27 @@ import { initMusic } from './audio/music';
 import { initAudio } from './audio/sfx';
 import { getSettings } from './storage/settings';
 import { applyBackground } from './ui/background';
-import { closeAllOverlays, h, isOverlayOpen } from './ui/dom';
+import { closeAllOverlays, h } from './ui/dom';
 import { mountDrawCreate } from './ui/drawCreate';
 import { mountDrawEditor } from './ui/drawEditor';
 import { mountGallery } from './ui/gallery';
 import { initInstall } from './ui/install';
 import { mountOverview } from './ui/overview';
 import { mountPanelPlay } from './ui/panelPlay';
-import { parseRoute, type Route, shouldApplyUpdate, userMessage } from './ui/pure';
+import { parseRoute, type Route, userMessage } from './ui/pure';
 import { whenSaved } from './ui/saves';
 import type { Cleanup, Navigate, ScreenContext } from './ui/screen';
 import { mountSetup } from './ui/setup';
 import { mountSource } from './ui/source';
-import { applyWhenHidden, checkBuild, isImmersiveActive, watchForUpdates } from './ui/swUpdate';
+import { checkBuild, watchForUpdates } from './ui/swUpdate';
 import { initTooltips } from './ui/tooltips';
+import { createUpdateNotice } from './ui/updateNotice';
+import {
+  configureUpdateHandler,
+  markUpdateAvailable,
+  requestUpdate,
+  subscribeToUpdates,
+} from './updateState';
 
 const app = document.getElementById('app');
 if (!app) throw new Error('#app missing');
@@ -63,7 +70,6 @@ function render(): void {
   }
   window.scrollTo(0, 0);
   trackPageView();
-  maybeApplyUpdate();
   void checkLatestBuild();
 }
 
@@ -114,20 +120,31 @@ let applyUpdate: (() => Promise<void>) | null = null;
 /** Set once a new worker controls this page (activated here or by another tab); needs a reload. */
 let needReload = false;
 
-/** Activate or reload into a new deploy only where no in-progress work can be lost. */
-function maybeApplyUpdate(): void {
-  if (isImmersiveActive() || (!applyUpdate && !needReload)) return;
-  const hidden = document.visibilityState === 'hidden';
-  if (!shouldApplyUpdate(parseRoute(location.hash).name, isOverlayOpen(), hidden)) return;
-  if (needReload) {
-    needReload = false;
-    applyUpdate = null;
-    location.reload();
-    return;
+let activationFinished: (() => void) | null = null;
+
+/** Apply a waiting worker only after the user chooses Reload and saves have completed. */
+async function applyRequestedUpdate(): Promise<void> {
+  await whenSaved();
+  if (!needReload) {
+    if (!applyUpdate) throw new Error('Update is not ready');
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        activationFinished = null;
+        reject(new Error('Update activation timed out'));
+      }, 15000);
+      activationFinished = () => {
+        clearTimeout(timer);
+        activationFinished = null;
+        resolve();
+      };
+      void applyUpdate?.().catch((error: unknown) => {
+        clearTimeout(timer);
+        activationFinished = null;
+        reject(error);
+      });
+    });
   }
-  const apply = applyUpdate;
-  applyUpdate = null;
-  void apply?.();
+  location.reload();
 }
 
 const buildFingerprint =
@@ -139,7 +156,7 @@ async function checkLatestBuild(): Promise<void> {
       void registration?.update().catch(() => {});
     } else {
       needReload = true;
-      maybeApplyUpdate();
+      markUpdateAvailable();
     }
   });
 }
@@ -163,20 +180,35 @@ document.addEventListener(
   },
   { passive: false },
 );
+let lastController = navigator.serviceWorker?.controller ?? null;
+navigator.serviceWorker?.addEventListener('controllerchange', () => {
+  const current = navigator.serviceWorker.controller;
+  if (lastController && current !== lastController) {
+    needReload = true;
+    activationFinished?.();
+    markUpdateAvailable();
+  }
+  lastController = current;
+});
 const updateSW = registerSW({
   immediate: true,
   onNeedRefresh: () => {
     applyUpdate = () => updateSW(true);
-    maybeApplyUpdate();
+    markUpdateAvailable();
   },
   // Without this the plugin reloads every open tab as soon as any tab activates the update.
   onNeedReload: () => {
     needReload = true;
-    maybeApplyUpdate();
+    activationFinished?.();
+    markUpdateAvailable();
   },
   onRegisteredSW: (url, reg) => {
     registration = reg;
     if (reg) {
+      if (reg.waiting && navigator.serviceWorker.controller) {
+        applyUpdate = () => updateSW(true);
+        markUpdateAvailable();
+      }
       void navigator.serviceWorker.register(url, { updateViaCache: 'none' }).catch(() => {});
       watchForUpdates(
         {
@@ -190,6 +222,20 @@ const updateSW = registerSW({
     }
   },
 });
-// Waits for the panel screen's own hide-time IndexedDB save so the reload cannot lose it.
-applyWhenHidden(document, whenSaved, maybeApplyUpdate);
+configureUpdateHandler(applyRequestedUpdate);
+const updateNotice = createUpdateNotice(() => {
+  if (
+    parseRoute(location.hash).name === 'setup' &&
+    !window.confirm('Reloading will discard the current picture setup. Continue?')
+  ) {
+    updateNotice.setBusy(false);
+    return;
+  }
+  void requestUpdate();
+});
+subscribeToUpdates((status) => {
+  updateNotice.setVisible(status.available);
+  updateNotice.setBusy(status.busy);
+  updateNotice.setError(status.error);
+});
 render();
