@@ -382,6 +382,7 @@ export function createPanelWorld(
   let prevOverlayX = false;
   let prevSelectTrig = false;
   let awaitTriggerRelease = true;
+  let suppressTriggerUntilRelease = false;
   let placed = !isAr;
 
   const grabBounds = new THREE.Box3();
@@ -392,8 +393,13 @@ export function createPanelWorld(
     const dt = lastTime === null ? 0 : (time - lastTime) / 1000;
     lastTime = time;
     const { pad: rawPad, index } = readPad(studio);
-    if (rawPad && !rawPad.trigger) awaitTriggerRelease = false;
+    if (!rawPad) awaitTriggerRelease = true;
+    else if (!rawPad.trigger) awaitTriggerRelease = false;
     const pad = rawPad && awaitTriggerRelease ? { ...rawPad, trigger: false } : rawPad;
+    if (!pad?.trigger) suppressTriggerUntilRelease = false;
+    else if (pad.grip) suppressTriggerUntilRelease = true;
+    const actionPad =
+      pad && (pad.grip || suppressTriggerUntilRelease) ? { ...pad, trigger: false } : pad;
     let snap: Cell | null = null;
     let chip: number | null = null;
     let referenceColor: number | null = null;
@@ -413,7 +419,7 @@ export function createPanelWorld(
         }
       }
     }
-    const down = pad?.trigger === true && !prevSelectTrig;
+    const down = actionPad?.trigger === true && !prevSelectTrig;
     if (isAr && !placed) {
       updatePlacement(xrFrame, down);
     } else {
@@ -422,8 +428,8 @@ export function createPanelWorld(
         traySelect(referenceColor);
       else if (down && tool !== null) handleTool(tool);
     }
-    prevSelectTrig = pad?.trigger === true;
-    model.update(pad?.grip ? null : snap, pad);
+    prevSelectTrig = actionPad?.trigger === true;
+    model.update(actionPad?.grip ? null : snap, actionPad);
     for (let i = 0; i < controllers.markers.length; i++) {
       const marker = controllers.markers[i];
       marker.getWorldPosition(gripPosition);
@@ -493,7 +499,7 @@ export function createPanelWorld(
     pulse(xrSession, 0.4, 12);
   };
 
-  /** Grip follows controller position/orientation; thumbstick adjusts yaw and scale. */
+  /** Grip follows controller position/orientation; thumbstick adjusts yaw and distance or scale. */
   const updateGrab = (
     pad: PadState | null,
     index: number,
@@ -523,7 +529,7 @@ export function createPanelWorld(
       if (grabbed) grab = createGrab(grabbed, studio.renderer.xr.getControllerGrip(index));
     }
     if (grip && index >= 0 && grabbed && grab && pad) {
-      grab.update(pad.stickX, pad.stickY, dt);
+      grab.update(pad.stickX, pad.stickY, pad.trigger, dt);
       if (grabbed === frame.root) frame.setScale(grabbed.scale.x);
     }
     if (up || index < 0) {

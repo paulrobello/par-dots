@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- In XR, gripping and moving the thumbstick forward or backward pushes or pulls the held item; hold the trigger as well to scale it. Left/right rotation remains available while gripping.
+
 - Redesigned the VR tool palette with clear icons, labels and a high-contrast active tool.
 
 - XR library lists all unfinished photo projects with progress bars and thumbstick paging. Gallery-launched workspaces save their VR layout and defer updates until the immersive session ends. When MR hit testing is available, placement requires a visible surface reticle; otherwise the workspace appears at the default position.
@@ -34,13 +36,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced seven bundled pictures with simple, boldly outlined fox, submarine, dinosaur, mushroom-house, owl, rocket and sea turtle illustrations for mosaic building.
 - Simplified Pixel Beach into a limited-palette scene with larger shapes for mosaic building.
 - Replaced Autumn Tree's plaid background with a plain sky.
-- XR workspace: grip-grab now tracks the controller's full orientation — pitch, roll and yaw — not just position, and while gripping the right thumbstick rotates (left/right) and resizes (up/down, 0.4x–3x) whatever is held. The color tray now tilts like a desk console facing you instead of standing edge-on, so it is selectable from oblique angles. Saved workspaces from earlier builds restore unchanged.
+- XR workspace: grip-grab now tracks the controller's full orientation — pitch, roll and yaw — not just position, and while gripping the right thumbstick rotates (left/right) and moves (up/down) whatever is held; hold the trigger too to resize (0.4x–3x). The color tray now tilts like a desk console facing you instead of standing edge-on, so it is selectable from oblique angles. Saved workspaces from earlier builds restore unchanged.
 - Faster, cache-safe update detection: the page checks for a new deploy immediately and every 5 minutes (was 60) via a network-only `/version.json` build fingerprint, and the service-worker script registers with `updateViaCache: 'none'`. A changed fingerprint triggers the normal safe apply path; nothing reloads during active XR play.
 - Buy parts: the frame export is now a buildable raised frame — a backing plate one stud larger than the panels, a brick ring to panel-top height, a plate layer to dot height, and a smooth tile cap one plate above the dots, corners left studded — replacing the 1x16 brick border ring, which the pin-hole canvases cannot hold.
 - Buy parts: the pin budget now matches the assembly guide's three connectors per shared edge (was five).
 - The palette swap button has its own arrows icon instead of the pan tool's.
 
 ### Fixed
+
+- Kept the 2D reference and XR controls within their panel at short desktop heights and made Overview visually distinct from panel navigation.
 
 - Separated the Overview and Previous panel controls and kept the reference, Overlay, VR and MR controls clear of the board on narrow screens.
 

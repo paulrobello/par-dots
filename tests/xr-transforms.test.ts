@@ -79,7 +79,7 @@ describe('runtime workspace transforms', () => {
     const grab = createGrab(object, grip);
     grip.position.set(1, 2, 3);
     grip.rotation.set(0.5, 0.6, 0.7);
-    grab.update(0, 0, 1 / 72);
+    grab.update(0, 0, false, 1 / 72);
     expect(object.quaternion.angleTo(grip.quaternion)).toBeCloseTo(0);
     const expected = new THREE.Vector3(0, 0, -0.5)
       .applyQuaternion(grip.quaternion)
@@ -87,11 +87,27 @@ describe('runtime workspace transforms', () => {
     expect(object.position.distanceTo(expected)).toBeCloseTo(0);
   });
 
-  it('stick yaw and resize are time-based, up enlarges, and scale is clamped', () => {
+  it('pushes and pulls along the controller direction without changing scale', () => {
+    const object = new THREE.Group();
+    const grip = new THREE.Group();
+    object.position.set(0, 0, -0.5);
+    const grab = createGrab(object, grip);
+    grip.rotation.y = Math.PI / 2;
+    for (let i = 0; i < 20; i++) grab.update(0, -1, false, 0.05);
+    expect(object.position.x).toBeCloseTo(-1);
+    expect(object.scale.x).toBe(1);
+    for (let i = 0; i < 20; i++) grab.update(0, 1, false, 0.05);
+    expect(object.position.x).toBeCloseTo(-0.5);
+    for (let i = 0; i < 20; i++) grab.update(0, -1, true, 0.05);
+    expect(object.position.x).toBeCloseTo(-0.5);
+    expect(object.scale.x).toBeCloseTo(Math.E);
+  });
+
+  it('stick yaw and trigger-modified resize are time-based, up enlarges, and scale is clamped', () => {
     const simulate = (hz: number): THREE.Group => {
       const object = new THREE.Group();
       const grab = createGrab(object, new THREE.Group());
-      for (let i = 0; i < hz; i++) grab.update(0.5, -0.5, 1 / hz);
+      for (let i = 0; i < hz; i++) grab.update(0.5, -0.5, true, 1 / hz);
       return object;
     };
     const a = simulate(72);
@@ -100,9 +116,9 @@ describe('runtime workspace transforms', () => {
     expect(a.scale.x).toBeCloseTo(b.scale.x);
     expect(a.quaternion.angleTo(b.quaternion)).toBeCloseTo(0);
     const grab = createGrab(a, new THREE.Group());
-    for (let i = 0; i < 1000; i++) grab.update(0, -1, 0.05);
+    for (let i = 0; i < 1000; i++) grab.update(0, -1, true, 0.05);
     expect(a.scale.x).toBe(3);
-    for (let i = 0; i < 1000; i++) grab.update(0, 1, 0.05);
+    for (let i = 0; i < 1000; i++) grab.update(0, 1, true, 0.05);
     expect(a.scale.x).toBe(0.4);
   });
 });

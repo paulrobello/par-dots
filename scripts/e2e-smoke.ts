@@ -140,6 +140,10 @@ async function main(): Promise<void> {
     { width: 568, height: 320 },
     { width: 700, height: 320 },
     { width: 844, height: 390 },
+    { width: 900, height: 561 },
+    { width: 900, height: 600 },
+    { width: 1024, height: 600 },
+    { width: 1280, height: 720 },
   ]) {
     await page.setViewportSize({ width, height });
     const header = await page.locator('.screen.play .topbar > *').evaluateAll((elements) =>
@@ -154,6 +158,25 @@ async function main(): Promise<void> {
         };
       }),
     );
+    const overview = header.find((item) => item.label === 'Back to overview');
+    const previous = header.find((item) => item.label === 'Previous panel');
+    if (!overview || !previous || previous.x - (overview.x + overview.width) < 12)
+      throw new Error(`Overview and previous controls are too close at ${width}x${height}`);
+    for (const name of [
+      'Back to overview',
+      'Previous panel',
+      'Next panel',
+      'Show reference on the board',
+      'Enter VR',
+      'Enter MR',
+    ]) {
+      const unobstructed = await page.getByRole('button', { name }).evaluate((element) => {
+        const r = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return hit !== null && (hit === element || element.contains(hit));
+      });
+      if (!unobstructed) throw new Error(`Panel control obscured at ${width}x${height}: ${name}`);
+    }
     for (let i = 0; i < header.length; i++) {
       const a = header[i];
       if (a.x < 0 || a.x + a.width > width)
@@ -170,7 +193,7 @@ async function main(): Promise<void> {
       }
     }
     const layout = await page
-      .locator('.play-side > *, .board-wrap, .play-controls')
+      .locator('.play-side > .ref-thumb, .play-actions > *, .board-wrap, .play-controls')
       .evaluateAll((elements) =>
         elements.map((element) => {
           const r = element.getBoundingClientRect();
@@ -376,6 +399,16 @@ async function main(): Promise<void> {
       holes,
     );
   const placeFirstStud = async (): Promise<void> => {
+    await page.getByRole('button', { name: 'Enter MR' }).waitFor();
+    await page.waitForFunction(() => {
+      const canvas = document.querySelector<HTMLCanvasElement>('.board-canvas');
+      if (!canvas) return false;
+      const dpr = Math.min(window.devicePixelRatio || 1, 3);
+      return (
+        canvas.width === Math.round(canvas.clientWidth * dpr) &&
+        canvas.height === Math.round(canvas.clientHeight * dpr)
+      );
+    });
     const b = await page.locator('.board-canvas').boundingBox();
     if (!b) throw new Error('no board');
     const c = Math.min(b.width, b.height) / 16.5;

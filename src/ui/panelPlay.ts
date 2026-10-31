@@ -455,8 +455,8 @@ export function mountPanelPlay(
       .then(async ({ xrSupport }) => {
         const { vr, ar } = await xrSupport(navigator.xr);
         if (!alive) return;
-        if (vr) view.playSide.append(vrBtn);
-        if (ar) view.playSide.append(mrBtn);
+        if (vr) view.playActions.append(vrBtn);
+        if (ar) view.playActions.append(mrBtn);
         // Prewarm the heavy chunk while the user is still reading the screen, so first
         // entry never races transient user activation against a cold three.js fetch.
         if (navigator.xr) {

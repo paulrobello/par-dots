@@ -28,7 +28,7 @@ export function createGrab(
   object: THREE.Object3D,
   grip: THREE.Object3D,
 ): {
-  update(stickX: number, stickY: number, seconds: number): void;
+  update(stickX: number, stickY: number, scaling: boolean, seconds: number): void;
 } {
   const gripPos = new THREE.Vector3();
   const gripQuat = new THREE.Quaternion();
@@ -40,14 +40,16 @@ export function createGrab(
   const turn = new THREE.Quaternion();
   const up = new THREE.Vector3(0, 1, 0);
   return {
-    update(stickX, stickY, seconds) {
+    update(stickX, stickY, scaling, seconds) {
       const dt = Math.max(0, Math.min(0.05, seconds));
       if (Math.abs(stickX) > 0.15) {
         turn.setFromAxisAngle(up, -stickX * dt * 1.8);
         relative.premultiply(turn);
       }
       if (Math.abs(stickY) > 0.15) {
-        object.scale.setScalar(clampFrameScale(object.scale.x * Math.exp(-stickY * dt)));
+        if (scaling)
+          object.scale.setScalar(clampFrameScale(object.scale.x * Math.exp(-stickY * dt)));
+        else offset.z += stickY * dt * 0.5;
       }
       grip.getWorldPosition(gripPos);
       grip.getWorldQuaternion(gripQuat);

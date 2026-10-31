@@ -70,10 +70,11 @@ panel in XR, finish it on the phone.
   on change. Target: ≤ 11 ms/frame at 72 Hz in Quest Browser; ≤ ~8 draw calls.
 - **Input map (right controller):** Trigger = tool action (place/remove/hint
   target, tray select, button press); **A held = sweep modifier** (trigger
-  drag = one stroke); **Grip held = grab** plate/frame/tray/tool panel/tool panel (fixed grab
+  drag = one stroke); **Grip held = grab** plate/frame/tray/tool panel (fixed grab
   offset, follows the controller's full orientation); thumbstick left/right
-  while gripping = rotate the held object, up/down = resize it (0.4x–3x, any
-  gripped object); B = exit to 2D (plus panel-button exit).
+  while gripping = rotate the held object, up/down = push it away or pull it closer.
+  Hold grip and trigger together while moving the stick up/down to resize it (0.4x–3x);
+  B = exit to 2D (plus panel-button exit).
 - **MR:** `immersive-ar` session, alpha-blend backdrop, and a placement
   reticle driven by the WebXR hit-test API (viewer space, real-surface
   hits) — point at the desk, trigger drops the plate; frame and tray spawn at
@@ -115,7 +116,7 @@ IndexedDB; occupied-stud triggers are no-ops; a sweep = one undo move;
 Scope (three independent work units):
 - **Reference frame:** floating frame with 512×512 CanvasTexture of the
   panel's reference mosaic (target colors, A/B/C symbols, toggleable progress
-  overlay — the 2D Overlay feature); grip to move, thumbstick to scale;
+  overlay — the 2D Overlay feature); grip to move, grip and trigger plus thumbstick to scale;
   default offset beside the plate.
 - **Color tray:** floating chip grid mirroring 2D tray semantics — remaining
   counts, current-color ring, zero-but-wrong chips dimmed, correctly-complete

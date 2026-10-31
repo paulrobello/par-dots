@@ -167,18 +167,54 @@ it('selects a tray chip, updates its ring, and grabs the tool panel on contact',
   const initialX = tools.position.x;
   f.grips[1].position.copy(tools.position);
   f.scene.updateMatrixWorld(true);
-  world.update(1);
+  world.update(7);
   const marker = f.grips[1].children[0] as THREE.Mesh<
     THREE.SphereGeometry,
     THREE.MeshStandardMaterial
   >;
   expect(marker.material.color.getHex()).toBe(0x56dbb1);
   f.buttons[1].pressed = true;
-  world.update(2);
+  world.update(8);
   f.grips[1].position.x += 0.1;
   f.scene.updateMatrixWorld(true);
-  world.update(18);
+  world.update(24);
   expect(tools.position.x).toBeCloseTo(initialX + 0.1);
+  const initialZ = tools.position.z;
+  f.axes[3] = -1;
+  world.update(74);
+  expect(tools.position.z).toBeLessThan(initialZ);
+  expect(tools.scale.x).toBe(1);
+  const movedZ = tools.position.z;
+  reference.updateWorldMatrix(true, true);
+  const firstCell = new THREE.Vector3(-0.1125, 0.1125, 0).applyMatrix4(reference.matrixWorld);
+  const firstNormal = new THREE.Vector3(0, 0, 1).transformDirection(reference.matrixWorld);
+  f.aim(firstCell.clone().addScaledVector(firstNormal, 0.15), firstNormal.clone().negate());
+  f.buttons[0].pressed = true;
+  world.update(124);
+  expect(tools.scale.x).toBeGreaterThan(1);
+  expect(tools.position.z).toBeCloseTo(movedZ);
+  expect(selected).toBe(1);
+  f.buttons[1].pressed = false;
+  world.update(174);
+  expect(selected).toBe(1);
+  f.buttons[0].pressed = false;
+  world.update(224);
+  f.buttons[0].pressed = true;
+  world.update(274);
+  expect(selected).toBe(0);
+  (f.targets[1] as unknown as THREE.EventDispatcher<{ disconnected: object }>).dispatchEvent({
+    type: 'disconnected',
+  });
+  world.update(300);
+  f.connect(1);
+  f.aim(secondCell.clone().addScaledVector(movedNormal, 0.15), movedNormal.clone().negate());
+  world.update(350);
+  expect(selected).toBe(0);
+  f.buttons[0].pressed = false;
+  world.update(400);
+  f.buttons[0].pressed = true;
+  world.update(450);
+  expect(selected).toBe(1);
   world.dispose();
 });
 

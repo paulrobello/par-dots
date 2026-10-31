@@ -199,9 +199,9 @@ p {
 @media (max-width: 420px) {
   .screen.play .topbar {
     display: grid;
-    grid-template-columns: 48px 48px minmax(0, 1fr) 48px 48px;
-    grid-template-areas: 'overview prev title next settings' '. progress progress time time';
-    gap: 4px 6px;
+    grid-template-columns: 48px 12px 48px minmax(0, 1fr) 48px 48px;
+    grid-template-areas: 'overview . prev title next settings' '. . progress progress time time';
+    gap: 4px;
   }
   .screen.play .overview-btn { grid-area: overview; margin-right: 0; }
   .screen.play .prev-panel-btn { grid-area: prev; }
@@ -811,9 +811,18 @@ p {
 
 .play-side {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   flex: 0 0 auto;
   justify-content: center;
+}
+
+.play-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  gap: 8px;
 }
 
 .ref-thumb {
@@ -1511,10 +1520,11 @@ p {
   .play-side {
     flex-direction: column;
     flex: 0 0 auto;
+    width: min(34vw, 360px);
   }
   .ref-thumb canvas {
-    width: min(34vw, 50dvh, 420px);
-    height: min(34vw, 50dvh, 420px);
+    width: min(34vw - 8px, max(84px, 100dvh - 400px), 352px);
+    height: min(34vw - 8px, max(84px, 100dvh - 400px), 352px);
   }
   .board-wrap {
     align-self: stretch;
@@ -1537,6 +1547,10 @@ p {
     flex-direction: column;
     flex-wrap: nowrap;
     justify-content: flex-start;
+  }
+  .play-actions {
+    flex-direction: column;
+    flex-wrap: nowrap;
   }
   .ref-thumb canvas {
     width: min(84px, 17dvh);
