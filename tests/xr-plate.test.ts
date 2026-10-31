@@ -64,6 +64,25 @@ describe('createPlate', () => {
     plate.dispose();
   });
 
+  it('shows reference colors on empty pegs without changing placed dots', () => {
+    const plate = createPlate(source, palette);
+    const mesh = plate.root.children.find(
+      (c) => c.name === 'xr-plate-studs',
+    ) as THREE.InstancedMesh;
+    const color = new THREE.Color();
+    plate.setReferenceOverlay(true);
+    mesh.getColorAt(0, color);
+    expect(color.getHexString()).toBe('00ff00');
+    mesh.getColorAt(1, color);
+    expect(color.getHexString()).toBe(
+      new THREE.Color('#00ff00').lerp(new THREE.Color(0x9a968a), 0.5).getHexString(),
+    );
+    plate.setReferenceOverlay(false);
+    mesh.getColorAt(1, color);
+    expect(color.getHexString()).toBe('9a968a');
+    plate.dispose();
+  });
+
   it('ghosts an empty stud toward its target color', () => {
     const plate = createPlate(source, palette);
     plate.setGhost({ x: 5, y: 5 });

@@ -124,7 +124,45 @@ it('selects a tray chip, updates its ring, and grabs the tool panel on contact',
     (o) => o instanceof THREE.Mesh && o.geometry instanceof THREE.RingGeometry,
   )!;
   expect(ring.position.x).toBeCloseTo(0.018);
+  const reference = f.scene.getObjectByName('xr-frame') as THREE.Object3D;
+  reference.updateWorldMatrix(true, true);
+  const referenceCell = new THREE.Vector3(-0.1125, 0.1125, 0).applyMatrix4(reference.matrixWorld);
+  const referenceNormal = new THREE.Vector3(0, 0, 1).transformDirection(reference.matrixWorld);
+  f.aim(
+    referenceCell.clone().addScaledVector(referenceNormal, 0.15),
+    referenceNormal.clone().negate(),
+  );
+  f.buttons[0].pressed = false;
+  world.update(3);
+  f.buttons[0].pressed = true;
+  world.update(4);
+  expect(selected).toBe(0);
+  reference.rotation.y += 0.4;
+  reference.scale.setScalar(1.4);
+  reference.updateWorldMatrix(true, true);
+  const secondCell = new THREE.Vector3(-0.0975, 0.1125, 0).applyMatrix4(reference.matrixWorld);
+  const movedNormal = new THREE.Vector3(0, 0, 1).transformDirection(reference.matrixWorld);
+  f.aim(secondCell.clone().addScaledVector(movedNormal, 0.15), movedNormal.clone().negate());
+  f.buttons[0].pressed = false;
+  world.update(4.5);
+  f.buttons[0].pressed = true;
+  world.update(4.75);
+  expect(selected).toBe(1);
   const tools = f.scene.getObjectByName('xr-tools')!;
+  tools.updateWorldMatrix(true, true);
+  const ghostButton = new THREE.Vector3(0.155, 0, 0).applyMatrix4(tools.matrixWorld);
+  const toolsNormal = new THREE.Vector3(0, 0, 1).transformDirection(tools.matrixWorld);
+  f.aim(ghostButton.clone().addScaledVector(toolsNormal, 0.15), toolsNormal.clone().negate());
+  f.buttons[0].pressed = false;
+  world.update(5);
+  f.buttons[0].pressed = true;
+  world.update(6);
+  const studs = f.scene.getObjectByName('xr-plate-studs') as THREE.InstancedMesh;
+  const ghostColor = new THREE.Color();
+  studs.getColorAt(1, ghostColor);
+  expect(ghostColor.getHexString()).toBe(
+    new THREE.Color('#0000ff').lerp(new THREE.Color(0x9a968a), 0.5).getHexString(),
+  );
   f.buttons[0].pressed = false;
   const initialX = tools.position.x;
   f.grips[1].position.copy(tools.position);

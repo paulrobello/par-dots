@@ -185,6 +185,33 @@ p {
   text-align: center;
 }
 
+.screen.play .overview-btn {
+  margin-right: 12px;
+}
+
+.screen.play .nav-btn {
+  width: var(--tap);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+@media (max-width: 420px) {
+  .screen.play .topbar {
+    display: grid;
+    grid-template-columns: 48px 48px minmax(0, 1fr) 48px 48px;
+    grid-template-areas: 'overview prev title next settings' '. progress progress time time';
+    gap: 4px 6px;
+  }
+  .screen.play .overview-btn { grid-area: overview; margin-right: 0; }
+  .screen.play .prev-panel-btn { grid-area: prev; }
+  .screen.play .next-panel-btn { grid-area: next; }
+  .screen.play .topbar .title { grid-area: title; }
+  .screen.play .panel-progress { grid-area: progress; justify-self: center; }
+  .screen.play .panel-time { grid-area: time; justify-self: start; }
+  .screen.play .topbar > .icon-btn:last-child { grid-area: settings; }
+}
+
 .topbar .nav-btn {
   width: 32px;
   background: none;
@@ -784,6 +811,8 @@ p {
 
 .play-side {
   display: flex;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
   justify-content: center;
 }
 
@@ -810,7 +839,7 @@ p {
 .board-wrap {
   position: relative;
   flex: 1 1 auto;
-  min-height: 200px;
+  min-height: 0;
 }
 
 .board-canvas {
@@ -1506,7 +1535,12 @@ p {
   }
   .play-side {
     flex-direction: column;
+    flex-wrap: nowrap;
     justify-content: flex-start;
+  }
+  .ref-thumb canvas {
+    width: min(84px, 17dvh);
+    height: min(84px, 17dvh);
   }
   .play-controls,
   .locked-note {

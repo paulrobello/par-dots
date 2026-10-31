@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- VR builders can toggle a ghost of the reference colors on empty plate pegs and select available colors directly from the reference image.
+
 - Six bundled mosaic pictures: koi pond, camper at sunset, moonlit barn owl, butterfly garden, sunset balloon and a cozy reading scene.
 - WebXR panel play (XR P0–P4): "Enter VR" / "Enter MR" chips on panel play, shown only when the headset reports the mode, drive a true-scale 16x16 build plate (one InstancedMesh of studs at 8 mm pitch) with controller placement — trigger taps place, holding A sweeps strokes (one undo move per stroke), snap-assist skips occupied studs — a floating reference frame with the building-sheet symbols and the 2D Overlay behind a toggle, a color tray with the 2D parity semantics (counts, zero-but-wrong dimmed, ring on the current color) whose selection mirrors the shared store, and Place/Remove/Hint/Undo/Redo tool buttons with hint flashes and the full-but-wrong buzz. MR enters passthrough, drops the workspace onto a real desk via a hit-test reticle facing you, and everything grip-grabs anywhere including mid-air. XR edits commit through the same PanelSession as 2D play — identical undo history and save points — and each panel's workspace layout persists on session end and is restored on the next VR entry. three.js stays in a lazy chunk 2D-only sessions never parse.
 - Guide PDFs now include a Frame page between the coloring sheets and the assembly page: it builds the raised frame layer by layer with the exact pieces per side — backing (a 16x16 plate per panel plus a 1-stud border ring of plates), brick ring (longest pieces first, per-side piece lists), plate layer, then a tile cap inset 2 studs with four studded 2x2 corners for a corner plate and the hangers. The piece lists come from the same recipe as the Buy parts export (`frameRingPieces`), so what the PDF teaches and what the manifest sells cannot drift.
@@ -25,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Redesigned the VR tool palette with clear icons, labels and a high-contrast active tool.
+
 - XR library lists all unfinished photo projects with progress bars and thumbstick paging. Gallery-launched workspaces save their VR layout and defer updates until the immersive session ends. When MR hit testing is available, placement requires a visible surface reticle; otherwise the workspace appears at the default position.
 
 - Replaced seven bundled pictures with simple, boldly outlined fox, submarine, dinosaur, mushroom-house, owl, rocket and sea turtle illustrations for mosaic building.
@@ -37,6 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The palette swap button has its own arrows icon instead of the pan tool's.
 
 ### Fixed
+
+- Separated the Overview and Previous panel controls and kept the reference, Overlay, VR and MR controls clear of the board on narrow screens.
 
 - VR gallery controllers now appear and select pictures or exit with B. Controller input follows connection slots, tray selection updates immediately, and highlighted pegs retain their color. Grip proximity highlights the controller marker, and the restyled tool panel can be moved.
 

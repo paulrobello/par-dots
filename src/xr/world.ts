@@ -313,6 +313,7 @@ export function createPanelWorld(
   });
 
   let removeMode = false;
+  let referenceOverlay = false;
   const mode = (): 'paint' | 'remove' => (removeMode ? 'remove' : 'paint');
   const syncToolsActive = (): void => tools.setActive(removeMode ? 'remove' : 'place');
 
@@ -325,6 +326,10 @@ export function createPanelWorld(
     } else if (id === 'remove') {
       removeMode = !removeMode;
       syncToolsActive();
+    } else if (id === 'ghost') {
+      referenceOverlay = !referenceOverlay;
+      plate.setReferenceOverlay(referenceOverlay);
+      tools.setGhostActive(referenceOverlay);
     } else if (id === 'hint') {
       doHint();
     } else if (id === 'undo') {
@@ -383,7 +388,7 @@ export function createPanelWorld(
   const gripPosition = new THREE.Vector3();
   const grabRoots = [plate.root, frame.root, tray.root, tools.root];
   let lastTime: number | null = null;
-  const update = (time: number, frame?: XRFrame): void => {
+  const update = (time: number, xrFrame?: XRFrame): void => {
     const dt = lastTime === null ? 0 : (time - lastTime) / 1000;
     lastTime = time;
     const { pad: rawPad, index } = readPad(studio);
@@ -391,6 +396,7 @@ export function createPanelWorld(
     const pad = rawPad && awaitTriggerRelease ? { ...rawPad, trigger: false } : rawPad;
     let snap: Cell | null = null;
     let chip: number | null = null;
+    let referenceColor: number | null = null;
     let tool: ToolId | null = null;
     if (index >= 0) {
       const ctl = studio.renderer.xr.getController(index);
@@ -398,8 +404,10 @@ export function createPanelWorld(
       dir.set(0, 0, -1).transformDirection(ctl.matrixWorld);
       if (!isAr || placed) {
         chip = tray.pickChip({ origin: pos, dir });
-        tool = chip === null ? tools.pickTool({ origin: pos, dir }) : null;
-        if (chip === null && tool === null) {
+        referenceColor = chip === null ? frame.pickColor({ origin: pos, dir }) : null;
+        tool =
+          chip === null && referenceColor === null ? tools.pickTool({ origin: pos, dir }) : null;
+        if (chip === null && referenceColor === null && tool === null) {
           localRay(plate.root, pos, dir, plateRay, inv);
           snap = plate.pickCell({ origin: plateRay.origin, dir: plateRay.direction }, mode());
         }
@@ -407,9 +415,11 @@ export function createPanelWorld(
     }
     const down = pad?.trigger === true && !prevSelectTrig;
     if (isAr && !placed) {
-      updatePlacement(frame, down);
+      updatePlacement(xrFrame, down);
     } else {
       if (down && chip !== null) traySelect(chip);
+      else if (down && referenceColor !== null && bridge.trayColors().includes(referenceColor))
+        traySelect(referenceColor);
       else if (down && tool !== null) handleTool(tool);
     }
     prevSelectTrig = pad?.trigger === true;

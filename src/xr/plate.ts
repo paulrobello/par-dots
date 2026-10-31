@@ -102,6 +102,8 @@ export interface PlateHandle {
   sync(): void;
   /** Ghost-highlight the stud a placement would fill; null clears. */
   setGhost(cell: Cell | null): void;
+  /** Show the reference colors on empty pegs. */
+  setReferenceOverlay(on: boolean): void;
   /** Flash a set of studs (hint's wrong dots) toward red until cleared. */
   setFlash(cells: Cell[] | null): void;
   /** Ray (plate-local frame) to a snapped stud; paint snaps to empty, remove to occupied. */
@@ -141,6 +143,7 @@ export function createPlate(
   const ghostTint = new THREE.Color(0xffffff);
   const warn = new THREE.Color(0xe5484d);
   let ghostCell: Cell | null = null;
+  let referenceOverlay = false;
   const flash = new Set<string>();
 
   const sync = (): void => {
@@ -159,7 +162,8 @@ export function createPlate(
             tmp.lerp(ghostTint, 0.12);
           }
         } else if (placed === EMPTY) {
-          tmp.copy(pegColor);
+          if (referenceOverlay) tmp.set(palette[target]?.hex ?? PLATE_HEX).lerp(pegColor, 0.5);
+          else tmp.copy(pegColor);
         } else {
           tmp.set(palette[placed]?.hex ?? PLATE_HEX);
         }
@@ -173,6 +177,11 @@ export function createPlate(
 
   const setGhost = (cell: Cell | null): void => {
     ghostCell = cell;
+    sync();
+  };
+
+  const setReferenceOverlay = (on: boolean): void => {
+    referenceOverlay = on;
     sync();
   };
 
@@ -208,5 +217,5 @@ export function createPlate(
   };
 
   sync();
-  return { root, sync, setGhost, setFlash, pickCell, dispose };
+  return { root, sync, setGhost, setReferenceOverlay, setFlash, pickCell, dispose };
 }

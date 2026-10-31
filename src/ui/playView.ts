@@ -56,8 +56,8 @@ export function renderPlayView(
     renderMosaicToCanvas(save, Math.round(20 * devicePixelRatioSafe()), 'dots', {
       region: { x: origin.x, y: origin.y, w: PANEL_SIZE, h: PANEL_SIZE },
     });
-  const pctEl = h('span', { class: 'pill', 'aria-label': 'Panel progress' });
-  const timeEl = h('span', { class: 'pill mono', 'aria-label': 'Panel time' });
+  const pctEl = h('span', { class: 'pill panel-progress', 'aria-label': 'Panel progress' });
+  const timeEl = h('span', { class: 'pill mono panel-time', 'aria-label': 'Panel time' });
   const refBtn = h(
     'button',
     { type: 'button', class: 'ref-thumb', 'aria-label': 'Reference image. Tap to enlarge.' },
@@ -89,9 +89,19 @@ export function renderPlayView(
   const redoBtn = toolButton('redo', 'Redo', 'Redo', false);
   const tray = h('div', { class: 'tray', role: 'radiogroup', 'aria-label': 'Dot colors' });
   const playSide = h('div', { class: 'play-side' }, refBtn, overlayBtn);
-  const prevBtn = iconButton('chevron-left', 'Previous panel', actions.prev, 'icon-btn nav-btn');
+  const prevBtn = iconButton(
+    'chevron-left',
+    'Previous panel',
+    actions.prev,
+    'icon-btn nav-btn prev-panel-btn',
+  );
   prevBtn.disabled = panel === 0;
-  const nextBtn = iconButton('chevron-right', 'Next panel', actions.next, 'icon-btn nav-btn');
+  const nextBtn = iconButton(
+    'chevron-right',
+    'Next panel',
+    actions.next,
+    'icon-btn nav-btn next-panel-btn',
+  );
   nextBtn.disabled = panel >= total - 1;
   const toolbar = h(
     'div',
@@ -107,7 +117,7 @@ export function renderPlayView(
     h(
       'header',
       { class: 'topbar' },
-      iconButton('back', 'Back to overview', actions.back),
+      iconButton('back', 'Back to overview', actions.back, 'icon-btn overview-btn'),
       prevBtn,
       h(
         'h1',

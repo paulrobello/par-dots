@@ -88,6 +88,8 @@ export interface FrameHandle {
   face: THREE.Mesh;
   /** Repaint the face texture from the current panel state. */
   sync(): void;
+  /** Target color under a world-space ray, or null outside the image. */
+  pickColor(ray: { origin: THREE.Vector3; dir: THREE.Vector3 }): number | null;
   toggleOverlay(): void;
   setOverlay(on: boolean): void;
   isOverlayOn(): boolean;
@@ -160,6 +162,22 @@ export function createFrame(
     paint();
   };
 
+  const ray = new THREE.Ray();
+  const inverse = new THREE.Matrix4();
+  const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+  const point = new THREE.Vector3();
+  const pickColor = (r: { origin: THREE.Vector3; dir: THREE.Vector3 }): number | null => {
+    root.updateWorldMatrix(true, false);
+    inverse.copy(root.matrixWorld).invert();
+    ray.set(r.origin, r.dir).applyMatrix4(inverse);
+    if (!ray.intersectPlane(plane, point)) return null;
+    const x = Math.floor(((point.x + FRAME_SIZE / 2) / FRAME_SIZE) * PANEL_SIZE);
+    const y = Math.floor(((FRAME_SIZE / 2 - point.y) / FRAME_SIZE) * PANEL_SIZE);
+    if (x < 0 || y < 0 || x >= PANEL_SIZE || y >= PANEL_SIZE) return null;
+    const target = source.cellAt(x, y).target;
+    return target === EMPTY ? null : target;
+  };
+
   const toggleOverlay = (): void => {
     overlay = !overlay;
     paint();
@@ -188,6 +206,7 @@ export function createFrame(
     root,
     face,
     sync,
+    pickColor,
     toggleOverlay,
     setOverlay,
     isOverlayOn: () => overlay,

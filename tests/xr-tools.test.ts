@@ -25,11 +25,9 @@ describe('createTools', () => {
       origin,
       dir: new THREE.Vector3(x, 0, -0.2).normalize(),
     });
-    expect(tools.pickTool(at(-0.124))).toBe('place');
-    expect(tools.pickTool(at(-0.062))).toBe('remove');
-    expect(tools.pickTool(at(0))).toBe('hint');
-    expect(tools.pickTool(at(0.062))).toBe('undo');
-    expect(tools.pickTool(at(0.124))).toBe('redo');
+    TOOL_ORDER.forEach((id, i) => {
+      expect(tools.pickTool(at((i - (TOOL_ORDER.length - 1) / 2) * 0.062))).toBe(id);
+    });
     expect(tools.pickTool({ origin, dir: new THREE.Vector3(0, 0.5, -1).normalize() })).toBeNull();
     tools.dispose();
   });
@@ -64,6 +62,12 @@ describe('createTools strip texture and flash (recording 2D context)', () => {
             log.buttons.push({ x, y, w, h, style: String(ctx.fillStyle) });
           },
           fill: () => undefined,
+          stroke: () => undefined,
+          moveTo: () => undefined,
+          lineTo: () => undefined,
+          quadraticCurveTo: () => undefined,
+          closePath: () => undefined,
+          arc: () => undefined,
           fillText: (text: string) => {
             log.texts.push(text);
           },
@@ -83,14 +87,14 @@ describe('createTools strip texture and flash (recording 2D context)', () => {
     const strip = tools.root.children.find((o) => o.name === 'xr-tools-strip') as THREE.Mesh;
     const { width: planeW } = (strip.geometry as THREE.PlaneGeometry).parameters;
     expect(planeW).toBeGreaterThan(0);
-    expect((strip.material as THREE.MeshStandardMaterial).transparent).toBe(true);
+    expect((strip.material as THREE.MeshBasicMaterial).transparent).toBe(true);
     log.buttons.forEach((b, i) => {
       const paintedCenterCanvasPx = b.x + b.w / 2;
       const world = (paintedCenterCanvasPx / (128 * TOOL_ORDER.length) - 0.5) * planeW;
-      expect(world).toBeCloseTo((i - 2) * 0.062, 5);
+      expect(world).toBeCloseTo((i - (TOOL_ORDER.length - 1) / 2) * 0.062, 5);
       expect((b.w / (128 * TOOL_ORDER.length)) * planeW).toBeCloseTo(0.05, 5);
       expect(b.x).toBeGreaterThanOrEqual(0);
-      expect(b.x + b.w).toBeLessThanOrEqual(640);
+      expect(b.x + b.w).toBeLessThanOrEqual(128 * TOOL_ORDER.length);
       expect(b.y).toBeGreaterThanOrEqual(0);
       expect(b.y + b.h).toBeLessThanOrEqual(128);
     });
@@ -107,11 +111,11 @@ describe('createTools strip texture and flash (recording 2D context)', () => {
         const i = TOOL_ORDER.indexOf(id);
         return log.buttons.filter((_, bi) => bi % TOOL_ORDER.length === i).at(-1)!.style;
       };
-      expect(lastPaintOf('undo')).toBe('#4d8dff');
-      expect(lastPaintOf('place')).toBe('#4d8dff'); // still the active tool
+      expect(lastPaintOf('undo')).toBe('#f2cd37');
+      expect(lastPaintOf('place')).toBe('#f2cd37'); // still the active tool
       vi.advanceTimersByTime(180);
-      expect(lastPaintOf('undo')).toBe('#354657');
-      expect(lastPaintOf('place')).toBe('#4d8dff');
+      expect(lastPaintOf('undo')).toBe('#20282d');
+      expect(lastPaintOf('place')).toBe('#f2cd37');
       tools.dispose();
     } finally {
       vi.useRealTimers();
@@ -128,11 +132,11 @@ describe('createTools strip texture and flash (recording 2D context)', () => {
       vi.advanceTimersByTime(179);
       const i = TOOL_ORDER.indexOf('hint');
       expect(log.buttons.filter((_, bi) => bi % TOOL_ORDER.length === i).at(-1)!.style).toBe(
-        '#4d8dff',
+        '#f2cd37',
       );
       vi.advanceTimersByTime(1);
       expect(log.buttons.filter((_, bi) => bi % TOOL_ORDER.length === i).at(-1)!.style).toBe(
-        '#354657',
+        '#20282d',
       );
       tools.flash('redo');
       const paints = log.buttons.length;
@@ -155,9 +159,9 @@ describe('createTools strip texture and flash (recording 2D context)', () => {
       origin: v.set(lx, ly, 0.2).applyMatrix4(tools.root.matrixWorld).clone(),
       dir: new THREE.Vector3(0, 0, -1).transformDirection(tools.root.matrixWorld),
     });
-    expect(tools.pickTool(rayAt(0, 0))).toBe('hint');
-    expect(tools.pickTool(rayAt(-0.124, 0))).toBe('place');
-    expect(tools.pickTool(rayAt(0.124, 0))).toBe('redo');
+    TOOL_ORDER.forEach((id, i) => {
+      expect(tools.pickTool(rayAt((i - (TOOL_ORDER.length - 1) / 2) * 0.062, 0))).toBe(id);
+    });
     expect(tools.pickTool(rayAt(0, 0.03))).toBeNull();
     tools.dispose();
   });

@@ -28,6 +28,12 @@ async function main(): Promise<void> {
     serviceWorkers: 'block',
   });
   const page = await context.newPage();
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'xr', {
+      configurable: true,
+      value: { isSessionSupported: async () => true },
+    });
+  });
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => {
@@ -127,6 +133,85 @@ async function main(): Promise<void> {
   await page.getByRole('button', { name: 'Open panel 5 of 12' }).click();
   await page.waitForURL(/#\/play\/[^/]+\/4$/);
   await page.locator('.tray-dot').first().waitFor();
+  await page.getByRole('button', { name: 'Enter MR' }).waitFor();
+  for (const { width, height } of [
+    { width: 320, height: 568 },
+    { width: 390, height: 844 },
+    { width: 568, height: 320 },
+    { width: 700, height: 320 },
+    { width: 844, height: 390 },
+  ]) {
+    await page.setViewportSize({ width, height });
+    const header = await page.locator('.screen.play .topbar > *').evaluateAll((elements) =>
+      elements.map((element) => {
+        const r = element.getBoundingClientRect();
+        return {
+          label: element.getAttribute('aria-label') ?? element.textContent,
+          x: r.x,
+          y: r.y,
+          width: r.width,
+          height: r.height,
+        };
+      }),
+    );
+    for (let i = 0; i < header.length; i++) {
+      const a = header[i];
+      if (a.x < 0 || a.x + a.width > width)
+        throw new Error(`Panel header outside ${width}px viewport: ${a.label}`);
+      for (const b of header.slice(i + 1)) {
+        if (
+          a.x < b.x + b.width &&
+          a.x + a.width > b.x &&
+          a.y < b.y + b.height &&
+          a.y + a.height > b.y
+        ) {
+          throw new Error(`Panel header overlap at ${width}px: ${a.label} and ${b.label}`);
+        }
+      }
+    }
+    const layout = await page
+      .locator('.play-side > *, .board-wrap, .play-controls')
+      .evaluateAll((elements) =>
+        elements.map((element) => {
+          const r = element.getBoundingClientRect();
+          return {
+            label: element.getAttribute('aria-label') ?? element.className,
+            x: r.x,
+            y: r.y,
+            width: r.width,
+            height: r.height,
+          };
+        }),
+      );
+    const body = await page.locator('.play-body').boundingBox();
+    if (!body) throw new Error('Panel body is missing');
+    const board = layout.find((item) => item.label === 'board-wrap');
+    if (!board || Math.min(board.width, board.height) < 120)
+      throw new Error(`Panel board too small at ${width}x${height}`);
+    for (let i = 0; i < layout.length; i++) {
+      const a = layout[i];
+      if (
+        a.label !== 'play-controls' &&
+        (a.x < body.x - 0.5 ||
+          a.y < body.y - 0.5 ||
+          a.x + a.width > body.x + body.width + 0.5 ||
+          a.y + a.height > body.y + body.height + 0.5)
+      )
+        throw new Error(`Panel control outside play body at ${width}x${height}: ${a.label}`);
+      if (a.x < -0.5 || a.y < -0.5 || a.x + a.width > width + 0.5 || a.y + a.height > height + 0.5)
+        throw new Error(`Panel control outside ${width}x${height}: ${a.label}`);
+      for (const b of layout.slice(i + 1)) {
+        if (
+          a.x < b.x + b.width &&
+          a.x + a.width > b.x &&
+          a.y < b.y + b.height &&
+          a.y + a.height > b.y
+        )
+          throw new Error(`Panel overlap at ${width}x${height}: ${a.label} and ${b.label}`);
+      }
+    }
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
   await shot(page, '05-panel-open');
 
   const box = await page.locator('.board-canvas').boundingBox();

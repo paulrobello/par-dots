@@ -86,7 +86,7 @@ panel in XR, finish it on the phone.
   through the same commit path, so saves fire at the same points (stroke end,
   undo/redo, session end ≈ page-hidden, panel complete).
 
-The gallery lists unfinished photo projects with progress bars. The right thumbstick pages through the list; trigger selects and B exits. Gallery-launched VR saves the panel workspace layout. When MR hit testing is available, placement requires a currently visible surface reticle. If hit testing is unavailable or denied, the workspace appears at the default position.
+A Ghost tool toggles reference colors on empty plate pegs without obscuring placed dots. Pointing at the reference image and pressing the trigger selects that cell’s color when it is available in the tray. The gallery lists unfinished photo projects with progress bars. The right thumbstick pages through the list; trigger selects and B exits. Gallery-launched VR saves the panel workspace layout. When MR hit testing is available, placement requires a currently visible surface reticle. If hit testing is unavailable or denied, the workspace appears at the default position.
 
 ## 6. Phases
 
