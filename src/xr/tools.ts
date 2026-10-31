@@ -8,7 +8,19 @@
 
 import * as THREE from 'three';
 
-export type ToolId = 'place' | 'remove' | 'hint' | 'undo' | 'redo' | 'ghost' | 'help' | 'settings';
+export type ToolId =
+  | 'place'
+  | 'remove'
+  | 'hint'
+  | 'undo'
+  | 'redo'
+  | 'ghost'
+  | 'focus'
+  | 'workspace'
+  | 'picture'
+  | 'guide'
+  | 'help'
+  | 'settings';
 
 export const TOOL_ORDER: readonly ToolId[] = [
   'place',
@@ -17,6 +29,10 @@ export const TOOL_ORDER: readonly ToolId[] = [
   'undo',
   'redo',
   'ghost',
+  'focus',
+  'workspace',
+  'picture',
+  'guide',
   'help',
   'settings',
 ];
@@ -36,6 +52,7 @@ export interface ToolsHandle {
   /** Highlight the active stroke tool ('place' | 'remove'), or none. */
   setActive(id: 'place' | 'remove' | null): void;
   setGhostActive(on: boolean): void;
+  setFocusActive(on: boolean): void;
   dispose(): void;
 }
 
@@ -49,6 +66,10 @@ const LABELS: Record<ToolId, string> = {
   undo: 'Undo',
   redo: 'Redo',
   ghost: 'Ghost',
+  focus: 'Focus',
+  workspace: 'Layout',
+  picture: 'Picture',
+  guide: 'Build',
   help: 'Help',
   settings: 'Settings',
 };
@@ -96,6 +117,22 @@ function drawToolIcon(ctx: CanvasRenderingContext2D, id: ToolId, x: number, colo
     ctx.moveTo(x, 34);
     ctx.lineTo(x, 70);
     ctx.stroke();
+  } else if (id === 'focus') {
+    ctx.arc(x, 49, 18, 0, Math.PI * 2);
+    ctx.moveTo(x - 25, 49);
+    ctx.lineTo(x + 25, 49);
+    ctx.moveTo(x, 24);
+    ctx.lineTo(x, 74);
+    ctx.stroke();
+  } else if (id === 'workspace' || id === 'picture' || id === 'guide') {
+    ctx.moveTo(x - 20, 38);
+    ctx.lineTo(x + 20, 38);
+    ctx.lineTo(x + 20, 62);
+    ctx.lineTo(x - 20, 62);
+    ctx.closePath();
+    ctx.moveTo(x, 62);
+    ctx.lineTo(x, 72);
+    ctx.stroke();
   } else if (id === 'settings') {
     ctx.arc(x, 49, 15, 0, Math.PI * 2);
     ctx.stroke();
@@ -130,6 +167,7 @@ function drawToolIcon(ctx: CanvasRenderingContext2D, id: ToolId, x: number, colo
 export function createTools(): ToolsHandle & { flash(id: ToolId): void } {
   const root = new THREE.Group();
   root.name = 'xr-tools';
+  root.scale.setScalar(8 / TOOL_ORDER.length);
 
   // The strip plane is exactly TOOL_ORDER.length texture slots wide, so each LABEL_PX slot of
   // the canvas maps to one physical BTN+BTN_GAP pitch and painted buttons coincide with pick
@@ -148,6 +186,7 @@ export function createTools(): ToolsHandle & { flash(id: ToolId): void } {
 
   let activeId: 'place' | 'remove' | null = 'place';
   let ghostActive = false;
+  let focusActive = false;
   const flashing = new Set<ToolId>();
 
   /** Repaint the whole strip (state changes are rare; five 128px slots are cheap). */
@@ -157,7 +196,11 @@ export function createTools(): ToolsHandle & { flash(id: ToolId): void } {
     for (let i = 0; i < TOOL_ORDER.length; i++) {
       const id = TOOL_ORDER[i];
       const x0 = i * LABEL_PX;
-      const active = id === activeId || (id === 'ghost' && ghostActive) || flashing.has(id);
+      const active =
+        id === activeId ||
+        (id === 'ghost' && ghostActive) ||
+        (id === 'focus' && focusActive) ||
+        flashing.has(id);
       const width = (BTN / (BTN + BTN_GAP)) * LABEL_PX;
       ctx.fillStyle = active ? '#f2cd37' : '#20282d';
       ctx.beginPath();
@@ -219,6 +262,11 @@ export function createTools(): ToolsHandle & { flash(id: ToolId): void } {
     paint();
   };
 
+  const setFocusActive = (on: boolean): void => {
+    focusActive = on;
+    paint();
+  };
+
   const flashTimers = new Map<ToolId, ReturnType<typeof setTimeout>>();
   const flash = (id: ToolId): void => {
     clearTimeout(flashTimers.get(id));
@@ -244,5 +292,5 @@ export function createTools(): ToolsHandle & { flash(id: ToolId): void } {
   };
 
   paint();
-  return { root, pickTool, setActive, setGhostActive, dispose, flash };
+  return { root, pickTool, setActive, setGhostActive, setFocusActive, dispose, flash };
 }

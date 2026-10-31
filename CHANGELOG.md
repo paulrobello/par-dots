@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- XR color focus, targeted-cell magnifier and snap settings, workspace layouts, whole-picture panel selection, physical-building guidance and a drawing editor. Gallery transfer instructions explain how to export and import project copies.
+
 - Five bundled mosaic pictures: tabby cat, sailing boat, red panda, spiral galaxy and potted sunflower.
 - VR settings in the library and workspace, with Studio, Night sky, Sunset and Woodland environments and shared audio and haptics controls. VR now shows correct-dot progress and confirms when a hint finds no mistakes.
 - Plus and minus buttons for the new-picture Max colors slider.
@@ -53,6 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The palette swap button has its own arrows icon instead of the pan tool's.
 
 ### Fixed
+
+- MR surface placement follows the controller's target ray instead of gaze.
 
 - VR tray count labels remain readable as the number of remaining colors decreases.
 

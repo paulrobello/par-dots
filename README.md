@@ -100,7 +100,7 @@ Everything runs on-device: uploads never leave your phone, progress is saved loc
 | Cmd/Ctrl+Z, Shift+Cmd/Ctrl+Z | Undo, redo |
 | Escape | Back to the overview |
 
-A panel is done when every stud holds the correct color. Finished pictures can be downloaded as a PNG from the finale, the overview, or the gallery, and opened full size with **View picture** on the overview. The overview's Parts sheet also holds **Buy parts** exports (BrickLink wanted-list XML or Rebrickable part-list CSV, LEGO palette mode only) and **Guide** downloads of the building sheets. "Back up all" in the gallery saves every picture, with its progress and uploaded photo, to a `.pardots` file, and "Restore" loads one back on any browser or device. Sound, place sound, haptics, background music (Happy, Calm or Energy) and separate effects and music volumes are in the settings sheet (gear button at the top right of every screen).
+A panel is done when every stud holds the correct color. Finished pictures can be downloaded as a PNG from the finale, the overview, or the gallery, and opened full size with **View picture** on the overview. The overview's Parts sheet also holds **Buy parts** exports (BrickLink wanted-list XML or Rebrickable part-list CSV, LEGO palette mode only) and **Guide** downloads of the building sheets. **Export projects** in the gallery saves every picture, with its progress and uploaded photo, to a `.pardots` file, and **Import projects** loads copies on any browser or device. Sound, place sound, haptics, background music (Happy, Calm or Energy) and separate effects and music volumes are in the settings sheet (gear button at the top right of every screen).
 
 ### Draw your own
 

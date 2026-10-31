@@ -26,7 +26,7 @@ describe('VR settings', () => {
     const at = (x: number, y: number): 'close' | 'change' | null => {
       const local = new THREE.Vector3(
         (x / 1024 - 0.5) * 0.48,
-        (0.5 - y / 768) * 0.36,
+        (0.5 - y / 912) * 0.43,
         0,
       ).applyMatrix4(settings.root.matrixWorld);
       const normal = new THREE.Vector3(0, 0, 1).transformDirection(settings.root.matrixWorld);
@@ -40,6 +40,10 @@ describe('VR settings', () => {
     expect(getSettings().sound).toBe(false);
     expect(at(950, 302)).toBe('change');
     expect(getSettings().sfxVolume).toBe(85);
+    expect(at(675, 734)).toBe('change');
+    expect(getSettings().xrSnapRadius).toBe(1);
+    expect(at(950, 806)).toBe('change');
+    expect(getSettings().xrMagnifier).toBe(true);
     expect(at(950, 57)).toBe('close');
     expect(settings.root.visible).toBe(false);
     settings.dispose();
@@ -52,7 +56,7 @@ describe('VR settings', () => {
     settings.root.updateWorldMatrix(true, true);
     const p = new THREE.Vector3(
       (950 / 1024 - 0.5) * 0.48,
-      (0.5 - 158 / 768) * 0.36,
+      (0.5 - 158 / 912) * 0.43,
       0,
     ).applyMatrix4(settings.root.matrixWorld);
     const normal = new THREE.Vector3(0, 0, 1).transformDirection(settings.root.matrixWorld);

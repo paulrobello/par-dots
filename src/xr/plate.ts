@@ -104,12 +104,15 @@ export interface PlateHandle {
   setGhost(cell: Cell | null): void;
   /** Show the reference colors on empty pegs. */
   setReferenceOverlay(on: boolean): void;
+  /** Highlight empty cells for one palette color; null disables focus. */
+  setFocusColor(color: number | null): void;
   /** Flash a set of studs (hint's wrong dots) toward red until cleared. */
   setFlash(cells: Cell[] | null): void;
   /** Ray (plate-local frame) to a snapped stud; paint snaps to empty, remove to occupied. */
   pickCell(
     ray: { origin: THREE.Vector3; dir: THREE.Vector3 },
     mode: 'paint' | 'remove',
+    radius?: number,
   ): Cell | null;
   dispose(): void;
 }
@@ -177,8 +180,10 @@ export function createPlate(
   const pegColor = new THREE.Color(0x9a968a);
   const tmp = new THREE.Color();
   const warn = new THREE.Color(0xe5484d);
+  const white = new THREE.Color(0xffffff);
   let ghostCell: Cell | null = null;
   let referenceOverlay = false;
+  let focusColor: number | null = null;
   const flash = new Set<string>();
 
   const paintSymbols = (): void => {
@@ -215,7 +220,10 @@ export function createPlate(
         studs.setMatrixAt(i, m);
         const { placed, target } = source.cellAt(x, y);
         if (placed === EMPTY) {
-          if (referenceOverlay) tmp.set(palette[target]?.hex ?? PLATE_HEX).lerp(pegColor, 0.5);
+          if (focusColor !== null && target === focusColor)
+            tmp.set(palette[target]?.hex ?? PLATE_HEX).lerp(white, 0.2);
+          else if (focusColor !== null) tmp.copy(pegColor).multiplyScalar(0.45);
+          else if (referenceOverlay) tmp.set(palette[target]?.hex ?? PLATE_HEX).lerp(pegColor, 0.5);
           else tmp.copy(pegColor);
         } else {
           tmp.set(palette[placed]?.hex ?? PLATE_HEX);
@@ -254,6 +262,11 @@ export function createPlate(
     sync();
   };
 
+  const setFocusColor = (color: number | null): void => {
+    focusColor = color;
+    sync();
+  };
+
   const ray = new THREE.Ray();
   const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const hit = new THREE.Vector3();
@@ -261,6 +274,7 @@ export function createPlate(
   const pickCell = (
     r: { origin: THREE.Vector3; dir: THREE.Vector3 },
     mode: 'paint' | 'remove',
+    radius = SNAP_RADIUS_STUDS,
   ): Cell | null => {
     ray.origin.copy(r.origin);
     ray.direction.copy(r.dir).normalize();
@@ -268,7 +282,9 @@ export function createPlate(
     const cell = cellFromLocal(hit.x, hit.z);
     if (!cell) return null;
     const isOccupied = (x: number, y: number): boolean => source.cellAt(x, y).placed !== EMPTY;
-    return mode === 'remove' ? snapToOccupied(cell, isOccupied) : snapToEmpty(cell, isOccupied);
+    return mode === 'remove'
+      ? snapToOccupied(cell, isOccupied, radius)
+      : snapToEmpty(cell, isOccupied, radius);
   };
 
   const dispose = (): void => {
@@ -285,5 +301,5 @@ export function createPlate(
   };
 
   sync();
-  return { root, sync, setGhost, setReferenceOverlay, setFlash, pickCell, dispose };
+  return { root, sync, setGhost, setReferenceOverlay, setFocusColor, setFlash, pickCell, dispose };
 }

@@ -23,7 +23,7 @@ describe('createTools', () => {
     const origin = new THREE.Vector3(0, 0, 0.2);
     const at = (x: number): { origin: THREE.Vector3; dir: THREE.Vector3 } => ({
       origin,
-      dir: new THREE.Vector3(x, 0, -0.2).normalize(),
+      dir: new THREE.Vector3(x * tools.root.scale.x, 0, -0.2).normalize(),
     });
     TOOL_ORDER.forEach((id, i) => {
       expect(tools.pickTool(at((i - (TOOL_ORDER.length - 1) / 2) * 0.062))).toBe(id);

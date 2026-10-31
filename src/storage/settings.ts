@@ -42,6 +42,10 @@ export interface Settings {
   background: Background;
   /** Immersive VR environment. Default studio. */
   xrEnvironment: XrEnvironment;
+  /** Number of adjacent studs considered by XR snap assist (0 to 2). */
+  xrSnapRadius: number;
+  /** Show the enlarged neighborhood of the targeted XR stud. */
+  xrMagnifier: boolean;
   /** Play background music. Default true. */
   music: boolean;
   /** Background music track. Default 'happy'. */
@@ -62,6 +66,8 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   dither: false,
   background: 'gray',
   xrEnvironment: 'studio',
+  xrSnapRadius: 2,
+  xrMagnifier: false,
   music: true,
   musicTrack: 'happy',
   sfxVolume: 80,
@@ -90,6 +96,9 @@ function sanitize(raw: unknown): Settings {
     if (BACKGROUNDS.includes(r.background as Background)) s.background = r.background as Background;
     if (XR_ENVIRONMENTS.includes(r.xrEnvironment as XrEnvironment))
       s.xrEnvironment = r.xrEnvironment as XrEnvironment;
+    if (typeof r.xrSnapRadius === 'number' && Number.isInteger(r.xrSnapRadius))
+      s.xrSnapRadius = Math.max(0, Math.min(2, r.xrSnapRadius));
+    if (typeof r.xrMagnifier === 'boolean') s.xrMagnifier = r.xrMagnifier;
     if (typeof r.music === 'boolean') s.music = r.music;
     if (MUSIC_TRACKS.includes(r.musicTrack as MusicTrack))
       s.musicTrack = r.musicTrack as MusicTrack;

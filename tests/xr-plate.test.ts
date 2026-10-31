@@ -96,6 +96,23 @@ describe('createPlate', () => {
     plate.dispose();
   });
 
+  it('focuses empty cells of the selected color and leaves placed dots intact', () => {
+    const plate = createPlate(source, palette);
+    const mesh = plate.root.getObjectByName('xr-plate-studs') as THREE.InstancedMesh;
+    const c = new THREE.Color();
+    plate.setFocusColor(1);
+    mesh.getColorAt(0, c);
+    expect(c.getHexString()).toBe('00ff00');
+    mesh.getColorAt(1, c);
+    expect(c.g).toBeGreaterThan(c.r);
+    mesh.getColorAt(2, c);
+    expect(c.getHexString()).toBe(new THREE.Color(0x9a968a).multiplyScalar(0.45).getHexString());
+    plate.setFocusColor(null);
+    mesh.getColorAt(1, c);
+    expect(c.getHexString()).toBe('9a968a');
+    plate.dispose();
+  });
+
   it('highlights a hovered stud with a ring without changing stud colors', () => {
     const plate = createPlate(source, palette);
     const mesh = plate.root.children.find(

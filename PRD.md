@@ -4,6 +4,8 @@
 
 This document describes par-dots as it ships. For how the code is organized, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The WebXR mode is specified separately in [PRD-XR.md](PRD-XR.md). In XR, tray counts remain consistently sized as colors are completed. Settings offer selectable Studio, Night sky, Sunset and Woodland environments plus shared audio and haptics controls. Peg targeting uses a base ring and leaves the peg color unchanged. The tool palette uses labeled icons, highlights the active tool, offers controller help, and can show reference colors and letters on empty pegs. A trigger press on the reference image selects an available color. The gallery pages through unfinished pictures with the thumbstick, supports controller selection and B to exit, and saves VR workspace layout; the placement workspace has selectable colors, colored peg previews, grip proximity feedback, and a movable tool panel. Grip plus thumbstick pushes or pulls held objects along the laser beam; grip and trigger plus thumbstick scales them.
 
+XR additions include controller-aimed MR surface placement, color focus, a magnifier, workspace presets, whole-picture panel selection, a physical-build guide and a drawing editor. Their Quest acceptance is pending. The gallery explains export/import for device-to-device project copies.
+
 ## Table of Contents
 
 - [1. Summary](#1-summary)

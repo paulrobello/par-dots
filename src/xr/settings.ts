@@ -12,9 +12,9 @@ import {
 import { localRay } from './transforms';
 
 const WIDTH = 0.48;
-const HEIGHT = 0.36;
+const HEIGHT = 0.43;
 const CANVAS_W = 1024;
-const CANVAS_H = 768;
+const CANVAS_H = 912;
 const FIRST_ROW = 124;
 const ROW_HEIGHT = 72;
 const WORLD_LABELS: Record<XrEnvironment, string> = {
@@ -66,11 +66,13 @@ export function createXrSettings(
       ['Music volume', `${s.musicVolume}%`],
       ['Music track', s.musicTrack],
       ['Place sound', s.placeSound],
+      ['Snap radius', `${s.xrSnapRadius} studs`],
+      ['Magnifier', s.xrMagnifier ? 'On' : 'Off'],
     ];
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     ctx.fillStyle = '#20282d';
     ctx.beginPath();
-    ctx.roundRect(8, 8, 1008, 752, 40);
+    ctx.roundRect(8, 8, 1008, CANVAS_H - 16, 40);
     ctx.fill();
     ctx.fillStyle = '#f2cd37';
     ctx.font = '700 62px system-ui, sans-serif';
@@ -134,7 +136,8 @@ export function createXrSettings(
       const placeSound = cycle(PLACE_SOUNDS, s.placeSound, direction);
       setSettings({ placeSound });
       playPlaceSound(placeSound);
-    }
+    } else if (row === 8) setSettings({ xrSnapRadius: s.xrSnapRadius + direction });
+    else if (row === 9) setSettings({ xrMagnifier: !s.xrMagnifier });
     paint();
   };
   const show = (anchor: THREE.Object3D, head: THREE.Vector3): void => {
@@ -159,7 +162,7 @@ export function createXrSettings(
     const row = Math.floor((y - FIRST_ROW) / ROW_HEIGHT);
     if (
       row < 0 ||
-      row >= 8 ||
+      row >= 10 ||
       y - FIRST_ROW - row * ROW_HEIGHT >= ROW_HEIGHT - 5 ||
       x < 625 ||
       x > 992

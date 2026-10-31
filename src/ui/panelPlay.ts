@@ -460,6 +460,18 @@ export function mountPanelPlay(
               let advancing = false;
               const world = wrld.createPanelWorld(studio, xrSession, {
                 panel: activeSession,
+                save,
+                onPanelSelect: (next) => {
+                  if (next === index || advancing) return;
+                  advancing = true;
+                  queueMicrotask(() => {
+                    if (!xrAlive || !swap) return;
+                    if (index === panel) recordTime(timer.stop());
+                    activePanel = next;
+                    swap.swap(makeWorld(next));
+                    saveNow();
+                  });
+                },
                 palette: save.palette,
                 symbols,
                 mode,

@@ -29,7 +29,8 @@ function libraryPreview(save: PictureSave): HTMLCanvasElement | undefined {
     const sy = Math.floor((y / canvas.height) * save.height);
     for (let x = 0; x < canvas.width; x++) {
       const sx = Math.floor((x / canvas.width) * save.width);
-      const color = save.target[sy * save.width + sx];
+      const source = save.origin === 'drawn' ? save.placed : save.target;
+      const color = source[sy * save.width + sx];
       ctx.fillStyle = save.palette[color]?.hex ?? '#20282d';
       ctx.fillRect(x, y, 1, 1);
     }
@@ -114,6 +115,15 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
       let advancing = false;
       const world = wrld.createPanelWorld(studioRef, xrSession, {
         panel: session,
+        save,
+        onPanelSelect: (index) => {
+          queueMicrotask(() => {
+            if (!alive || !studioRef || !swapHandle) return;
+            touched = true;
+            void persistSave(save);
+            openPanel(save, index);
+          });
+        },
         palette: save.palette,
         symbols: paletteSymbols(save.palette.length),
         mode,
@@ -164,6 +174,30 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
       });
     };
 
+    const openDrawing = (save: PictureSave): void => {
+      if (!alive || !studioRef || !swapHandle) return;
+      activeSave = save;
+      import('../xr/draw')
+        .then(({ createDrawWorld }) => {
+          if (!alive || !studioRef || !swapHandle) return;
+          const world = createDrawWorld({
+            studio: studioRef,
+            xrSession,
+            save,
+            persist: () => {
+              touched = true;
+              void persistSave(save);
+            },
+            onExit: () => void xrLaunch?.end(),
+          });
+          swapHandle.swap(world);
+        })
+        .catch((error: unknown) => {
+          console.error(error);
+          toast(`Could not open drawing: ${userMessage(error)}`, 3500);
+        });
+    };
+
     const openLibrary = (): void => {
       if (!alive || !studioRef || !swapHandle) return;
       const rowsHolder = { rows: [] as ReturnType<LibraryModule['libraryRows']> };
@@ -177,7 +211,7 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
       void listSaves().then((all) => {
         if (!alive) return;
         const infos = all
-          .filter((save) => save.origin !== 'drawn' && nextUnfinishedPanel(save, -1) !== null)
+          .filter((save) => save.origin === 'drawn' || nextUnfinishedPanel(save, -1) !== null)
           .map(libraryInfo);
         sortInfos(infos);
         rowsHolder.rows = lib.libraryRows(infos);
@@ -193,7 +227,8 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
         const save = await loadSave(id);
         if (!alive || !save) return;
         if (save.origin === 'drawn') {
-          toast('Drawings open in the 2D editor', 2500);
+          touched = true;
+          openDrawing(save);
           return;
         }
         const panel = nextUnfinishedPanel(save, -1);
@@ -233,7 +268,7 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
         void listSaves().then((all) => {
           if (!alive) return;
           const infos = all
-            .filter((save) => save.origin !== 'drawn' && nextUnfinishedPanel(save, -1) !== null)
+            .filter((save) => save.origin === 'drawn' || nextUnfinishedPanel(save, -1) !== null)
             .map(libraryInfo);
           sortInfos(infos);
           initialRows.rows = lib.libraryRows(infos);

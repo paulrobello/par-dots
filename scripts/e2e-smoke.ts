@@ -527,7 +527,7 @@ async function main(): Promise<void> {
   const beforeBackup = await cardSummary();
   const [backup] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Back up all' }).click(),
+    page.getByRole('button', { name: 'Export all projects to a backup file' }).click(),
   ]);
   const backupName = backup.suggestedFilename();
   if (!/^par-dots-backup-\d{4}-\d{2}-\d{2}\.pardots$/.test(backupName)) {

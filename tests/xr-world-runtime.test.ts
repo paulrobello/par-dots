@@ -23,7 +23,10 @@ function fixture() {
   const studio = {
     scene,
     renderer: {
-      xr: { getController: (i: number) => targets[i], getControllerGrip: (i: number) => grips[i] },
+      xr: {
+        getController: (i: number) => targets[i],
+        getControllerGrip: (i: number) => grips[i],
+      },
     },
   } as unknown as Studio;
   const buttons = Array.from({ length: 6 }, () => ({ pressed: false }));
@@ -45,6 +48,100 @@ function fixture() {
   };
   return { scene, targets, grips, studio, session, buttons, axes, source, connect, aim };
 }
+
+function mrSave(): PictureSave {
+  const size = PANEL_SIZE * PANEL_SIZE;
+  return {
+    schemaVersion: 2,
+    id: 'mr',
+    createdAt: 1,
+    updatedAt: 1,
+    name: 'MR',
+    sourceImageId: 'image',
+    aspect: '1:1',
+    width: PANEL_SIZE,
+    height: PANEL_SIZE,
+    palette: [{ hex: '#ff0000', name: 'Red' }],
+    paletteMode: 'lego',
+    origin: 'photo',
+    target: new Uint8Array(size),
+    placed: new Uint8Array(size).fill(EMPTY),
+    panelElapsedMs: [0],
+  } as PictureSave;
+}
+
+function mrWorld() {
+  const f = fixture();
+  (
+    f.studio.renderer.xr as unknown as { getCamera: () => { matrixWorld: THREE.Matrix4 } }
+  ).getCamera = () => ({ matrixWorld: new THREE.Matrix4().makeTranslation(0, 1.6, 0.2) });
+  const targetRaySpace = {} as XRSpace;
+  const hitTestSource = { cancel: vi.fn() } as unknown as XRHitTestSource;
+  const requestHitTestSource = vi.fn(() => Promise.resolve(hitTestSource));
+  const floorSpace = {} as XRReferenceSpace;
+  const session = {
+    inputSources: [f.source],
+    requestReferenceSpace: vi.fn(() => Promise.resolve(floorSpace)),
+    requestHitTestSource,
+  } as unknown as XRSession;
+  Object.assign(f.source, { targetRaySpace });
+  const world = createPanelWorld(f.studio, session, {
+    panel: new PanelSession(mrSave(), 0),
+    palette: [{ hex: '#ff0000' }],
+    symbols: ['A'],
+    mode: 'ar',
+    selected: () => 0,
+    onSelect: vi.fn(),
+    persist: vi.fn(),
+    onExit: vi.fn(),
+  });
+  f.connect(1);
+  return { f, floorSpace, targetRaySpace, hitTestSource, requestHitTestSource, world };
+}
+
+it('requests MR hit testing from the connected controller target ray', async () => {
+  const mr = mrWorld();
+  mr.world.update(0);
+  await Promise.resolve();
+  expect(mr.requestHitTestSource).toHaveBeenCalledWith({ space: mr.targetRaySpace });
+  mr.world.dispose();
+});
+
+it('does not place the MR workspace when the controller ray has no surface hit', async () => {
+  const mr = mrWorld();
+  mr.world.update(0);
+  await Promise.resolve();
+  mr.world.update(16, { getHitTestResults: () => [] } as unknown as XRFrame);
+  mr.f.buttons[0].pressed = true;
+  mr.world.update(32, { getHitTestResults: () => [] } as unknown as XRFrame);
+  expect(mr.f.scene.getObjectByName('xr-plate')?.visible).toBe(false);
+  expect(mr.f.scene.getObjectByName('xr-mr-reticle')?.visible ?? false).toBe(false);
+  mr.world.dispose();
+});
+
+it('cancels a stale MR hit-test source when the controller changes or disconnects', async () => {
+  const mr = mrWorld();
+  mr.world.update(0);
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(mr.hitTestSource.cancel).not.toHaveBeenCalled();
+  const replacement = {
+    handedness: 'right',
+    targetRaySpace: {} as XRSpace,
+    gamepad: mr.f.source.gamepad,
+  } as unknown as XRInputSource;
+  (
+    mr.f.targets[1] as unknown as THREE.EventDispatcher<{ connected: { data: XRInputSource } }>
+  ).dispatchEvent({ type: 'connected', data: replacement });
+  mr.world.update(16);
+  expect(mr.hitTestSource.cancel).toHaveBeenCalledTimes(1);
+  (mr.f.targets[1] as unknown as THREE.EventDispatcher<never>).dispatchEvent({
+    type: 'disconnected',
+  } as unknown as never);
+  mr.world.update(32);
+  expect(mr.hitTestSource.cancel).toHaveBeenCalledTimes(1);
+  mr.world.dispose();
+});
 
 it('uses the connected controller slot for library selection and B exit', () => {
   const f = fixture();
@@ -100,7 +197,7 @@ it('opens and closes settings from the VR library without selecting a picture', 
   settings.updateWorldMatrix(true, true);
   const close = new THREE.Vector3(
     (948 / 1024 - 0.5) * 0.48,
-    (0.5 - 57 / 768) * 0.36,
+    (0.5 - 57 / 912) * 0.43,
     0,
   ).applyMatrix4(settings.matrixWorld);
   const settingsNormal = new THREE.Vector3(0, 0, 1).transformDirection(settings.matrixWorld);
@@ -300,7 +397,7 @@ it('selects a tray chip, updates its ring, and grabs the tool panel on contact',
   settings.updateWorldMatrix(true, true);
   const closeSettings = new THREE.Vector3(
     (948 / 1024 - 0.5) * 0.48,
-    (0.5 - 57 / 768) * 0.36,
+    (0.5 - 57 / 912) * 0.43,
     0,
   ).applyMatrix4(settings.matrixWorld);
   const settingsNormal = new THREE.Vector3(0, 0, 1).transformDirection(settings.matrixWorld);
@@ -313,6 +410,7 @@ it('selects a tray chip, updates its ring, and grabs the tool panel on contact',
   expect(selected).toBe(1);
   f.buttons[0].pressed = false;
   const initialX = tools.position.x;
+  const initialScale = tools.scale.x;
   f.grips[1].position.copy(tools.position);
   f.scene.updateMatrixWorld(true);
   world.update(15);
@@ -331,7 +429,7 @@ it('selects a tray chip, updates its ring, and grabs the tool panel on contact',
   f.axes[3] = -1;
   world.update(74);
   expect(tools.position.z).toBeLessThan(initialZ);
-  expect(tools.scale.x).toBe(1);
+  expect(tools.scale.x).toBe(initialScale);
   const movedZ = tools.position.z;
   reference.updateWorldMatrix(true, true);
   const firstCell = new THREE.Vector3(-0.1125, 0.1125, 0).applyMatrix4(reference.matrixWorld);
@@ -339,7 +437,7 @@ it('selects a tray chip, updates its ring, and grabs the tool panel on contact',
   f.aim(firstCell.clone().addScaledVector(firstNormal, 0.15), firstNormal.clone().negate());
   f.buttons[0].pressed = true;
   world.update(124);
-  expect(tools.scale.x).toBeGreaterThan(1);
+  expect(tools.scale.x).toBeGreaterThan(initialScale);
   expect(tools.position.z).toBeCloseTo(movedZ);
   expect(selected).toBe(1);
   f.buttons[1].pressed = false;

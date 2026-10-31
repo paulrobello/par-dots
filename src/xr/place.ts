@@ -1,7 +1,7 @@
 /**
  * XR desk placement (XR P3): pure hit→placement math and the reticle placement state
  * machine, XRFrame-free so it is fully unit-testable. The amber reticle ring follows
- * real-surface hits under the viewer ray; the trigger edge drops the plate at the hit point,
+ * real-surface hits under the controller ray; the trigger edge drops the plate at the hit point,
  * yawed to face the head, and the frame and tray spawn at fixed offsets from the plate.
  */
 

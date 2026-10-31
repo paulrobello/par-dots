@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { play } from '../audio/sfx';
 import type { PanelSession } from '../game/panelSession';
 import { getSettings } from '../storage/settings';
-import type { XrPanelLayout } from '../types';
+import type { PictureSave, XrPanelLayout } from '../types';
 import { getUpdateStatus, requestUpdate } from '../updateState';
 import { createBridge } from './bridge';
 import { createCompletion } from './completion';
@@ -17,6 +17,9 @@ import { createFrame } from './frame';
 import { createHelp } from './help';
 import { createInputModel, type PadState, readGamepad } from './input';
 import { createLibrary, type LibraryRow } from './library';
+import { createMagnifier } from './magnifier';
+import { createOverview } from './overview';
+import { createPhysicalGuide } from './physicalGuide';
 import { createPlacer, type HitPose, offsetsFrom } from './place';
 import { type Cell, createPlate } from './plate';
 import { createProgressLabel } from './progress';
@@ -31,7 +34,7 @@ import { createXrUpdateNotice } from './updateNotice';
 export interface PanelWorldDeps {
   /** The panel session the 2D screen is playing with; XR mutates the same save. */
   panel: PanelSession;
-  palette: ReadonlyArray<{ hex: string }>;
+  palette: ReadonlyArray<{ hex: string; name?: string }>;
   /** Per-color symbols (the 2D building-sheet alphabet) for the reference frame. */
   symbols: readonly string[];
   /** 'vr' spawns in arm reach; 'ar' drops via the hit-test reticle on a real surface. */
@@ -50,6 +53,8 @@ export interface PanelWorldDeps {
   onContinue?(): void;
   onComplete?(): void;
   continueLabel?(): string;
+  save?: PictureSave;
+  onPanelSelect?(panel: number): void;
 }
 
 const SPAWN: HitPose = { x: 0, y: 0.95, z: -0.35 };
@@ -195,10 +200,23 @@ export function createPanelWorld(
   });
   const plate = createPlate(bridge, deps.palette, deps.symbols);
   studio.scene.add(plate.root);
+  const magnifier = createMagnifier(plate.root, bridge, deps.palette, deps.symbols);
 
   const frame = createFrame(bridge, deps.palette, deps.symbols);
   studio.scene.add(frame.root);
   const progress = createProgressLabel(frame.root);
+  const physicalGuide = createPhysicalGuide();
+  physicalGuide.hide();
+  studio.scene.add(physicalGuide.root);
+  const syncPhysicalGuide = (): void => {
+    const color = deps.selected();
+    physicalGuide.sync({
+      colorName: deps.palette[color]?.name ?? 'Choose a color',
+      symbol: deps.symbols[color] ?? '—',
+      remaining: color >= 0 ? bridge.remainingFor(color) : 0,
+    });
+  };
+  syncPhysicalGuide();
   progress.sync(bridge.progress());
   const tray = createTray({
     bridge,
@@ -217,6 +235,11 @@ export function createPanelWorld(
   studio.scene.add(settings.root);
   const updateNotice = createXrUpdateNotice();
   studio.scene.add(updateNotice.root);
+  const overview = deps.save && deps.onPanelSelect ? createOverview(deps.save) : null;
+  if (overview) {
+    overview.root.visible = false;
+    studio.scene.add(overview.root);
+  }
   const fallbackHead = new THREE.Matrix4().makeTranslation(0, 1.6, 0.2);
   const viewerPosition = (): THREE.Vector3 => {
     const camera = studio.renderer.xr.getCamera?.();
@@ -260,26 +283,11 @@ export function createPanelWorld(
     tools.root.visible = false;
   }
   let hitTestSource: XRHitTestSource | null = null;
+  let hitTestSourceInput: XRInputSource | null = null;
+  let hitTestSourceRequest: XRInputSource | null = null;
+  let hitTestSourceGeneration = 0;
   let floorSpace: XRReferenceSpace | null = null;
   if (isAr) {
-    void xrSession
-      .requestReferenceSpace('viewer')
-      .then((vs) => xrSession.requestHitTestSource?.({ space: vs as XRReferenceSpace }))
-      .then((src) => {
-        hitTestSource = src ?? null;
-        // No hit-test (or denied): spawn at the default arm-reach spot instead of stranding
-        // the user in an empty room with no way to drop the workspace.
-        if (!hitTestSource) {
-          placeWorld(SPAWN, 0);
-          revealAr();
-          placed = true;
-        }
-      })
-      .catch(() => {
-        placeWorld(SPAWN, 0);
-        revealAr();
-        placed = true;
-      });
     void xrSession
       .requestReferenceSpace('local-floor')
       .then((s) => {
@@ -332,6 +340,7 @@ export function createPanelWorld(
       frame.sync();
       tray.sync();
       progress.sync(bridge.progress());
+      syncPhysicalGuide();
     }, 120);
   });
 
@@ -343,6 +352,8 @@ export function createPanelWorld(
       const colors = bridge.trayColors();
       const next = colors.find((c) => c > event.colorIndex) ?? colors.at(-1) ?? -1;
       deps.onSelect(next);
+      syncPhysicalGuide();
+      if (focus) plate.setFocusColor(next >= 0 ? next : null);
       tray.sync();
     } else if (event.type === 'complete') {
       deps.onComplete?.();
@@ -356,6 +367,8 @@ export function createPanelWorld(
 
   let removeMode = false;
   let referenceOverlay = false;
+  let focus = false;
+  let workspacePreset = 0;
   let initialCompletionPending = bridge.isComplete();
   const mode = (): 'paint' | 'remove' => (removeMode ? 'remove' : 'paint');
   const syncToolsActive = (): void => tools.setActive(removeMode ? 'remove' : 'place');
@@ -377,6 +390,35 @@ export function createPanelWorld(
       referenceOverlay = !referenceOverlay;
       plate.setReferenceOverlay(referenceOverlay);
       tools.setGhostActive(referenceOverlay);
+    } else if (id === 'focus') {
+      focus = !focus;
+      plate.setFocusColor(focus && deps.selected() >= 0 ? deps.selected() : null);
+      tools.setFocusActive(focus);
+    } else if (id === 'workspace') {
+      workspacePreset = (workspacePreset + 1) % 3;
+      const p = plate.root.position.clone();
+      const yaw = plate.root.rotation.y;
+      placeWorld({ x: p.x, y: p.y, z: p.z }, yaw);
+      plate.root.rotation.x = workspacePreset === 1 ? Math.PI / 3 : 0;
+      plate.root.scale.setScalar(workspacePreset === 2 ? 1.8 : 1);
+      hintLabel.show(['Desk', 'Easel', 'Close-up'][workspacePreset]);
+      if (hintTimer !== null) clearTimeout(hintTimer);
+      hintTimer = setTimeout(() => {
+        hintTimer = null;
+        hintLabel.hide();
+      }, 2000);
+    } else if (id === 'picture' && overview) {
+      overview.root.position.copy(plate.root.position);
+      overview.root.position.y += 0.3;
+      overview.root.lookAt(viewerPosition());
+      overview.repaint();
+      overview.root.visible = true;
+    } else if (id === 'guide') {
+      if (physicalGuide.root.visible) physicalGuide.hide();
+      else {
+        syncPhysicalGuide();
+        physicalGuide.show();
+      }
     } else if (id === 'hint') {
       doHint();
     } else if (id === 'undo') {
@@ -437,6 +479,7 @@ export function createPanelWorld(
   let prevSelectTrig = false;
   let awaitTriggerRelease = true;
   let suppressTriggerUntilRelease = false;
+  let suppressBUntilRelease = false;
   let placed = !isAr;
 
   const grabBounds = new THREE.Box3();
@@ -444,6 +487,12 @@ export function createPanelWorld(
   const grabRoots = [plate.root, frame.root, tray.root, tools.root];
   let lastTime: number | null = null;
   const update = (time: number, xrFrame?: XRFrame): void => {
+    if (physicalGuide.root.visible) {
+      frame.root.updateWorldMatrix(true, false);
+      physicalGuide.root.position.set(0, -0.26, 0.005).applyMatrix4(frame.root.matrixWorld);
+      frame.root.getWorldQuaternion(physicalGuide.root.quaternion);
+      physicalGuide.root.scale.copy(frame.root.scale);
+    }
     const dt = lastTime === null ? 0 : (time - lastTime) / 1000;
     lastTime = time;
     if (initialCompletionPending && placed) {
@@ -459,6 +508,7 @@ export function createPanelWorld(
       updateStatus.error,
     );
     const { pad: rawPad, index } = readPad(studio);
+    if (!rawPad?.b) suppressBUntilRelease = false;
     if (!rawPad) awaitTriggerRelease = true;
     else if (!rawPad.trigger) awaitTriggerRelease = false;
     const pad = rawPad && awaitTriggerRelease ? { ...rawPad, trigger: false } : rawPad;
@@ -481,18 +531,38 @@ export function createPanelWorld(
           chip === null && referenceColor === null ? tools.pickTool({ origin: pos, dir }) : null;
         if (chip === null && referenceColor === null && tool === null) {
           localRay(plate.root, pos, dir, plateRay, inv);
-          snap = plate.pickCell({ origin: plateRay.origin, dir: plateRay.direction }, mode());
+          snap = plate.pickCell(
+            { origin: plateRay.origin, dir: plateRay.direction },
+            mode(),
+            getSettings().xrSnapRadius,
+          );
         }
       }
     }
     const down = actionPad?.trigger === true && !prevSelectTrig;
     const noticeHit = index >= 0 && !pad?.grip && updateNotice.hit(pos, dir);
     const modalAtStart =
-      completion.root.visible || help.root.visible || settings.root.visible || noticeHit;
+      completion.root.visible ||
+      help.root.visible ||
+      settings.root.visible ||
+      overview?.root.visible ||
+      noticeHit;
     if (noticeHit) {
       if (down) {
         suppressTriggerUntilRelease = true;
         if (updateNotice.pick(pos, dir)) void requestUpdate();
+      }
+    } else if (overview?.root.visible) {
+      const hovered = index >= 0 ? overview.pickPanel({ origin: pos, dir }) : null;
+      overview.setHover(hovered);
+      if (down && hovered !== null) {
+        overview.root.visible = false;
+        suppressTriggerUntilRelease = true;
+        deps.onPanelSelect?.(hovered);
+      }
+      if (actionPad?.b) {
+        overview.root.visible = false;
+        suppressBUntilRelease = true;
       }
     } else if (completion.root.visible) {
       completion.update(time);
@@ -503,7 +573,11 @@ export function createPanelWorld(
       if (down && index >= 0 && settings.pick(pos, dir) === 'close')
         suppressTriggerUntilRelease = true;
     } else if (isAr && !placed) {
-      updatePlacement(xrFrame, down);
+      const source =
+        index >= 0
+          ? (studio.renderer.xr.getController(index).userData.xrSource as XRInputSource | undefined)
+          : undefined;
+      updatePlacement(xrFrame, down, source ?? null);
     } else {
       if (down && chip !== null) traySelect(chip);
       else if (down && referenceColor !== null && bridge.trayColors().includes(referenceColor))
@@ -512,8 +586,16 @@ export function createPanelWorld(
     }
     prevSelectTrig = actionPad?.trigger === true;
     const modal =
-      modalAtStart || completion.root.visible || help.root.visible || settings.root.visible;
-    const inputPad = modal && actionPad ? { ...actionPad, trigger: false } : actionPad;
+      modalAtStart ||
+      completion.root.visible ||
+      help.root.visible ||
+      settings.root.visible ||
+      !!overview?.root.visible;
+    const inputPad =
+      actionPad && (modal || suppressBUntilRelease)
+        ? { ...actionPad, trigger: modal ? false : actionPad.trigger, b: false }
+        : actionPad;
+    magnifier.update(getSettings().xrMagnifier && !modal && !inputPad?.grip ? snap : null);
     model.update(modal || inputPad?.grip ? null : snap, inputPad);
     for (let i = 0; i < controllers.markers.length; i++) {
       const marker = controllers.markers[i];
@@ -549,8 +631,70 @@ export function createPanelWorld(
     tools.root.visible = true;
     reticle.visible = false;
   };
+  const ensureHitTestSource = (input: XRInputSource | null): void => {
+    const requestHitTestSource = xrSession.requestHitTestSource;
+    const targetRaySpace = input?.targetRaySpace;
+    if (input && !requestHitTestSource) {
+      placeWorld(SPAWN, 0);
+      revealAr();
+      placed = true;
+      return;
+    }
+    if (!input || !targetRaySpace || !requestHitTestSource) {
+      if (hitTestSourceInput !== null || hitTestSourceRequest !== null) {
+        hitTestSource?.cancel();
+        hitTestSource = null;
+        hitTestSourceInput = null;
+        hitTestSourceRequest = null;
+        hitTestSourceGeneration++;
+      }
+      return;
+    }
+    if (input === hitTestSourceInput || input === hitTestSourceRequest) return;
+    hitTestSource?.cancel();
+    hitTestSource = null;
+    hitTestSourceInput = null;
+    hitTestSourceRequest = input;
+    const generation = ++hitTestSourceGeneration;
+    const request = requestHitTestSource as NonNullable<XRSession['requestHitTestSource']>;
+    const pending = request.call(xrSession, { space: targetRaySpace });
+    if (!pending) {
+      hitTestSourceRequest = null;
+      placeWorld(SPAWN, 0);
+      revealAr();
+      placed = true;
+      return;
+    }
+    void pending
+      .then((source) => {
+        if (generation !== hitTestSourceGeneration || input !== hitTestSourceRequest) {
+          source?.cancel();
+          return;
+        }
+        hitTestSourceRequest = null;
+        hitTestSourceInput = source ? input : null;
+        hitTestSource = source ?? null;
+        if (!source) {
+          placeWorld(SPAWN, 0);
+          revealAr();
+          placed = true;
+        }
+      })
+      .catch(() => {
+        if (generation !== hitTestSourceGeneration || input !== hitTestSourceRequest) return;
+        hitTestSourceRequest = null;
+        placeWorld(SPAWN, 0);
+        revealAr();
+        placed = true;
+      });
+  };
   const headPos = new THREE.Vector3();
-  const updatePlacement = (frame: XRFrame | undefined, triggerDown: boolean): void => {
+  const updatePlacement = (
+    frame: XRFrame | undefined,
+    triggerDown: boolean,
+    input: XRInputSource | null,
+  ): void => {
+    ensureHitTestSource(input);
     let hit: HitPose | null = null;
     if (frame && hitTestSource && floorSpace) {
       const results = frame.getHitTestResults(hitTestSource);
@@ -580,6 +724,8 @@ export function createPanelWorld(
     removeMode = false;
     syncToolsActive();
     deps.onSelect(c);
+    syncPhysicalGuide();
+    if (focus) plate.setFocusColor(c);
     tray.sync();
     pulse(xrSession, 0.4, 12);
   };
@@ -636,6 +782,7 @@ export function createPanelWorld(
   };
 
   const dispose = (): void => {
+    hitTestSourceGeneration++;
     unsub();
     unsubFrame();
     unsubBuzz();
@@ -649,6 +796,12 @@ export function createPanelWorld(
     help.dispose();
     settings.dispose();
     updateNotice.dispose();
+    magnifier.dispose();
+    physicalGuide.dispose();
+    if (overview) {
+      overview.root.removeFromParent();
+      overview.dispose();
+    }
     for (const root of [plate.root, frame.root, tray.root, tools.root, reticle])
       root.removeFromParent();
     plate.dispose();

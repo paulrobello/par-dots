@@ -16,8 +16,8 @@ PAR Dots gains a WebXR mode for building mosaic panels on Meta Quest 3: the
 floating resizable frame, and the color tray as a floating chip grid. One
 three.js scene serves both **VR** (studio backdrop) and **MR**
 (passthrough backdrop, plate anchored to the real desk). XR edits write
-directly into the same IndexedDB project and undo stack as 2D play — build a
-panel in XR, finish it on the phone.
+directly into the same IndexedDB project and undo stack as 2D play on that
+device. Export and import a backup to continue on another device.
 
 ## 2. Goals
 
@@ -31,7 +31,7 @@ panel in XR, finish it on the phone.
 
 ## 3. Non-Goals
 
-- Picture setup, draw mode, or overview screens in XR. The XR gallery lists unfinished photo projects.
+- Picture setup in XR. The XR gallery lists unfinished photo projects and drawings.
 - Hand tracking, gaze input, or Meta VR Glasses readiness (later; controllers
   only for this PRD).
 - Locomotion of any kind — the workspace is arm-reach; you move objects, not
@@ -76,7 +76,7 @@ panel in XR, finish it on the phone.
   Hold grip and trigger together while moving the stick up/down to resize it (0.4x–3x);
   B = exit to 2D (plus panel-button exit).
 - **MR:** `immersive-ar` session, alpha-blend backdrop, and a placement
-  reticle driven by the WebXR hit-test API (viewer space, real-surface
+  reticle driven by the WebXR hit-test API (controller target-ray space, real-surface
   hits) — point at the desk, trigger drops the plate; frame and tray spawn at
   offsets; everything freely grabbable afterward (the "backdrop" variant is
   just: don't use the reticle, grab the plate into mid-air).
@@ -88,6 +88,8 @@ panel in XR, finish it on the phone.
   undo/redo, session end ≈ page-hidden, panel complete).
 
 The Settings control is available in the library and build workspace. It offers Studio, Night sky, Sunset and Woodland VR environments and the shared sound, volume, haptics, music, track and place-sound settings; MR keeps passthrough. A progress label shows correct dots and Hint confirms when there are no mistakes. A Ghost tool toggles reference colors and matching symbols on empty plate pegs without obscuring placed dots. A Help tool opens the VR controller guide. Completing a plate plays a fanfare and shows a button to continue to the next plate in VR. Pointing at the reference image and pressing the trigger selects that cell’s color when it is available in the tray. The gallery lists unfinished photo projects with previews and progress bars. Either controller can point and use trigger to select; the thumbstick pages through the list and B exits. Gallery-launched VR saves the panel workspace layout. When MR hit testing is available, placement requires a currently visible surface reticle. If hit testing is unavailable or denied, the workspace appears at the default position.
+
+The workspace also offers Focus for the selected color, a Picture overview for choosing a panel, a Build guide for tracking a physical mosaic, and Layout presets. XR settings include an optional targeted-cell magnifier and adjustable snap radius. Drawings open in a separate XR editor with palette selection, brush, eraser, picker, symmetry and undo/redo. Gallery export/import transfers project copies between devices without automatic synchronization. These additions require headset acceptance.
 
 ## 6. Phases
 
