@@ -446,7 +446,10 @@ export function mountPanelPlay(
               layout: undefined,
               visible: false,
             };
-            const makeWorld = (index: number): ReturnType<typeof wrld.createPanelWorld> => {
+            const makeWorld = (
+              index: number,
+              sessionLayout?: XrPanelLayout | null,
+            ): ReturnType<typeof wrld.createPanelWorld> => {
               const activeSession = index === panel ? session : new PanelSession(save, index);
               const activeTimer =
                 index === panel
@@ -474,7 +477,7 @@ export function mountPanelPlay(
                     if (!xrAlive || !swap) return;
                     if (index === panel) recordTime(timer.stop());
                     activePanel = next;
-                    swap.swap(makeWorld(next));
+                    swap.swap(makeWorld(next, world.layout()));
                     saveNow();
                   });
                 },
@@ -482,6 +485,7 @@ export function mountPanelPlay(
                 symbols,
                 mode,
                 layout: mode === 'vr' ? lay.getLayout(save, index) : null,
+                sessionLayout,
                 selected: () => (index === panel ? selected : activeColor),
                 onSelect: (c) => {
                   if (index === panel) select(c);
@@ -508,7 +512,7 @@ export function mountPanelPlay(
                     }
                     if (index === panel) recordTime(timer.stop());
                     activePanel = next;
-                    swap.swap(makeWorld(next));
+                    swap.swap(makeWorld(next, world.layout()));
                     saveNow();
                   });
                 },

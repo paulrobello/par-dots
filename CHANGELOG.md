@@ -49,6 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Keep the current XR workspace layout when moving to another panel, including in mixed reality.
+
 - Bundled pictures start with individually chosen color limits to reduce extra edge shades in mosaics.
 - XR drag strokes target only the peg under the ray, the settings panel stops controller rays, and the last Layout preset is restored across sessions.
 

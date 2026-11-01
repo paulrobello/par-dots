@@ -8,6 +8,7 @@ const state = vi.hoisted(() => ({
   launchOpts: null as any,
   end: null as (() => void) | null,
   session: null as unknown as XRSession,
+  snapshot: { plate: { pos: { x: 1, y: 2, z: 3 } }, tools: { pos: { x: 4, y: 5, z: 6 } } },
 }));
 
 vi.mock('../src/ui/saves', () => ({
@@ -112,7 +113,7 @@ vi.mock('../src/xr/scene', () => ({
 vi.mock('../src/xr/world', () => ({
   createPanelWorld: vi.fn((_studio: unknown, _xr: unknown, deps: any) => {
     state.worldDeps.push(deps);
-    return { layout: () => null, dispose() {}, update() {} };
+    return { layout: () => state.snapshot, dispose() {}, update() {} };
   }),
   createSwapWorld: vi.fn((initial: any) => ({
     ...initial,
@@ -164,6 +165,17 @@ afterEach(() => {
 });
 
 describe('panel play XR flow', () => {
+  it('carries the workspace when selecting another panel in the overview', async () => {
+    const root = document.createElement('main');
+    mountPanelPlay({ root, navigate: vi.fn() }, 'pic', 0);
+    await vi.waitFor(() => expect(root.querySelector('[aria-label="Enter VR"]')).toBeTruthy());
+    (root.querySelector('[aria-label="Enter VR"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(state.worldDeps).toHaveLength(1));
+    state.worldDeps[0].onPanelSelect(2);
+    await Promise.resolve();
+    expect(state.worldDeps[1].sessionLayout).toEqual(state.snapshot);
+  });
+
   it('keeps XR on completion, swaps to the next plate, and restores navigation on exit', async () => {
     const root = document.createElement('main');
     const navigate = vi.fn();
@@ -183,6 +195,7 @@ describe('panel play XR flow', () => {
     await Promise.resolve();
     expect(state.worldDeps).toHaveLength(2);
     expect(state.worldDeps[1].panel).not.toBe(first);
+    expect(state.worldDeps[1].sessionLayout).toEqual(state.snapshot);
     state.worldDeps[1].persist();
     expect(state.save?.panelElapsedMs[1]).toBe(17);
     expect(state.end).not.toBeNull();

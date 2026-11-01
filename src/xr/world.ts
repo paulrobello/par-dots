@@ -42,6 +42,8 @@ export interface PanelWorldDeps {
   mode: 'vr' | 'ar';
   /** Saved workspace layout for this panel (VR entry restores it; MR re-places via reticle). */
   layout?: XrPanelLayout | null;
+  /** Workspace carried from the previous panel in the same XR session. */
+  sessionLayout?: ReusableXrLayout | null;
   /** Current color selection from the 2D tray until the XR tray exists (P2b). */
   selected(): number;
   /** The 2D screen's select: XR tray selection mirrors into it so both stay one store. */
@@ -291,7 +293,7 @@ export function createPanelWorld(
   studio.scene.add(reticle);
 
   const isAr = deps.mode === 'ar';
-  if (isAr) {
+  if (isAr && !deps.sessionLayout) {
     plate.root.visible = false;
     frame.root.visible = false;
     tray.root.visible = false;
@@ -335,8 +337,9 @@ export function createPanelWorld(
     frame.sync();
     tray.sync();
   };
-  if (!isAr && deps.layout) {
-    applyLayout(deps.layout);
+  const initialLayout = deps.sessionLayout ?? (!isAr ? deps.layout : null);
+  if (initialLayout) {
+    applyLayout(initialLayout);
     if (overview && deps.overviewState?.layout) {
       const { pos, quat, scale } = deps.overviewState.layout;
       overview.root.position.set(pos.x, pos.y, pos.z);
@@ -417,8 +420,8 @@ export function createPanelWorld(
       plate.root.scale.setScalar(workspacePreset === 2 ? 1.8 : 1);
     }
   };
-  if (workspacePreset !== 0) applyWorkspacePreset();
-  else if (savedWorkspacePreset !== null && deps.layout) {
+  if (!deps.sessionLayout && workspacePreset !== 0) applyWorkspacePreset();
+  else if (!deps.sessionLayout && savedWorkspacePreset !== null && deps.layout) {
     plate.root.rotation.x = 0;
     plate.root.scale.setScalar(1);
   }
@@ -544,7 +547,7 @@ export function createPanelWorld(
   let awaitTriggerRelease = true;
   let suppressTriggerUntilRelease = false;
   let suppressBUntilRelease = false;
-  let placed = !isAr;
+  let placed = !isAr || !!deps.sessionLayout;
 
   const grabBounds = new THREE.Box3();
   const gripPosition = new THREE.Vector3();

@@ -157,6 +157,39 @@ describe('XR workspace controls', () => {
     next.dispose();
   });
 
+  it('carries moved workspace transforms to another panel in the same session', () => {
+    const f = fixture();
+    const first = panel(f);
+    const plate = requiredObject(f, 'xr-plate');
+    const tools = requiredObject(f, 'xr-tools');
+    plate.position.set(0.7, 1.1, -0.8);
+    plate.rotation.x = 0.6;
+    tools.position.set(0.8, 1.2, -0.5);
+    const sessionLayout = first.layout();
+    first.dispose();
+    const second = panel(f, { sessionLayout });
+    expect(requiredObject(f, 'xr-plate').position.x).toBeCloseTo(0.7);
+    expect(requiredObject(f, 'xr-plate').rotation.x).toBeCloseTo(0.6);
+    expect(requiredObject(f, 'xr-tools').position.x).toBeCloseTo(0.8);
+    second.dispose();
+  });
+
+  it('keeps the MR workspace placed when switching panels', () => {
+    const f = fixture();
+    const first = panel(f);
+    requiredObject(f, 'xr-plate').position.set(0.7, 1.1, -0.8);
+    const sessionLayout = first.layout();
+    first.dispose();
+    Object.assign(f.session, {
+      requestReferenceSpace: () => Promise.reject(new Error('unavailable')),
+    });
+    const second = panel(f, { mode: 'ar', sessionLayout });
+    const plate = requiredObject(f, 'xr-plate');
+    expect(plate.visible).toBe(true);
+    expect(plate.position.x).toBeCloseTo(0.7);
+    second.dispose();
+  });
+
   it('restores Desk even when the panel has an older Easel layout', () => {
     setSettings({ xrWorkspacePreset: 0 });
     const f = fixture();

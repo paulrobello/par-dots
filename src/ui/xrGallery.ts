@@ -6,7 +6,7 @@
  */
 
 import { nextUnfinishedPanel, overallProgress, PanelSession, pictureComplete } from '../game';
-import type { PictureSave } from '../types';
+import type { PictureSave, XrPanelLayout } from '../types';
 import { getUpdateStatus, registerUpdateFlush } from '../updateState';
 import { h, icon, toast } from './dom';
 import { paletteSymbols, userMessage } from './pure';
@@ -111,7 +111,11 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
     };
     let unregisterUpdateFlush = (): void => {};
 
-    const openPanel = (save: PictureSave, panel: number): void => {
+    const openPanel = (
+      save: PictureSave,
+      panel: number,
+      sessionLayout?: XrPanelLayout | null,
+    ): void => {
       if (!alive || !studioRef || !swapHandle) return;
       if (activeSave?.id !== save.id) {
         overviewState.layout = undefined;
@@ -130,13 +134,14 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
             if (!alive || !studioRef || !swapHandle) return;
             touched = true;
             void persistSave(save);
-            openPanel(save, index);
+            openPanel(save, index, world.layout());
           });
         },
         palette: save.palette,
         symbols: paletteSymbols(save.palette.length),
         mode,
         layout: lay.getLayout(save, panel),
+        sessionLayout,
         selected: () => selected.color,
         onSelect: (c) => {
           selected.color = c;
@@ -158,7 +163,7 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
             .then(() => {
               if (!alive) return;
               const next = nextUnfinishedPanel(save, panel);
-              if (next !== null && next !== panel) openPanel(save, next);
+              if (next !== null && next !== panel) openPanel(save, next, world.layout());
               else openLibrary();
             })
             .catch((error: unknown) => {

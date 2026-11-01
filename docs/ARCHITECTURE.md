@@ -175,6 +175,7 @@ Inside a session, `src/xr/world.ts` assembles the workspace: `plate.ts` (16x16 s
 | --- | --- | --- |
 | IndexedDB `par-dots`, version 1, store `saves` | `src/storage/db.ts` | `PictureSave` records, keyPath `id` |
 | IndexedDB `par-dots`, store `images` | `src/storage/db.ts` | Uploaded image blobs, keyed by the save's `sourceImageId`; library pictures use `library:<slug>` and have no blob |
+| XR panel swaps carry the current workspace transforms in memory, including in MR. | `src/ui/panelPlay.ts`, `src/ui/xrGallery.ts`, `src/xr/world.ts` | Session-only workspace continuity |
 | localStorage `par-dots:xr-custom-layouts` | `src/xr/layout.ts` | Reusable custom XR workspace layout on this device |
 | localStorage `par-dots:settings` | `src/storage/settings.ts` | `Settings` (sound, place sound, haptics, music and track, effects and music volume, palette mode, max colors, dither, 2D background, VR environment, workspace preset, snap radius and magnifier), cached in memory |
 | localStorage `par-dots:install-prompt-dismissed` | `src/ui/install.ts` | Whether the one-time install prompt was shown |
