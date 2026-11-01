@@ -1,8 +1,8 @@
 /**
  * XR studio scene (XR P0): the WebGLRenderer with `xr.enabled` over a studio backdrop — void
- * background, grid floor, neutral lights for color judgment. Everything three.js-related lives
- * here; panel play reaches this module only through a dynamic `import('../xr/scene')`, so a
- * 2D-only session never parses three.js. `session.ts` owns detection and the session request.
+ * background, grid floor, neutral lights for color judgment. Panel play and the gallery load
+ * this renderer through dynamic imports; XR-capable panel pages also prewarm it. `session.ts`
+ * owns detection and the session request.
  */
 
 import * as THREE from 'three';

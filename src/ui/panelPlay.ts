@@ -376,8 +376,7 @@ export function mountPanelPlay(
     document.addEventListener('keydown', onKey);
 
     // ---- XR (P0/P3): Enter VR / Enter MR, shown only when the mode is supported ---------
-    // src/xr/ is reached only through these dynamic imports, so 2D-only sessions never
-    // parse three.js; the click path imports scene.ts and requests the session.
+    // XR-capable browsers prewarm the dynamic imports below before session entry.
     let xrLaunch: { end(): Promise<void> } | null = null;
     const vrBtn = h(
       'button',

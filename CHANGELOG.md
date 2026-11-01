@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Keep the movable whole-picture view open during XR building, support grip manipulation with either controller, make the lower upright VR library movable, and save a reusable custom workspace layout on the device.
-
 ### Added
+
+- Buy parts in the Parts sheet: download the picture's (or one panel's) dot counts, plus the build kit (black 16x16 pin-hole canvases, three Technic pins per joined edge, two wall-mount panels, and an optional raised frame), as a BrickLink wanted-list XML or a Rebrickable part-list CSV. LEGO palette mode only; free shades have no catalog color.
+- Google Analytics 4 measures visits and hash-route page views. The script is allowlisted in the production content-security policy; the dev server has no CSP.
+- Overlay marks each empty stud with its color's symbol, as on the building sheets, and shows the symbols on the tray dots while it is on.
+- View picture on the overview of a finished picture opens the finished mosaic in a sheet, next to Download PNG.
+- The overview lists the picture's color count next to its panel count.
+- Guide → All panels downloads a PDF with one panel per page instead of one tall PNG.
+- Background music: three looping tracks (Happy, the default; Calm; Energy) generated locally with Stable Audio 3, with a Music toggle and track picker in Settings, and separate Effects volume and Music volume sliders. Music starts on the first tap, pauses while the page is hidden, and plays offline.
+- Settings: Background color presets (gray, blue, green, brown, purple), applied app-wide with the browser theme color and remembered across visits.
+- Back up and restore: "Back up all" in the gallery (or Back up on one card) saves pictures and their uploaded photos to a `.pardots` file; "Restore" imports one as new pictures, on any browser or after clearing site data.
 
 - XR color focus, targeted-cell magnifier and snap settings, workspace layouts, whole-picture panel selection, physical-building guidance and a drawing editor. Gallery transfer instructions explain how to export and import project copies.
 
@@ -22,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - VR builders can toggle a ghost of the reference colors on empty plate pegs and select available colors directly from the reference image.
 
 - Six bundled mosaic pictures: koi pond, camper at sunset, moonlit barn owl, butterfly garden, sunset balloon and a cozy reading scene.
-- WebXR panel play (XR P0–P4): "Enter VR" / "Enter MR" chips on panel play, shown only when the headset reports the mode, drive a true-scale 16x16 build plate (one InstancedMesh of studs at 8 mm pitch) with controller placement — trigger taps place, holding A sweeps strokes (one undo move per stroke), snap-assist skips occupied studs — a floating reference frame with the building-sheet symbols and the 2D Overlay behind a toggle, a color tray with the 2D parity semantics (counts, zero-but-wrong dimmed, ring on the current color) whose selection mirrors the shared store, and Place/Remove/Hint/Undo/Redo tool buttons with hint flashes and the full-but-wrong buzz. MR enters passthrough, drops the workspace onto a real desk via a hit-test reticle facing you, and everything grip-grabs anywhere including mid-air. XR edits commit through the same PanelSession as 2D play — identical undo history and save points — and each panel's workspace layout persists on session end and is restored on the next VR entry. three.js stays in a lazy chunk 2D-only sessions never parse.
+- WebXR panel play (XR P0–P4): "Enter VR" / "Enter MR" chips on panel play, shown only when the headset reports the mode, drive a true-scale 16x16 build plate (one InstancedMesh of studs at 8 mm pitch) with controller placement — trigger taps place, holding A sweeps strokes (one undo move per stroke), snap-assist skips occupied studs — a floating reference frame with the building-sheet symbols and the 2D Overlay behind a toggle, a color tray with the 2D parity semantics (counts, zero-but-wrong dimmed, ring on the current color) whose selection mirrors the shared store, and Place/Remove/Hint/Undo/Redo tool buttons with hint flashes and the full-but-wrong buzz. MR enters passthrough, drops the workspace onto a real desk via a hit-test reticle facing you, and everything grip-grabs anywhere including mid-air. XR edits commit through the same PanelSession as 2D play — identical undo history and save points — and each panel's workspace layout persists on session end and is restored on the next VR entry. three.js is bundled in separate XR chunks, which panel play prewarms on WebXR-capable browsers.
 - Guide PDFs now include a Frame page between the coloring sheets and the assembly page: it builds the raised frame layer by layer with the exact pieces per side — backing (a 16x16 plate per panel plus a 1-stud border ring of plates), brick ring (longest pieces first, per-side piece lists), plate layer, then a tile cap inset 2 studs with four studded 2x2 corners for a corner plate and the hangers. The piece lists come from the same recipe as the Buy parts export (`frameRingPieces`), so what the PDF teaches and what the manifest sells cannot drift.
 - Picture sizes: the setup and draw-create screens offer Small, Medium, Large and Custom. Medium doubles and Large triples the panel grid per axis (square grows from 9 to 36 to 81 panels); Custom takes typed columns and rows from 1×1 to 10×10, with the crop ratio following the grid. Preview, parts lists, printable guides and the assembly plan all scale with the grid, and existing saves keep playing unchanged.
 - Draw mode: rename a drawing any time by editing its title in the draw editor's top bar.
@@ -36,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Uploaded images with transparency now composite over a chosen background color on the setup screen, defaulting to black instead of white, with black and white swatches plus a custom color picker.
 
 ### Changed
+
+- Keep the movable whole-picture view open during XR building, support grip manipulation with either controller, make the lower upright VR library movable, and save a reusable custom workspace layout on the device.
 
 - VR peg targeting uses a ring at the peg base without changing its color. Music remains available during immersive sessions even if the 2D document is hidden.
 
@@ -83,32 +93,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The Settings gear is on every screen (gallery, New Picture, setup, overview and panel), not only the panel screen.
 - View picture uses the same dark chip style as Ghost, Parts and Guide.
 
-### Added
-
-- Buy parts in the Parts sheet: download the picture's (or one panel's) dot counts, plus the build kit (black 16x16 pin-hole canvases, 5 Technic pins per joined edge, two wall-mount panels, a 1x16 brick border frame in black or white), as a BrickLink wanted-list XML or a Rebrickable part-list CSV. LEGO palette mode only; free shades have no catalog color.
-- Google Analytics 4 measures visits and hash-route page views. The script is allowlisted in the production content-security policy; the dev server has no CSP.
-- Overlay marks each empty stud with its color's symbol, as on the building sheets, and shows the symbols on the tray dots while it is on.
-- View picture on the overview of a finished picture opens the finished mosaic in a sheet, next to Download PNG.
-- The overview lists the picture's color count next to its panel count.
-- Guide → All panels downloads a PDF with one panel per page instead of one tall PNG.
-- Background music: three looping tracks (Happy, the default; Calm; Energy) generated locally with Stable Audio 3, with a Music toggle and track picker in Settings, and separate Effects volume and Music volume sliders. Music starts on the first tap, pauses while the page is hidden, and plays offline.
-- Settings: Background color presets (gray, blue, green, brown, purple), applied app-wide with the browser theme color and remembered across visits.
-- Back up and restore: "Back up all" in the gallery (or Back up on one card) saves pictures and their uploaded photos to a `.pardots` file; "Restore" imports one as new pictures, on any browser or after clearing site data.
-
 ### Audit remediation (2026-09-26)
 
-Changes from the 2026-09-26 audit remediation.
+Historical changes from the 2026-09-26 audit remediation; later entries above supersede earlier behavior where noted.
 
-### Added
+#### Added
 
 - `docs/ARCHITECTURE.md`, `docs/DEPLOYMENT.md` and `docs/DOCUMENTATION_STYLE_GUIDE.md`; README sections for how to play, project structure, the full command list, troubleshooting and contributing; TSDoc for the data model, storage, `PanelSession`, the renderers, the worker protocol and every screen; module headers on every source file.
 - Saved pictures carry a `schemaVersion` and are validated and migrated on load (`src/storage/migrate.ts`); malformed records are skipped instead of breaking the gallery.
 - Service-worker updates are checked every 60 minutes and when the page becomes visible.
 - `make library`, `make coverage`, `make clean` and a self-contained `make e2e` that builds, serves and runs the Playwright smoke test.
-- CI runs the Playwright smoke test against the production build before deploying.
+- CI ran the Playwright smoke test against the production build before deploying; browser suites now run locally via `make checkall-ci`.
 - Unit tests for the DOM helpers, gestures, panel timer, tray model, update polling, worker fallback and image headers; golden tests pinning quantizer output; a coverage threshold.
 
-### Changed
+#### Changed
 
 - A new deploy no longer reloads the page mid-game: updates apply only on the gallery or overview with no sheet open, or while the page is hidden.
 - The uploaded image and its new save are written in one transaction, so a failed Start leaves nothing behind.
@@ -117,7 +115,7 @@ Changes from the 2026-09-26 audit remediation.
 - Internal restructuring with no behavior change: panel geometry has one owner (`src/game/geometry.ts`); the save repository lives in `src/ui/saves.ts`; the panel play screen is split into gesture, timer, tray, input, view and feedback modules; the renderers share canvas helpers; the quantizer is split into named selection steps.
 - Error messages shown to the player are consistent, and failures that were silent are now logged and shown.
 
-### Fixed
+#### Fixed
 
 - Opening a picture no longer hangs on "Loading…" when the save fails to load; the app returns to the gallery with a message.
 - A malformed route hash falls back to the gallery instead of blanking the app.
@@ -126,9 +124,9 @@ Changes from the 2026-09-26 audit remediation.
 - Escape on the play screen respects every open overlay.
 - A quantize job that hangs in the worker finishes on the main thread after 20 seconds.
 - The setup screen reports a missing 2D canvas context instead of silently drawing nothing.
-- The minimum color count is enforced consistently (4 to 32) across settings, the slider and the quantizer.
+- The minimum color count was enforced consistently across settings, the slider and the quantizer (the current range is 2 to 32).
 
-### Security
+#### Security
 
 - Images declaring more than 40 megapixels are rejected before decoding.
 - Image links must be `https`, are streamed with a 20 MB cap and a 30-second timeout, and are fetched without credentials or a referrer.

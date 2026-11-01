@@ -6,10 +6,12 @@
 * [Screenshots](#screenshots)
 * [Features](#features)
     * [Core Capabilities](#core-capabilities)
+    * [VR and Mixed Reality](#vr-and-mixed-reality)
     * [Building Tools](#building-tools)
     * [Technical Excellence](#technical-excellence)
 * [Documentation](#documentation)
 * [How to Play](#how-to-play)
+    * [Build in VR or Mixed Reality](#build-in-vr-or-mixed-reality)
 * [Development](#development)
 * [Project Structure](#project-structure)
 * [Troubleshooting](#troubleshooting)
@@ -30,9 +32,9 @@
 ![License](https://img.shields.io/github/license/paulrobello/par-dots)
 
 ## About
-PAR Dots is a mobile-first LEGO Dots mosaic game for the browser. Pick a bundled picture or upload your own, and PAR Dots turns it into a stud mosaic of up to 32 colors split into 16x16 baseplate panels. Fill each panel dot by dot from a color tray, using the panel's reference image as your only guide.
+PAR Dots is a mobile-first LEGO Dots mosaic game for the browser, with VR and mixed-reality building on compatible WebXR headsets. Pick a bundled picture or upload your own, and PAR Dots turns it into a stud mosaic of up to 32 colors split into 16x16 baseplate panels. Fill each panel dot by dot from a color tray, using the panel's reference image as your guide.
 
-Everything runs on-device: uploads never leave your phone, progress is saved locally, and the app installs as a PWA that plays fully offline.
+Everything runs on-device: uploads never leave your device, progress is saved locally, and the app installs as a PWA that plays fully offline.
 
 **Play:** https://dots.pardev.net
 
@@ -55,12 +57,20 @@ Everything runs on-device: uploads never leave your phone, progress is saved loc
 
 ### Core Capabilities
 - **Any Picture**: Start from a bundled picture, an uploaded photo, or an `https` image link
-- **Framing and Layout**: Drag and pinch to crop, then choose Square, Portrait or Landscape (9 or 12 panels of 16x16 studs)
+- **Framing and Layout**: Drag and pinch to crop, choose Square, Portrait or Landscape, and select a preset size or a custom grid up to 10x10 panels of 16x16 studs
 - **LEGO or Free Colors**: Match the official LEGO Dots palette or let the quantizer pick free colors, from 2 to 32, with optional dithering for photos
 - **Panel Play**: A color tray with remaining counts, Remove and Move modes, Hint, Undo/Redo, pinch zoom, and a reference overlay
 - **Draw Your Own**: A freehand mosaic editor for blank mosaics — brush, line, box, ellipse, polygon, fill, eyedropper and eraser tools, mirror painting, an editable palette and a 50-move undo history — with the same dot sounds as panel play, and LEGO-mode parts exports like any photo picture
 - **Progress Overview**: Panel progress badges, a Ghost toggle, animated zoom into panels, and previous/next panel navigation
 - **Celebrations and Export**: Sounds, haptics and celebrations on completion, plus PNG download of finished pictures
+
+### VR and Mixed Reality
+- **Immersive building**: Build with controllers in a VR studio or place the workspace on a real surface in mixed-reality passthrough when the headset supports it
+- **A movable workspace**: Grab the build plate, reference, tray, tools, or whole-picture view with either controller; rotate, move, and resize them to suit your space
+- **Picture and library**: Browse unfinished projects in an in-headset library, keep the whole picture open while placing dots, and select a panel from it
+- **Building aids**: Use snap assist, Ghost, color focus, a magnifier, Hint, Undo/Redo, a physical-build guide, and in-headset controller help
+- **Custom layout**: Save one reusable arrangement on the device and recall it alongside the built-in workspace presets
+- **XR drawing and settings**: Edit drawings in VR, choose a virtual environment, and adjust shared audio and haptics settings
 
 ### Building Tools
 - **Parts List**: Dot counts per color for the whole picture or a single panel
@@ -78,6 +88,7 @@ Everything runs on-device: uploads never leave your phone, progress is saved loc
 ## Documentation
 
 - [PRD.md](PRD.md): product requirements, as built
+- [PRD-XR.md](PRD-XR.md): VR and mixed-reality features, controls and acceptance status
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): layers, the new-picture pipeline, routes, persistence and PWA updates
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): CI workflow, custom domain, release verification and rollback
 - [docs/DOCUMENTATION_STYLE_GUIDE.md](docs/DOCUMENTATION_STYLE_GUIDE.md): how to write docs in this repository
@@ -102,6 +113,14 @@ Everything runs on-device: uploads never leave your phone, progress is saved loc
 
 A panel is done when every stud holds the correct color. Finished pictures can be downloaded as a PNG from the finale, the overview, or the gallery, and opened full size with **View picture** on the overview. The overview's Parts sheet also holds **Buy parts** exports (BrickLink wanted-list XML or Rebrickable part-list CSV, LEGO palette mode only) and **Guide** downloads of the building sheets. **Export projects** in the gallery saves every picture, with its progress and uploaded photo, to a `.pardots` file, and **Import projects** loads copies on any browser or device. Sound, place sound, haptics, background music (Happy, Calm or Energy) and separate effects and music volumes are in the settings sheet (gear button at the top right of every screen).
 
+### Build in VR or Mixed Reality
+
+Open PAR Dots in a WebXR-capable headset browser, such as the Quest browser. On the gallery, select **Enter VR** to browse projects in the headset; on a device supporting MR but not VR, this button is **Enter MR**. Alternatively, open a picture's panel first and choose **Enter VR** or **Enter MR**; each button appears only when the browser reports support for that mode. In MR, point at a surface and press the trigger when the placement reticle appears. If hit testing is unavailable, the workspace appears at its default position.
+
+Use the right trigger to place dots and select tools or colors. Hold **A** with the trigger to paint a sweep as one undoable stroke. Either grip can move a workspace object: while holding it, move the thumbstick left or right to rotate, up or down to push or pull, and hold the trigger too to resize. Point at the reference frame to select an available color. **Picture** opens or hides the movable whole-picture view, and **Help** shows the controller guide. In the library, either controller can select a project or grab the panel.
+
+To save an arrangement, move the objects where you want them and select **Save**. Select **Layout** until **Custom layout** appears to restore it. There is one custom slot; saving again replaces it. The whole-picture position is saved if the view has been opened. The custom layout is stored in this browser on this device and is not part of the project backup. VR also saves the plate, reference and tray's last layout per panel when leaving the panel. Headset acceptance of the latest XR changes is still pending.
+
 ### Draw your own
 
 Tap **New Picture**, then **Make my own**, and create a blank mosaic: name it, choose the aspect, a Small/Medium/Large or typed Custom size (1x1 to 10x10 panels), **LEGO colors** or **Free colors**, and a background. The editor spans the whole mosaic with visible panel seams and holds every tool on screen: brush, line, box, ellipse, polygon, fill, eyedropper and eraser, with mirror painting and a 50-move undo/redo history. Placing dots plays the same sounds and haptics as panel play, and hovering shows a ghost of the cells the next stroke will paint. Pan and zoom with drag, pinch, double-tap or Shift+drag. Edit the title in the top bar to rename the drawing. In LEGO colors mode a drawing exports the same parts lists and printable guides as a photo picture. Drawn pictures never complete — no timer, no progress, no done badge — and the gallery lists them under **My drawings** with their dot count.
@@ -121,7 +140,8 @@ make typecheck   # tsc --noEmit
 make build       # build the image library, then the static site into dist/
 make preview     # serve dist/ on http://localhost:4231
 make e2e         # build, serve dist/, and run the Playwright smoke test
-make checkall    # lint, typecheck, test, build (the CI gate)
+make checkall    # fast gate: lint, typecheck, test, build
+make checkall-ci # CI-parity gate plus local browser suites
 make library     # build the image library only if public/library/ is missing
 make clean       # remove dist/, public/library/ and coverage/
 bun run icons    # regenerate the favicon and PWA icons from scripts/build-icons.ts
@@ -143,7 +163,8 @@ src/
 ├── game/         # panel geometry, per-panel rules with undo/redo, progress
 ├── render/       # Canvas 2D board and overview renderers, sprites, mosaic images
 ├── storage/      # IndexedDB saves and images, save migration, settings
-└── ui/           # screens, DOM helpers, input, save repository
+├── ui/           # screens, DOM helpers, input, save repository
+└── xr/           # WebXR session, immersive worlds, controllers and layouts
 scripts/          # library and icon builders, e2e smoke test
 tests/            # Vitest unit tests
 images/           # source photos for the bundled library
@@ -186,11 +207,11 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the layers fit together
    pre-commit install
    ```
 
-2. Run the full gate before pushing, and the browser smoke test when you change UI behavior.
+2. Run the fast gate while iterating and the CI-parity gate before pushing.
 
    ```bash
    make checkall
-   make e2e
+   make checkall-ci
    ```
 
 3. Add or update tests in `tests/*.test.ts`. Tests run in Node by default. Storage tests import `fake-indexeddb/auto`; tests that need a DOM start with the `// @vitest-environment happy-dom` comment.
@@ -202,6 +223,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the layers fit together
 
 ### Unreleased
 
+* **VR and mixed reality**: enter an immersive project library or panel workspace, build with controllers, move the whole-picture view and other workspace objects, and save a reusable custom layout
 * **Draw your own**: create a blank mosaic (aspect, size, palette mode, background) and paint it freehand — brush, line, box, ellipse, polygon, fill, eyedropper and eraser tools, mirror painting, an editable palette, 50-move undo, the same dot sounds and haptics as panel play, hover ghosts of the next stroke, and Shift+drag panning; drawings can be renamed from the editor's top bar
 * **Guides and parts**: building guides open with a numbered overview page and close with an assembly page; the raised frame exports as a buildable kit — backing plate, brick ring, plate layer and tile cap with corrected per-side piece lists — with a three-pins-per-shared-edge pin budget (was five) and a "No frame" choice
 * **Picture sizes**: Small, Medium, Large and typed Custom grids from 1x1 to 10x10 panels; preview, parts lists, guides and the assembly plan all scale with the grid, and existing saves keep playing unchanged

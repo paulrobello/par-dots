@@ -1,8 +1,8 @@
 /**
  * WebXR session detection and request (XR P0): capability checks and the immersive-vr session
  * request. No three.js here, so the support detection never pulls the GL bundle in; `launchVr()`
- * in scene.ts owns rendering. Both modules are dynamically imported from panel play so
- * 2D-only sessions never parse them. Every function takes the `XRSystem` as a parameter so the
+ * in scene.ts owns rendering. Both modules are dynamically imported from panel play and the gallery;
+ * session detection itself does not load them. Every function takes the `XRSystem` so the
  * logic is testable without a browser.
  */
 

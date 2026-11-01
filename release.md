@@ -5,17 +5,19 @@ I built **par-dots**, a little mobile-first project for turning a photo into a L
 A few things it does:
 
 - Use a bundled image, upload a photo, provide an HTTPS image link — or start from a blank canvas and draw your own picture. The draw editor has brush, line, box, ellipse, polygon, fill, eyedropper and eraser tools, mirror painting, a 50-move undo history, and an editable palette.
-- Crop and choose square, portrait, or landscape layouts, split into 9 or 12 panels.
+- Crop and choose square, portrait, or landscape layouts, with preset sizes or a custom panel grid.
 - Use LEGO colors or a free-color palette, with a color limit from 2 to 32. The minimum is now 2, so simpler palettes are an option too.
 - Work through each panel with a color tray, hints, remove/move tools, undo/redo, zoom, and a reference overlay.
 - Get printable panel guides as PDFs that open with an overview page — the assembled picture with every panel numbered to match its building sheet — and close with an assembly page showing how the panel rows join with Technic pins and hang on the wall.
 - Buy the parts to build it for real: per-color dot counts plus the physical build kit (pin-hole canvases, Technic pins, wall-mount panels, and a buildable raised frame) as a BrickLink wanted-list XML or Rebrickable CSV, with an option to leave the frame out. LEGO palette mode only.
 - Background music with three looping tracks (Happy, Calm, Energy), separate music and effects volume sliders, and the Settings gear on every screen.
 - Save progress locally, back it up, and play offline after loading the app.
+- Build with controllers in VR or mixed-reality passthrough on supported headsets, arrange the workspace, and save a custom layout on the device. The latest XR changes still need Quest headset acceptance.
 
 ## What's new since the first post
 
-- **Draw-your-own mode**: create a blank mosaic and paint it with the same tools you'd expect from a pixel editor, then play it like any other picture.
+- **Draw-your-own mode**: create a blank mosaic and paint it with the same tools you'd expect from a pixel editor. Drawings remain editable and do not have a completion state.
+- **VR and mixed reality**: browse projects in the headset, build with a movable plate and reference surfaces, and keep a whole-picture view open while placing dots.
 - **Better guides**: the panel guide PDF now starts with an overview page and ends with an assembly page, with connector and hook counts derived from your panel layout.
 - **Real frame**: the parts export's frame is now a buildable raised frame (backing plate, brick ring, plate layer, tile cap) instead of a 1×16 brick border ring, and you can omit it entirely.
 - **Renaming**: edit a drawing's title from the draw editor and an imported picture's title from the overview.
@@ -27,7 +29,7 @@ Choose a picture, crop it, and par-dots converts it to a limited-color stud grid
 
 ## Tech notes
 
-It’s a static PWA built with Vite and TypeScript, without a UI framework. Canvas 2D renders the board, image quantization runs in a Web Worker, and IndexedDB stores saves locally. It’s MIT licensed.
+It’s a static PWA built with Vite and TypeScript, without a UI framework. Canvas 2D renders the board, three.js renders the XR workspace, image quantization runs in a Web Worker, and IndexedDB stores saves locally. It’s MIT licensed.
 
 ## Links
 

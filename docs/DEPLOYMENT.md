@@ -29,7 +29,7 @@ The app is a static site. `bun run build` generates the bundled picture library 
 
 Every action is pinned to a commit SHA with the release tag in a comment. When you update an action, pin the new SHA the same way.
 
-> **Note:** `make checkall` runs the same lint, typecheck, test and build steps locally. It does not run the browser smoke test; run `make e2e` for that.
+> **Note:** `make checkall` runs the lint, typecheck, test and build steps locally. `make checkall-ci` also runs the local browser suites.
 
 ## Custom Domain Setup
 
@@ -47,8 +47,7 @@ The site is served from the domain root, so Vite `base`, the service-worker scop
 1. Run the local gate.
 
    ```bash
-   make checkall
-   make e2e
+   make checkall-ci
    ```
 
 2. Push to `main`.

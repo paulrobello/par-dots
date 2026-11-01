@@ -9,7 +9,7 @@ How par-dots is organized: the source layers, how a photo becomes a playable pic
 - [New-Picture Pipeline](#new-picture-pipeline)
 - [Routes and Screens](#routes-and-screens)
 - [Panel Play Screen](#panel-play-screen)
-- [XR Entry](#xr-entry-p0)
+- [XR Entry](#xr-entry-p0p4)
 - [Persistence](#persistence)
 - [PWA and Updates](#pwa-and-updates)
 - [Conventions](#conventions)
@@ -29,6 +29,7 @@ graph TD
     Main[main.ts: router, SW updates]
     UI[ui: screens, DOM, input]
     Render[render: Canvas 2D renderers]
+    XR[xr: immersive worlds]
     Game[game: rules, geometry, progress]
     Engine[engine: quantize, resample, worker]
     Storage[storage: IndexedDB, settings]
@@ -39,6 +40,11 @@ graph TD
     Main --> Audio
     UI --> Game
     UI --> Render
+    UI --> XR
+    XR --> Game
+    XR --> Storage
+    XR --> Audio
+    XR --> Types
     UI --> Engine
     UI --> Storage
     UI --> Audio
@@ -53,7 +59,7 @@ graph TD
 
     class Main primary
     class UI active
-    class Render,Game,Engine info
+    class Render,XR,Game,Engine info
     class Storage,Audio success
     class Types neutral
 
@@ -70,10 +76,10 @@ graph TD
 | `src/engine/` | Image math: crop and area-average resample (`resample.ts`), quantization (`quantize.ts`), Lab color math (`color.ts`), the LEGO color table (`legoPalette.ts`), free-color shade names (`colorNames.ts`), the quantize worker and its client | DOM-free; runs in a worker or on the main thread |
 | `src/game/` | Panel geometry (`geometry.ts`), per-panel rules and undo/redo (`panelSession.ts`), progress (`progress.ts`) | DOM-free; `PanelSession` mutates `save.placed` in place and emits events |
 | `src/render/` | `BoardRenderer` (one 16x16 panel), `OverviewRenderer` (the whole picture), offscreen mosaic images, building sheets (per-panel pages plus the guide's overview, frame and assembly pages) and a minimal PDF writer (`pdf.ts`), sprites, layout math, shared canvas helpers | Knows nothing about screens; `render/color.ts` reuses `engine/color.ts` |
-| `src/xr/` | WebXR session detection and the VR studio scene (`session.ts` three.js-free, `scene.ts` the renderer owner) | Dynamically imported from panel play only, so 2D-only sessions never parse three.js; no 2D layer imports `xr/` |
+| `src/xr/` | WebXR session detection and immersive worlds (`session.ts` three.js-free, `scene.ts` the renderer owner) | Dynamically imported by panel play and the gallery; panel play prewarms XR chunks when `navigator.xr` exists |
 | `src/storage/` | IndexedDB (`db.ts`), save validation and migration (`migrate.ts`), settings (`settings.ts`), storage persistence and quota (`quota.ts`), id generation (`id.ts`) | `ui/` reaches `db.ts` only through `src/ui/saves.ts` |
-| `src/audio/` | Web Audio sounds and `navigator.vibrate` haptics (`sfx.ts`), looping background music from `public/music/*.mp3` (`music.ts`) | Reads settings on every call; music starts on the first gesture and pauses while hidden |
-| `src/ui/` | Screens, DOM helpers, input handling, the save repository, navigation handoff state | The only layer that touches the document |
+| `src/audio/` | Web Audio sounds and `navigator.vibrate` haptics (`sfx.ts`), looping background music from `public/music/*.mp3` (`music.ts`) | Reads settings on every call; music starts on the first gesture and pauses while hidden outside immersive sessions |
+| `src/ui/` | Screens, DOM helpers, input handling, the save repository, navigation handoff state | Owns screens; render and XR modules also create canvases |
 
 The Parts sheet's Buy parts section builds its wanted-list manifests in DOM-free `src/ui/manifests.ts` (BrickLink wanted-list XML and Rebrickable part-list CSV, with the LEGO color name to BrickLink/Rebrickable color ID tables). Each export covers the colored dots plus the mounting kit — one black canvas per panel, Technic pins per shared edge, two wall-mount hangers and, unless the builder opts out, a raised frame (`frameItems()`: a backing plate one stud larger than the panel grid, with a brick ring, plate layer and tile cap stacked on its border) — and is offered only in LEGO palette mode, where every color has a catalog ID. The builders are DOM-free, so they are unit-tested without a DOM.
 
@@ -153,13 +159,13 @@ Visual effects do not delay game-state updates. The renderer runs its animation 
 
 ## XR Entry (P0–P4)
 
-The "Enter VR" / "Enter MR" chips on panel play are the WebXR entry (spec: [PRD-XR.md](../PRD-XR.md)). They exist only after `navigator.xr` reports the mode's support, so desktop browsers and iOS never render them. `src/xr/session.ts` (no three.js) detects support and requests `immersive-vr` or `immersive-ar` with a `local-floor` reference space; `src/xr/scene.ts` (the renderer owner) builds the VR studio — void background, grid floor, neutral lights — or the alpha-clear passthrough studio for MR, binds the session via `renderer.xr.setSession()`, and on the session's `end` event stops the loop, disposes the world's GPU resources, and hands control back so panel play saves the layout snapshot plus panel state and re-enables the buttons.
+The "Enter VR" / "Enter MR" chips on panel play are WebXR entries (spec: [PRD-XR.md](../PRD-XR.md)). They appear only after `navigator.xr` reports support for the respective mode. `src/xr/session.ts` (no three.js) detects support and requests `immersive-vr` or `immersive-ar`, with `local-floor` as an optional feature; MR also requests optional hit testing. `src/xr/scene.ts` (the renderer owner) builds the VR studio — void background, grid floor, neutral lights — or the alpha-clear passthrough studio for MR, binds the session via `renderer.xr.setSession()`, and on the session's `end` event stops the loop, disposes the world's GPU resources, and hands control back so panel play saves panel state, saves the layout in VR, and re-enables the buttons.
 
-The gallery also launches XR into an unfinished-picture library with previews, controller hover feedback and thumbstick paging; gallery-launched panel worlds save their layout on exit or panel change, and show an in-world update notice while immersive. When MR hit testing is available, placement requires a current hit-test result; otherwise the workspace appears at the default position.
+The gallery also launches XR into an unfinished-picture library with previews, controller hover feedback and thumbstick paging; gallery-launched VR panel worlds save their layout on exit or panel change, and show an in-world update notice while immersive. When MR hit testing is available, placement requires a current hit-test result; otherwise the workspace appears at the default position.
 
 MR hit testing uses the active controller's target-ray space, with stale sources canceled on controller changes. `magnifier.ts`, `overview.ts` and `physicalGuide.ts` provide optional workspace surfaces, while the plate renders selected-color focus. The picture overview asks the UI owner to swap panel worlds. `draw.ts` uses a separate `DrawSession` world for drawings, preserving the draw editor's save and undo semantics. The gallery's transfer guide describes the existing backup import/export as copies rather than synchronization.
 
-Inside a session, `src/xr/world.ts` assembles the workspace: `plate.ts` (16x16 studs on an 8 mm pitch, enlarged for readability, as one InstancedMesh fed straight from `placed`), `frame.ts` (CanvasTexture reference face with the building-sheet symbols and the Overlay toggle), `tray.ts` (chips mirroring the 2D tray semantics through the same `PanelSession`, with count labels sized to each chip), `tools.ts` (labeled Place/Remove/Hint/Undo/Redo/Ghost/Help/Settings icons with active-state highlights), and `input.ts` (pure trigger/A/B model: tap places, A+sweep paints one move, B exits). `bridge.ts` is the only file touching game state — it wraps the 2D panel session so XR strokes take the identical code path — and `place.ts` holds the MR hit-test reticle math. Either grip independently grabs the plate, frame, tray, tool panel or whole-picture view and follows the controller's position and full orientation. Each grip marker changes color near a grabbable object; controller slots follow WebXR connection events, and the gallery uses the same controller visuals and B-to-exit input. The reference frame maps controller rays to target colors for tray selection, and the plate can render target colors and symbols on empty pegs, with a reusable ring marking the current target without recoloring it. `settings.ts` controls shared audio and haptic settings plus the persistent VR world selection; `environment.ts` owns the VR backdrop, while MR remains passthrough. A frame-attached label shows correct-dot progress. A completion card plays the panel fanfare and lets players continue to the next plate without leaving XR. `transforms.ts` owns the rotating local grab offset, time-based stick yaw, push/pull and scale, +Y tray facing, and inverse-matrix ray conversion. While gripping, the same controller's thumbstick left/right rotates the held object and up/down pushes it away or pulls it closer along the laser beam. Holding the trigger too changes up/down to scaling (0.4x–3x). `input.ts` reads xr-standard thumbstick axes 2/3. `layout.ts` persists each panel's workspace transforms on session end (`xrLayouts` on the save record, schema still v2) and VR entry restores them. A separate validated localStorage record stores a reusable custom layout, including tools and picture transforms. The picture view remains available while placing dots and carries its pose across panel swaps. The gallery panel starts upright and can also be grip-moved. All modules are reached only through dynamic imports in `ui/panelPlay.ts`, so a 2D-only session never parses three.js.
+Inside a session, `src/xr/world.ts` assembles the workspace: `plate.ts` (16x16 studs on an 8 mm pitch, enlarged for readability, as one InstancedMesh fed straight from `placed`), `frame.ts` (CanvasTexture reference face with the building-sheet symbols and the Overlay toggle), `tray.ts` (chips mirroring the 2D tray semantics through the same `PanelSession`, with count labels sized to each chip), `tools.ts` (labeled Place/Remove/Hint/Undo/Redo/Ghost/Help/Settings icons with active-state highlights), and `input.ts` (pure trigger/A/B model: tap places, A+sweep paints one move, B exits). `bridge.ts` is the only file touching game state — it wraps the 2D panel session so XR strokes take the identical code path — and `place.ts` holds the MR hit-test reticle math. Either grip independently grabs the plate, frame, tray, tool panel or whole-picture view and follows the controller's position and full orientation. Each grip marker changes color near a grabbable object; controller slots follow WebXR connection events, and the gallery uses the same controller visuals and B-to-exit input. The reference frame maps controller rays to target colors for tray selection, and the plate can render target colors and symbols on empty pegs, with a reusable ring marking the current target without recoloring it. `settings.ts` controls shared audio and haptic settings plus the persistent VR world selection; `environment.ts` owns the VR backdrop, while MR remains passthrough. A frame-attached label shows correct-dot progress. A completion card plays the panel fanfare and lets players continue to the next plate without leaving XR. `transforms.ts` owns the rotating local grab offset, time-based stick yaw, push/pull and scale, +Y tray facing, and inverse-matrix ray conversion. While gripping, the same controller's thumbstick left/right rotates the held object and up/down pushes it away or pulls it closer along the laser beam. Holding the trigger too changes up/down to scaling (0.4x–3x). `input.ts` reads xr-standard thumbstick axes 2/3. `layout.ts` persists each panel's workspace transforms on session end (`xrLayouts` on the save record, schema still v2) and VR entry restores them. A separate validated localStorage record stores a reusable custom layout, including tools and picture transforms. The picture view remains available while placing dots and carries its pose across panel swaps. The gallery panel starts upright and can also be grip-moved. Panel play and the gallery dynamically import the XR world; panel play prewarms it when the browser exposes WebXR, and creates a world only on session entry.
 
 ## Persistence
 
@@ -168,7 +174,7 @@ Inside a session, `src/xr/world.ts` assembles the workspace: `plate.ts` (16x16 s
 | IndexedDB `par-dots`, version 1, store `saves` | `src/storage/db.ts` | `PictureSave` records, keyPath `id` |
 | IndexedDB `par-dots`, store `images` | `src/storage/db.ts` | Uploaded image blobs, keyed by the save's `sourceImageId`; library pictures use `library:<slug>` and have no blob |
 | localStorage `par-dots:xr-custom-layouts` | `src/xr/layout.ts` | Reusable custom XR workspace layout on this device |
-| localStorage `par-dots:settings` | `src/storage/settings.ts` | `Settings` (sound, place sound, haptics, music and track, effects and music volume, palette mode, max colors, dither, 2D background, VR environment), cached in memory |
+| localStorage `par-dots:settings` | `src/storage/settings.ts` | `Settings` (sound, place sound, haptics, music and track, effects and music volume, palette mode, max colors, dither, 2D background, VR environment, snap radius and magnifier), cached in memory |
 | localStorage `par-dots:install-prompt-dismissed` | `src/ui/install.ts` | Whether the one-time install prompt was shown |
 
 - `src/ui/saves.ts` is the save repository and the only persistence entry point for `ui/`. It keeps one in-memory object per save id, so the overview and panel play share the same `placed` array.

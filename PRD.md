@@ -120,7 +120,7 @@ Layout (portrait phone, top to bottom):
 Interaction:
 - **Select color:** tap a dot in the tray. The outline glides to the selected color and its dot lifts slightly; changed remaining counts receive a brief emphasis. Selecting a color exits Remove and Move modes. When the selected color leaves the tray, the next color (else the previous one) is selected.
 - **Paint:** tap a stud, or drag across studs, to place the selected color. Occupied studs are ignored (a dot must be removed first). Incorrect colors may be placed.
-- **Remove tool:** toggle on; tap or drag across studs to remove dots. Works on correct and incorrect dots.
+- **Remove tool:** toggle on; tap or drag across studs to remove dots. A right mouse button drag also removes dots. Both work on correct and incorrect dots.
 - **Move tool:** toggle on; one finger (or the mouse) pans the zoomed board instead of painting. Remove and Move are mutually exclusive. A completed panel always pans.
 - **Hint:** outlines/flashes every incorrectly placed dot in the current panel for 3 s and toasts the count. Unlimited. If none are wrong, show a brief "No mistakes" toast.
 - **Full but wrong:** when every stud holds a dot but some are wrong, the app plays an error buzz and haptic once on entering that state, and the Hint button pulses until tapped.
@@ -181,13 +181,17 @@ Settings are stored in localStorage under `par-dots:settings`:
 | `haptics` | on/off | on | Settings sheet |
 | `paletteMode` | `lego`, `free` | `lego` | Setup screen |
 | `maxColors` | integer 2–32 | 32 | Setup screen |
+| `dither` | on/off | off | Setup screen |
 | `background` | `gray`, `blue`, `green`, `brown`, `purple` | `gray` | Settings sheet |
+| `xrEnvironment` | `studio`, `night`, `sunset`, `forest` | `studio` | XR settings |
+| `xrSnapRadius` | integer 0–2 | 2 | XR settings |
+| `xrMagnifier` | on/off | off | XR settings |
 | `music` | on/off | on | Settings sheet |
 | `musicTrack` | `happy`, `calm`, `energy` | `happy` | Settings sheet |
 | `sfxVolume` | 0–100 | 80 | Settings sheet |
 | `musicVolume` | 0–100 | 60 | Settings sheet |
 
-- Timer counts only while a panel is open and the page is visible. Progress % = correct studs / total studs, per panel and overall.
+- Timer counts only while a panel is open and the page is visible; it pauses while Settings is open. Progress % = correct studs / total studs, per panel and overall.
 
 ## 8. Image Processing
 

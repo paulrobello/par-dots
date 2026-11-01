@@ -28,19 +28,19 @@ make e2e         # build, serve dist/ via scripts/e2e.sh, run the Playwright smo
 
 ## Deployment
 
-Every push to `main` runs `.github/workflows/deploy.yml` (lint, typecheck, test, build, Playwright smoke test) and deploys to GitHub Pages in production. Pushing is a production release. See `docs/DEPLOYMENT.md`.
+Every push to `main` runs `.github/workflows/deploy.yml` (lint, typecheck, test and build) and deploys to GitHub Pages in production. Browser suites run locally through `make checkall-ci`. Pushing is a production release. See `docs/DEPLOYMENT.md`.
 
 ## Architecture
 
 Read `docs/ARCHITECTURE.md` before non-trivial changes and `PRD.md` for intended behavior. The points below are the ones that span several files.
 
-- **Layering is one-way.** `src/main.ts` (hash router, service-worker update policy) → `ui/` → `render/`, `game/`, `engine/`, `storage/`, `audio/` → `src/types.ts`. Lower layers never import `ui/`. `engine/`, `game/` and `storage/` are DOM-free and import only `types.ts` and their siblings. `ui/` is the only layer that touches the document.
+- **Layering is one-way.** `src/main.ts` (hash router, service-worker update policy) → `ui/` → `xr/`, `render/`, `game/`, `engine/`, `storage/`, `audio/` → `src/types.ts`. Lower layers never import `ui/`. `engine/`, `game/` and `storage/` are DOM-free and import only `types.ts` and their siblings. `ui/` owns screens; render and XR modules also create canvases for drawing and textures.
 - **Rules live in `game/`.** `PanelSession` (`src/game/panelSession.ts`) owns strokes, tray colors, undo/redo (10 moves) and completion, mutates `save.placed` in place, and emits events. UI code asks it whether a dot is correct; it never decides that itself. `src/game/geometry.ts` is the single owner of panel geometry (`studDims(aspect)`).
 - **Picture creation pipeline.** `ui/source.ts` decodes (`ui/image.ts`, 40 MP guard via `imageHeader.ts`) → `ui/setup.ts` crops/resamples (`engine/resample.ts`) and quantizes in a Web Worker (`engine/client.ts` → `engine/worker.ts` → `buildMosaic()` in `engine/quantize.ts`, main-thread fallback on failure or 20 s timeout) → `createSave()`. `buildMosaic()` is deterministic (seeded k-means++ in free mode, greedy LEGO palette selection in LEGO mode). `#/setup` relies on in-memory handoff state in `ui/state.ts`, so it redirects to `#/new` when opened directly.
 - **Screen contract.** Routes (`#/`, `#/new`, `#/setup`, `#/play/:id`, `#/play/:id/:panel`) are parsed by `parseRoute()` in `ui/pure.ts`. Each screen exports `mount*(ctx, ...params)` that builds into `ctx.root` and returns a `Cleanup`; async work checks an `alive` flag after each await. Sheets, dialogs and celebrations must `registerOverlay()` (`ui/dom.ts`) so the router and Escape can close them.
 - **Panel play is wiring.** `ui/panelPlay.ts` connects single-concern modules: `playView.ts` (DOM), `gestures.ts` (DOM-free pointer model), `boardInput.ts` (binds events to it), `panelTimer.ts`, `trayModel.ts`, `playFeedback.ts`, and `render/boardRenderer.ts` (Canvas 2D drawing and hit testing).
 - **Persistence.** `ui/` reaches IndexedDB only through the save repository `src/ui/saves.ts`, which keeps one shared in-memory object per save id (overview and panel play share the same `placed` array). Every read passes through `migrateSave()` (`storage/migrate.ts`). To change the save shape, bump `SAVE_SCHEMA_VERSION` in `src/types.ts` and add an upgrade step to `migrateSave()`; bump the IndexedDB `DB_VERSION` only when stores or indexes change. Backups (`storage/backup.ts`) import as new saves with fresh ids and never overwrite.
-- **PWA updates.** `registerType: 'prompt'`: a new deploy applies only via `shouldApplyUpdate()` in `ui/pure.ts` (page hidden, or on gallery/overview with no overlay open), so play state is never lost to a reload. The production build injects a CSP meta tag from `vite.config.ts`; the dev server omits it.
+- **PWA updates.** `registerType: 'prompt'`: the update notice waits for the player to choose Reload. `updateState.ts` ends XR and flushes active saves before activating the update; setup asks for confirmation. The production build injects a CSP meta tag from `vite.config.ts`; the dev server omits it.
 
 ## Conventions
 
