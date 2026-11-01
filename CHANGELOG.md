@@ -77,6 +77,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- XR hint, layout-change and layout-save messages face the viewer as the plate or headset moves.
+
 - MR surface placement follows the controller's target ray instead of gaze.
 
 - VR tray count labels remain readable as the number of remaining colors decreases.

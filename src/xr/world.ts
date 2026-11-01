@@ -90,6 +90,7 @@ const createHintLabel = (
   plateRoot: THREE.Object3D,
 ): {
   show(text: string): void;
+  update(head: THREE.Vector3): void;
   hide(): void;
   dispose(): void;
 } => {
@@ -100,8 +101,10 @@ const createHintLabel = (
   const tex = new THREE.CanvasTexture(canvas);
   const mesh = new THREE.Mesh(
     new THREE.PlaneGeometry(0.09, 0.0225),
-    new THREE.MeshBasicMaterial({ map: tex, transparent: true }),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false }),
   );
+  mesh.name = 'xr-hint';
+  mesh.renderOrder = 10;
   mesh.position.set(0, 0.02, 0);
   mesh.visible = false;
   plateRoot.add(mesh);
@@ -127,7 +130,10 @@ const createHintLabel = (
     (mesh.material as THREE.MeshBasicMaterial).dispose();
     mesh.geometry.dispose();
   };
-  return { show, hide, dispose };
+  const update = (head: THREE.Vector3): void => {
+    if (mesh.visible) mesh.lookAt(head);
+  };
+  return { show, update, hide, dispose };
 };
 
 /** Attach tracked controller poses in every world and remove only this world's visuals. */
@@ -723,6 +729,7 @@ export function createPanelWorld(
       if (overview.root.userData.positioned)
         deps.overviewState.layout = snapshotTransform(overview.root);
     }
+    hintLabel.update(viewerPosition());
     updateOverlayToggle();
   };
 

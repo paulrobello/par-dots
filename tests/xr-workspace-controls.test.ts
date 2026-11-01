@@ -14,6 +14,7 @@ interface Fixture {
   scene: THREE.Scene;
   targets: THREE.Group[];
   grips: THREE.Group[];
+  headMatrix: THREE.Matrix4;
   sources: XRInputSource[];
   buttons: Array<Array<{ pressed: boolean }>>;
   connect(index: number): void;
@@ -36,6 +37,7 @@ function fixture(): Fixture {
   const scene = new THREE.Scene();
   const targets = [new THREE.Group(), new THREE.Group()];
   const grips = [new THREE.Group(), new THREE.Group()];
+  const headMatrix = new THREE.Matrix4().makeTranslation(0, 1.6, 0.2);
   const buttons = [
     Array.from({ length: 6 }, () => ({ pressed: false })),
     Array.from({ length: 6 }, () => ({ pressed: false })),
@@ -50,7 +52,7 @@ function fixture(): Fixture {
       xr: {
         getController: (i: number) => targets[i],
         getControllerGrip: (i: number) => grips[i],
-        getCamera: () => ({ matrixWorld: new THREE.Matrix4().makeTranslation(0, 1.6, 0.2) }),
+        getCamera: () => ({ matrixWorld: headMatrix }),
       },
     },
   } as unknown as Studio;
@@ -70,7 +72,7 @@ function fixture(): Fixture {
     );
     scene.updateMatrixWorld(true);
   };
-  return { scene, targets, grips, sources, buttons, connect, aim, studio, session };
+  return { scene, targets, grips, headMatrix, sources, buttons, connect, aim, studio, session };
 }
 
 function save(): PictureSave {
@@ -124,6 +126,49 @@ function requiredObject(f: Fixture, name: string): THREE.Object3D {
 }
 
 describe('XR workspace controls', () => {
+  it.each(['hint', 'workspace', 'save-layout'] as const)(
+    'keeps the %s message facing the viewer as the plate and viewer move',
+    (toolId) => {
+      const f = fixture();
+      const world = panel(f);
+      try {
+        f.connect(1);
+        pointAtTool(f, toolId);
+        world.update(0);
+        f.buttons[1][0].pressed = true;
+        world.update(16);
+        const plate = requiredObject(f, 'xr-plate');
+        const label = requiredObject(f, 'xr-hint');
+        expect(label.visible).toBe(true);
+        const localPosition = label.position.clone();
+        const expectFacingViewer = (): void => {
+          const position = label.getWorldPosition(new THREE.Vector3());
+          const towardViewer = new THREE.Vector3()
+            .setFromMatrixPosition(f.headMatrix)
+            .sub(position)
+            .normalize();
+          const normal = label.getWorldDirection(new THREE.Vector3());
+          expect(normal.dot(towardViewer)).toBeCloseTo(1, 8);
+          expect(label.parent).toBe(plate);
+          expect(label.position.equals(localPosition)).toBe(true);
+        };
+        expectFacingViewer();
+        plate.position.set(0.4, 1.1, -0.7);
+        plate.rotation.set(0.8, -0.6, 0.4);
+        plate.scale.setScalar(1.8);
+        f.headMatrix.makeTranslation(-0.5, 1.8, 0.8);
+        world.update(32);
+        expectFacingViewer();
+        plate.rotation.set(-0.4, 1.2, -0.7);
+        f.headMatrix.makeTranslation(0.9, 1.4, -0.2);
+        world.update(48);
+        expectFacingViewer();
+      } finally {
+        world.dispose();
+      }
+    },
+  );
+
   it('does not paint neighboring studs while a drag remains on one peg', () => {
     const f = fixture();
     const picture = save();
