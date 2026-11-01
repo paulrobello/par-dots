@@ -11,6 +11,31 @@ import type { Aspect, LibraryEntry, NormalizedCrop } from '../src/types';
 
 const PORTRAIT = new Set(['autumn-tree']);
 const LANDSCAPE = new Set(['cartoon-dachshunds', 'cheshire-cat']);
+const COLOR_LIMITS: Record<string, number> = {
+  'autumn-tree': 16,
+  'balloon-sunset': 16,
+  'butterfly-garden': 12,
+  'camper-sunset': 16,
+  'cartoon-dachshunds': 16,
+  'cheshire-cat': 16,
+  'cozy-reading': 16,
+  'friendly-dinosaur': 12,
+  'friendly-owl': 12,
+  'happy-fox': 12,
+  'koi-pond': 16,
+  'moonlit-barn-owl': 16,
+  'mushroom-house': 12,
+  'pixel-beach': 12,
+  'pixel-sheep-rider': 16,
+  'potted-sunflower': 16,
+  'red-panda': 16,
+  'rocket-launch': 8,
+  'sailing-boat': 12,
+  'sea-turtle': 12,
+  'spiral-galaxy': 16,
+  'tabby-cat': 16,
+  'yellow-submarine': 12,
+};
 
 export const FULL_EDGE = 1024;
 export const THUMB_EDGE = 256;
@@ -45,6 +70,7 @@ export function entryFor(slug: string): LibraryEntry {
     title: titleFor(slug),
     aspect: defaultAspectFor(slug),
     crop: defaultCropFor(slug),
+    maxColors: COLOR_LIMITS[slug],
     src: `library/${slug}.webp`,
     thumb: `library/${slug}-thumb.webp`,
   };

@@ -127,6 +127,8 @@ export interface LibraryEntry {
   aspect: Aspect;
   /** Default framing in the crop editor. */
   crop: NormalizedCrop;
+  /** Suggested maximum palette size for this artwork. */
+  maxColors?: number;
   /** Full image URL relative to the site root. */
   src: string;
   /** Thumbnail URL relative to the site root. */

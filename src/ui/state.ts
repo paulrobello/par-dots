@@ -12,6 +12,7 @@ export interface PendingSource {
   aspect: LibraryEntry['aspect'];
   /** Default framing (library); uploads start centered. */
   crop?: NormalizedCrop;
+  maxColors?: number;
   /** Decoded, downscaled pixels. */
   image: ImageData;
   /** Original upload blob, stored at Start. */

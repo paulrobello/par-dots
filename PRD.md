@@ -78,7 +78,7 @@ Targets: iOS Safari 17+, Android Chrome (latest two), desktop Chrome/Safari/Fire
 - "New Picture" button opens the picture source screen.
 
 ### 5.2 New Picture — Source
-- **Bundled library:** 23 JPEG source images in `images/`, including generated, limited-palette illustrations. A build step converts them to WebP in `public/library/` and generates a thumbnail plus a manifest with each image's default aspect and default crop.
+- **Bundled library:** 23 JPEG source images in `images/`, including generated, limited-palette illustrations. A build step converts them to WebP in `public/library/` and generates a thumbnail plus a manifest with each image's default aspect, crop and suggested color limit.
   - Square defaults (1:1): pixel-beach, pixel-sheep-rider, happy-fox, friendly-dinosaur, yellow-submarine, mushroom-house, friendly-owl, rocket-launch, sea-turtle, koi-pond, camper-sunset, moonlit-barn-owl, butterfly-garden, balloon-sunset, cozy-reading, tabby-cat, sailing-boat, red-panda, spiral-galaxy, potted-sunflower.
   - Portrait default (3:4): autumn-tree.
   - Landscape defaults (4:3): cartoon-dachshunds, cheshire-cat.
@@ -93,7 +93,7 @@ Targets: iOS Safari 17+, Android Chrome (latest two), desktop Chrome/Safari/Fire
 2. **Palette mode toggle:**
    - *LEGO colors:* up to `maxColors` colors chosen from the official LEGO solid color set (43 colors, table stored in code with its source cited).
    - *Free colors:* the best `maxColors` colors for the photo (seeded k-means in Lab space).
-3. **Max colors slider:** caps the palette from 2 (`MIN_COLORS`) to 32 (`MAX_COLORS`). The final palette can be smaller than the cap: the image may have fewer colors, and near-identical colors are merged (§8).
+3. **Max colors slider:** caps the palette from 2 (`MIN_COLORS`) to 32 (`MAX_COLORS`). Library pictures start at their suggested limit or the remembered setting, whichever is lower; the slider can still be adjusted. The final palette can be smaller than the cap: the image may have fewer colors, and near-identical colors are merged (§8).
 4. **Live mosaic preview** updates as crop, palette mode or max colors change (debounced, worker-computed) and reports the stud size, panel count and color count.
 5. Palette mode and max colors are remembered as settings for the next picture.
 6. **Start** creates the save and opens the Overview.

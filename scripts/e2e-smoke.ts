@@ -56,14 +56,14 @@ async function main(): Promise<void> {
   const maxColors = page.getByRole('slider', { name: 'Maximum colors' });
   const decreaseColors = page.getByRole('button', { name: 'Decrease Maximum colors' });
   const increaseColors = page.getByRole('button', { name: 'Increase Maximum colors' });
-  if (!(await increaseColors.isDisabled()))
-    throw new Error('Maximum-color increase should be disabled at the limit');
+  if ((await maxColors.inputValue()) !== '16')
+    throw new Error('Autumn Tree should start with its recommended 16-color limit');
   await decreaseColors.click();
-  if ((await maxColors.inputValue()) !== '31')
+  if ((await maxColors.inputValue()) !== '15')
     throw new Error('Decrease maximum colors did not step down');
   await increaseColors.click();
-  if ((await maxColors.inputValue()) !== '32' || !(await increaseColors.isDisabled()))
-    throw new Error('Increase maximum colors did not restore the limit');
+  if ((await maxColors.inputValue()) !== '16')
+    throw new Error('Increase maximum colors did not restore the recommendation');
   await page.getByRole('button', { name: 'Start', exact: true }).waitFor({ state: 'visible' });
   await page.waitForFunction(
     () => !(document.querySelector<HTMLButtonElement>('button.btn.primary.big')?.disabled ?? true),

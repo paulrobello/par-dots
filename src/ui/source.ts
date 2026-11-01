@@ -87,6 +87,7 @@ export function mountSource({ root, navigate }: ScreenContext): Cleanup {
         slug: e.slug,
         aspect: e.aspect,
         crop: e.crop,
+        maxColors: e.maxColors,
         image,
       });
       navigate('#/setup');

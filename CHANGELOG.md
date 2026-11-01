@@ -49,6 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bundled pictures start with individually chosen color limits to reduce extra edge shades in mosaics.
+
 - Keep the movable whole-picture view open during XR building, support grip manipulation with either controller, make the lower upright VR library movable, and save a reusable custom workspace layout on the device.
 
 - VR peg targeting uses a ring at the peg base without changing its color. Music remains available during immersive sessions even if the 2D document is hidden.

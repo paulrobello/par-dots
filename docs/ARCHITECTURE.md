@@ -87,6 +87,8 @@ The Parts sheet's Buy parts section builds its wanted-list manifests in DOM-free
 
 A picture is created on two screens. The source screen decodes the chosen image; the setup screen crops, resamples and quantizes it, then writes the save. When the decoded image has transparency, the setup screen also offers a background color (default black) that transparent pixels are composited over before quantization.
 
+The bundled library manifest supplies a suggested color limit per picture. Setup starts with the lower of that limit and the remembered maximum; players can adjust it without changing the artwork.
+
 Draw mode bypasses this pipeline: the "Make my own" card on the source screen opens `ui/drawCreate.ts` (name, aspect, size, palette mode, background), which writes a save with `origin: 'drawn'`, `target` all-empty, and an optional `drawBackground`. The editor screen `ui/drawEditor.ts` renders the whole mosaic with `render/drawBoard.ts` (seams, grid overlay, shape preview) and binds pointer input through `ui/drawInput.ts` (hover ghosts the cells a tool will paint; Shift+drag pans); DOM-free siblings `game/drawTools.ts` (rasterizers) and `game/drawSession.ts` (tool state, palette editing, undo/redo to 50, usage counts) own the rules, so `PanelSession`, `trayModel` and play rules are untouched. The editor persists on a 500 ms debounce flushed on cleanup, hide, and `pagehide`. Cross-links: `#/draw/:photoId` redirects to the overview; `#/play/:drawnId` redirects to the editor.
 
 ```mermaid

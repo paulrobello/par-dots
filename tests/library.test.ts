@@ -43,6 +43,7 @@ describe('manifest', () => {
       title: 'Autumn Tree',
       aspect: '3:4',
       crop: { zoom: 1, cx: 0.5, cy: 0.5 },
+      maxColors: 16,
       src: 'library/autumn-tree.webp',
       thumb: 'library/autumn-tree-thumb.webp',
     });
@@ -61,5 +62,7 @@ describe('manifest', () => {
     const counts = { '1:1': 0, '3:4': 0, '4:3': 0 };
     for (const e of m) counts[e.aspect]++;
     expect(counts).toEqual({ '1:1': 20, '3:4': 1, '4:3': 2 });
+    for (const e of m) expect(e.maxColors).toBeGreaterThanOrEqual(2);
+    for (const e of m) expect(e.maxColors).toBeLessThanOrEqual(16);
   });
 });

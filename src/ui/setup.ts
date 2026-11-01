@@ -136,7 +136,7 @@ export function mountSetup({ root, navigate }: ScreenContext): Cleanup {
     return g.cols / g.rows;
   };
   let mode: PaletteMode = getSettings().paletteMode;
-  let maxColors = getSettings().maxColors;
+  let maxColors = Math.min(getSettings().maxColors, src.maxColors ?? MAX_COLORS);
   let dither = getSettings().dither;
   let crop: CropState = clampCrop(
     img.width,
