@@ -105,10 +105,18 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
     let touched = false;
     let alive = true;
     let activeSave: PictureSave | null = null;
+    const overviewState: NonNullable<import('../xr/world').PanelWorldDeps['overviewState']> = {
+      layout: undefined,
+      visible: false,
+    };
     let unregisterUpdateFlush = (): void => {};
 
     const openPanel = (save: PictureSave, panel: number): void => {
       if (!alive || !studioRef || !swapHandle) return;
+      if (activeSave?.id !== save.id) {
+        overviewState.layout = undefined;
+        overviewState.visible = false;
+      }
       activeSave = save;
       const session = new PanelSession(save, panel);
       const selected = { color: session.trayColors()[0] ?? -1 };
@@ -116,6 +124,7 @@ async function enterLibraryXr(mode: 'vr' | 'ar', chip: HTMLButtonElement): Promi
       const world = wrld.createPanelWorld(studioRef, xrSession, {
         panel: session,
         save,
+        overviewState,
         onPanelSelect: (index) => {
           queueMicrotask(() => {
             if (!alive || !studioRef || !swapHandle) return;

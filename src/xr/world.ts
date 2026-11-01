@@ -16,6 +16,7 @@ import { createCompletion } from './completion';
 import { createFrame } from './frame';
 import { createHelp } from './help';
 import { createInputModel, type PadState, readGamepad } from './input';
+import { getCustomLayouts, type ReusableXrLayout, saveCustomLayout } from './layout';
 import { createLibrary, type LibraryRow } from './library';
 import { createMagnifier } from './magnifier';
 import { createOverview } from './overview';
@@ -55,6 +56,7 @@ export interface PanelWorldDeps {
   continueLabel?(): string;
   save?: PictureSave;
   onPanelSelect?(panel: number): void;
+  overviewState?: { layout: ReusableXrLayout['overview']; visible: boolean };
 }
 
 const SPAWN: HitPose = { x: 0, y: 0.95, z: -0.35 };
@@ -239,6 +241,15 @@ export function createPanelWorld(
   if (overview) {
     overview.root.visible = false;
     studio.scene.add(overview.root);
+    const state = deps.overviewState;
+    if (state?.layout) {
+      const { pos, quat, scale } = state.layout;
+      overview.root.position.set(pos.x, pos.y, pos.z);
+      overview.root.quaternion.set(quat.x, quat.y, quat.z, quat.w);
+      overview.root.scale.setScalar(scale ?? 1);
+      overview.root.userData.positioned = true;
+      overview.root.visible = state.visible;
+    }
   }
   const fallbackHead = new THREE.Matrix4().makeTranslation(0, 1.6, 0.2);
   const viewerPosition = (): THREE.Vector3 => {
@@ -295,8 +306,7 @@ export function createPanelWorld(
       })
       .catch(() => undefined);
   }
-  if (!isAr && deps.layout) {
-    const l = deps.layout;
+  const applyLayout = (l: ReusableXrLayout): void => {
     plate.root.position.set(l.plate.pos.x, l.plate.pos.y, l.plate.pos.z);
     plate.root.quaternion.set(l.plate.quat.x, l.plate.quat.y, l.plate.quat.z, l.plate.quat.w);
     plate.root.scale.setScalar(l.plate.scale);
@@ -307,9 +317,28 @@ export function createPanelWorld(
     tray.root.position.set(l.tray.pos.x, l.tray.pos.y, l.tray.pos.z);
     tray.root.quaternion.set(l.tray.quat.x, l.tray.quat.y, l.tray.quat.z, l.tray.quat.w);
     tray.root.scale.setScalar(l.tray.scale);
+    for (const [object, transform] of [
+      [tools.root, l.tools],
+      [overview?.root, l.overview],
+    ] as const) {
+      if (!object || !transform) continue;
+      object.position.set(transform.pos.x, transform.pos.y, transform.pos.z);
+      object.quaternion.set(transform.quat.x, transform.quat.y, transform.quat.z, transform.quat.w);
+      object.scale.setScalar(transform.scale ?? 1);
+      if (object === overview?.root) object.userData.positioned = true;
+    }
     plate.sync();
     frame.sync();
     tray.sync();
+  };
+  if (!isAr && deps.layout) {
+    applyLayout(deps.layout);
+    if (overview && deps.overviewState?.layout) {
+      const { pos, quat, scale } = deps.overviewState.layout;
+      overview.root.position.set(pos.x, pos.y, pos.z);
+      overview.root.quaternion.set(quat.x, quat.y, quat.z, quat.w);
+      overview.root.scale.setScalar(scale ?? 1);
+    }
   }
 
   const model = createInputModel({
@@ -339,6 +368,7 @@ export function createPanelWorld(
       frameTimer = null;
       frame.sync();
       tray.sync();
+      if (overview?.root.visible) overview.repaint();
       progress.sync(bridge.progress());
       syncPhysicalGuide();
     }, 120);
@@ -395,24 +425,42 @@ export function createPanelWorld(
       plate.setFocusColor(focus && deps.selected() >= 0 ? deps.selected() : null);
       tools.setFocusActive(focus);
     } else if (id === 'workspace') {
-      workspacePreset = (workspacePreset + 1) % 3;
-      const p = plate.root.position.clone();
-      const yaw = plate.root.rotation.y;
-      placeWorld({ x: p.x, y: p.y, z: p.z }, yaw);
-      plate.root.rotation.x = workspacePreset === 1 ? Math.PI / 3 : 0;
-      plate.root.scale.setScalar(workspacePreset === 2 ? 1.8 : 1);
-      hintLabel.show(['Desk', 'Easel', 'Close-up'][workspacePreset]);
+      const custom = getCustomLayouts().Custom;
+      workspacePreset = (workspacePreset + 1) % (custom ? 4 : 3);
+      if (workspacePreset === 3 && custom) {
+        applyLayout(custom);
+        hintLabel.show('Custom layout');
+      } else {
+        const p = plate.root.position.clone();
+        const yaw = plate.root.rotation.y;
+        placeWorld({ x: p.x, y: p.y, z: p.z }, yaw);
+        plate.root.rotation.x = workspacePreset === 1 ? Math.PI / 3 : 0;
+        plate.root.scale.setScalar(workspacePreset === 2 ? 1.8 : 1);
+        hintLabel.show(['Desk', 'Easel', 'Close-up'][workspacePreset]);
+      }
+      if (hintTimer !== null) clearTimeout(hintTimer);
+      hintTimer = setTimeout(() => {
+        hintTimer = null;
+        hintLabel.hide();
+      }, 2000);
+    } else if (id === 'save-layout') {
+      hintLabel.show(saveCustomLayout('Custom', layout()) ? 'Layout saved' : 'Save failed');
       if (hintTimer !== null) clearTimeout(hintTimer);
       hintTimer = setTimeout(() => {
         hintTimer = null;
         hintLabel.hide();
       }, 2000);
     } else if (id === 'picture' && overview) {
-      overview.root.position.copy(plate.root.position);
-      overview.root.position.y += 0.3;
-      overview.root.lookAt(viewerPosition());
-      overview.repaint();
-      overview.root.visible = true;
+      if (!overview.root.visible) {
+        if (!overview.root.userData.positioned) {
+          overview.root.position.copy(plate.root.position);
+          overview.root.position.y += 0.3;
+          overview.root.lookAt(viewerPosition());
+          overview.root.userData.positioned = true;
+        }
+        overview.repaint();
+      }
+      overview.root.visible = !overview.root.visible;
     } else if (id === 'guide') {
       if (physicalGuide.root.visible) physicalGuide.hide();
       else {
@@ -471,10 +519,10 @@ export function createPanelWorld(
   const dir = new THREE.Vector3();
   const inv = new THREE.Matrix4();
   const plateRay = new THREE.Ray();
-  let grab: ReturnType<typeof createGrab> | null = null;
+  const grabs: Array<ReturnType<typeof createGrab> | null> = [null, null];
   const raycaster = new THREE.Raycaster();
-  let grabbed: THREE.Object3D | null = null;
-  let prevGrip = false;
+  const grabbed: Array<THREE.Object3D | null> = [null, null];
+  const prevGrip = [false, false];
   let prevOverlayX = false;
   let prevSelectTrig = false;
   let awaitTriggerRelease = true;
@@ -484,7 +532,13 @@ export function createPanelWorld(
 
   const grabBounds = new THREE.Box3();
   const gripPosition = new THREE.Vector3();
-  const grabRoots = [plate.root, frame.root, tray.root, tools.root];
+  const grabRoots = [
+    plate.root,
+    frame.root,
+    tray.root,
+    tools.root,
+    ...(overview ? [overview.root] : []),
+  ];
   let lastTime: number | null = null;
   const update = (time: number, xrFrame?: XRFrame): void => {
     if (physicalGuide.root.visible) {
@@ -541,28 +595,36 @@ export function createPanelWorld(
     }
     const down = actionPad?.trigger === true && !prevSelectTrig;
     const noticeHit = index >= 0 && !pad?.grip && updateNotice.hit(pos, dir);
+    const overviewHit =
+      overview?.root.visible &&
+      index >= 0 &&
+      !pad?.grip &&
+      snap === null &&
+      chip === null &&
+      referenceColor === null &&
+      tool === null
+        ? overview.pickPanel({ origin: pos, dir })
+        : null;
+    overview?.setHover(overviewHit);
     const modalAtStart =
       completion.root.visible ||
       help.root.visible ||
       settings.root.visible ||
-      overview?.root.visible ||
+      overviewHit !== null ||
       noticeHit;
     if (noticeHit) {
       if (down) {
         suppressTriggerUntilRelease = true;
         if (updateNotice.pick(pos, dir)) void requestUpdate();
       }
-    } else if (overview?.root.visible) {
-      const hovered = index >= 0 ? overview.pickPanel({ origin: pos, dir }) : null;
-      overview.setHover(hovered);
-      if (down && hovered !== null) {
-        overview.root.visible = false;
+    } else if (overviewHit !== null) {
+      if (down) {
+        if (overview && deps.overviewState) {
+          deps.overviewState.layout = snapshotTransform(overview.root);
+          deps.overviewState.visible = true;
+        }
         suppressTriggerUntilRelease = true;
-        deps.onPanelSelect?.(hovered);
-      }
-      if (actionPad?.b) {
-        overview.root.visible = false;
-        suppressBUntilRelease = true;
+        deps.onPanelSelect?.(overviewHit);
       }
     } else if (completion.root.visible) {
       completion.update(time);
@@ -586,11 +648,7 @@ export function createPanelWorld(
     }
     prevSelectTrig = actionPad?.trigger === true;
     const modal =
-      modalAtStart ||
-      completion.root.visible ||
-      help.root.visible ||
-      settings.root.visible ||
-      !!overview?.root.visible;
+      modalAtStart || completion.root.visible || help.root.visible || settings.root.visible;
     const inputPad =
       actionPad && (modal || suppressBUntilRelease)
         ? { ...actionPad, trigger: modal ? false : actionPad.trigger, b: false }
@@ -601,17 +659,29 @@ export function createPanelWorld(
       const marker = controllers.markers[i];
       marker.getWorldPosition(gripPosition);
       const near =
-        i === index &&
         placed &&
         grabRoots.some((root) => {
           if (!root.visible) return false;
           grabBounds.setFromObject(root);
           return grabBounds.distanceToPoint(gripPosition) <= 0.015;
         });
-      marker.material.color.setHex(near || (grabbed !== null && i === index) ? 0x56dbb1 : 0xd6d8dc);
+      marker.material.color.setHex(near || grabbed[i] !== null ? 0x56dbb1 : 0xd6d8dc);
       marker.material.emissive.setHex(near ? 0x195a48 : 0x000000);
     }
-    updateGrab(modal ? null : pad, index, pos, dir, dt);
+    for (let i = 0; i < 2; i++) {
+      const ctl = studio.renderer.xr.getController(i);
+      const source = ctl.userData.xrSource as XRInputSource | undefined;
+      const grabPad = source?.gamepad ? readGamepad(source.gamepad) : null;
+      const origin = new THREE.Vector3().setFromMatrixPosition(ctl.matrixWorld);
+      const direction = new THREE.Vector3(0, 0, -1).transformDirection(ctl.matrixWorld);
+      const grabBlocked = completion.root.visible || help.root.visible || settings.root.visible;
+      updateGrab(grabBlocked ? null : grabPad, i, origin, direction, dt);
+    }
+    if (overview && deps.overviewState) {
+      deps.overviewState.visible = overview.root.visible;
+      if (overview.root.userData.positioned)
+        deps.overviewState.layout = snapshotTransform(overview.root);
+    }
     updateOverlayToggle();
   };
 
@@ -739,35 +809,36 @@ export function createPanelWorld(
     dt: number,
   ): void => {
     const grip = pad?.grip === true;
-    const down = grip && !prevGrip;
-    const up = !grip && prevGrip;
+    const down = grip && !prevGrip[index];
+    const up = !grip && prevGrip[index];
     if (down && index >= 0 && placed) {
-      const roots = grabRoots.filter((r) => r.visible);
+      const roots = grabRoots.filter((r) => r.visible && !grabbed.includes(r));
       studio.renderer.xr.getControllerGrip(index).getWorldPosition(gripPosition);
-      grabbed =
+      grabbed[index] =
         roots.find(
           (root) => grabBounds.setFromObject(root).distanceToPoint(gripPosition) <= 0.015,
         ) ?? null;
-      if (!grabbed) {
+      if (!grabbed[index]) {
         raycaster.set(o, d);
         const hits = raycaster.intersectObjects(roots, true);
         if (hits.length > 0) {
           let cur: THREE.Object3D = hits[0].object;
           while (cur.parent && cur.parent !== studio.scene) cur = cur.parent;
-          grabbed = cur;
+          grabbed[index] = cur;
         }
       }
-      if (grabbed) grab = createGrab(grabbed, studio.renderer.xr.getControllerGrip(index));
+      if (grabbed[index])
+        grabs[index] = createGrab(grabbed[index], studio.renderer.xr.getControllerGrip(index));
     }
-    if (grip && index >= 0 && grabbed && grab && pad) {
-      grab.update(pad.stickX, pad.stickY, pad.trigger, dt, d);
-      if (grabbed === frame.root) frame.setScale(grabbed.scale.x);
+    if (grip && grabbed[index] && grabs[index] && pad) {
+      grabs[index].update(pad.stickX, pad.stickY, pad.trigger, dt, d);
+      if (grabbed[index] === frame.root) frame.setScale(frame.root.scale.x);
     }
     if (up || index < 0) {
-      grab = null;
-      grabbed = null;
+      grabs[index] = null;
+      grabbed[index] = null;
     }
-    prevGrip = grip;
+    prevGrip[index] = grip;
   };
 
   /** Left-controller X edge toggles the reference overlay (mirrors the 2D Overlay button). */
@@ -812,7 +883,17 @@ export function createPanelWorld(
     hintLabel.dispose();
   };
 
-  const layout = (): XrPanelLayout | null => ({
+  const snapshotTransform = (object: THREE.Object3D): NonNullable<ReusableXrLayout['tools']> => ({
+    pos: { x: object.position.x, y: object.position.y, z: object.position.z },
+    quat: {
+      x: object.quaternion.x,
+      y: object.quaternion.y,
+      z: object.quaternion.z,
+      w: object.quaternion.w,
+    },
+    scale: object.scale.x,
+  });
+  const layout = (): ReusableXrLayout => ({
     plate: {
       pos: { x: plate.root.position.x, y: plate.root.position.y, z: plate.root.position.z },
       quat: {
@@ -844,6 +925,8 @@ export function createPanelWorld(
       scale: tray.root.scale.x,
     },
     overlay: frame.isOverlayOn(),
+    tools: snapshotTransform(tools.root),
+    ...(overview?.root.userData.positioned ? { overview: snapshotTransform(overview.root) } : {}),
   });
 
   return { update, layout, dispose };
@@ -894,8 +977,8 @@ export function createLibraryWorld(
 ): XrWorld {
   const controllers = attachControllers(studio);
   const library = createLibrary({ rows: deps.rows, onPick: deps.onPick });
-  library.root.position.set(0, 1.35, -0.5);
-  library.root.lookAt(0, 1.6, 0.2);
+  library.root.position.set(0, 1.15, -0.5);
+  library.root.lookAt(0, 1.15, 0.2);
   studio.scene.add(library.root);
   const settings = createXrSettings(deps.mode ?? 'vr', (preset) => studio.setEnvironment?.(preset));
   studio.scene.add(settings.root);
@@ -909,7 +992,16 @@ export function createLibraryWorld(
   const ready = [false, false];
   const prevB = [false, false];
   const stickHeld = [false, false];
-  const update = (_time: number, _frame?: XRFrame): void => {
+  const prevGrip = [false, false];
+  let heldBy = -1;
+  let grab: ReturnType<typeof createGrab> | null = null;
+  let lastTime: number | null = null;
+  const raycaster = new THREE.Raycaster();
+  const bounds = new THREE.Box3();
+  const gripPosition = new THREE.Vector3();
+  const update = (time: number, _frame?: XRFrame): void => {
+    const dt = lastTime === null ? 0 : (time - lastTime) / 1000;
+    lastTime = time;
     const updateStatus = getUpdateStatus();
     updateNotice.setVisible(
       updateStatus.available,
@@ -927,20 +1019,48 @@ export function createLibraryWorld(
         prevTrigger[index] = false;
         prevB[index] = false;
         stickHeld[index] = false;
+        prevGrip[index] = false;
+        if (heldBy === index) {
+          heldBy = -1;
+          grab = null;
+        }
         continue;
       }
       const pad = readGamepad(source.gamepad);
-      if (!pad.trigger) ready[index] = true;
+      if (!pad.trigger && !pad.grip) ready[index] = true;
+      if (pad.grip) ready[index] = false;
       if (pad.b && !prevB[index]) {
         if (settings.root.visible) settings.root.visible = false;
         else deps.onExit();
       }
       prevB[index] = pad.b;
-      if (!settings.root.visible && Math.abs(pad.stickX) > 0.6 && !stickHeld[index])
+      if (!pad.grip && !settings.root.visible && Math.abs(pad.stickX) > 0.6 && !stickHeld[index])
         library.pageBy(pad.stickX > 0 ? 1 : -1);
       stickHeld[index] = Math.abs(pad.stickX) > 0.3;
       pos.setFromMatrixPosition(ctl.matrixWorld);
       dir.set(0, 0, -1).transformDirection(ctl.matrixWorld);
+      if (pad.grip && !prevGrip[index] && heldBy < 0 && !settings.root.visible) {
+        studio.renderer.xr.getControllerGrip(index).getWorldPosition(gripPosition);
+        bounds.setFromObject(library.root);
+        raycaster.set(pos, dir);
+        if (
+          bounds.distanceToPoint(gripPosition) <= 0.015 ||
+          raycaster.intersectObject(library.root, true).length
+        ) {
+          heldBy = index;
+          grab = createGrab(library.root, studio.renderer.xr.getControllerGrip(index));
+        }
+      }
+      if (!pad.grip && heldBy === index) {
+        heldBy = -1;
+        grab = null;
+      }
+      if (heldBy === index && pad.grip) grab?.update(pad.stickX, pad.stickY, pad.trigger, dt, dir);
+      prevGrip[index] = pad.grip;
+      if (pad.grip) {
+        prevTrigger[index] = pad.trigger;
+        continue;
+      }
       const down = ready[index] && pad.trigger && !prevTrigger[index];
       if (updateNotice.hit(pos, dir)) {
         if (down && !pickedThisFrame) {

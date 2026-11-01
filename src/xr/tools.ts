@@ -17,6 +17,7 @@ export type ToolId =
   | 'ghost'
   | 'focus'
   | 'workspace'
+  | 'save-layout'
   | 'picture'
   | 'guide'
   | 'help'
@@ -31,6 +32,7 @@ export const TOOL_ORDER: readonly ToolId[] = [
   'ghost',
   'focus',
   'workspace',
+  'save-layout',
   'picture',
   'guide',
   'help',
@@ -68,6 +70,7 @@ const LABELS: Record<ToolId, string> = {
   ghost: 'Ghost',
   focus: 'Focus',
   workspace: 'Layout',
+  'save-layout': 'Save',
   picture: 'Picture',
   guide: 'Build',
   help: 'Help',
@@ -124,7 +127,7 @@ function drawToolIcon(ctx: CanvasRenderingContext2D, id: ToolId, x: number, colo
     ctx.moveTo(x, 24);
     ctx.lineTo(x, 74);
     ctx.stroke();
-  } else if (id === 'workspace' || id === 'picture' || id === 'guide') {
+  } else if (id === 'workspace' || id === 'save-layout' || id === 'picture' || id === 'guide') {
     ctx.moveTo(x - 20, 38);
     ctx.lineTo(x + 20, 38);
     ctx.lineTo(x + 20, 62);

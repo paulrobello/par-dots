@@ -1,6 +1,14 @@
+// @vitest-environment happy-dom
+
 import { describe, expect, it } from 'vitest';
 import { PANEL_SIZE, type PictureSave, type XrPanelLayout } from '../src/types';
-import { getLayout, setLayout, validateLayout } from '../src/xr/layout';
+import {
+  getCustomLayouts,
+  getLayout,
+  saveCustomLayout,
+  setLayout,
+  validateLayout,
+} from '../src/xr/layout';
 
 const IDENT = { x: 0, y: 0, z: 0, w: 1 };
 const layout = (): XrPanelLayout => ({
@@ -38,6 +46,19 @@ const makeSave = (): PictureSave => {
 describe('validateLayout', () => {
   it('accepts a well-formed record', () => {
     expect(validateLayout(layout())).toEqual(layout());
+  });
+
+  it('accepts optional overview and tools transforms and clamps their scales', () => {
+    const value = {
+      ...layout(),
+      overview: { pos: { x: 1, y: 2, z: 3 }, quat: IDENT, scale: 20 },
+      tools: { pos: { x: 4, y: 5, z: 6 }, quat: IDENT },
+    };
+    expect(validateLayout(value)).toMatchObject({
+      overview: { ...value.overview, scale: 3 },
+      tools: { ...value.tools, scale: 1 },
+    });
+    expect(validateLayout({ ...value, tools: { broken: true } })).toBeNull();
   });
 
   it('preserves legacy transforms when plate and tray scales are absent', () => {
@@ -101,5 +122,22 @@ describe('getLayout / setLayout', () => {
     const save = makeSave();
     setLayout(save, 0, { broken: 1 } as unknown as XrPanelLayout);
     expect(save.xrLayouts).toBeUndefined();
+  });
+
+  it('keeps reusable-only objects out of the per-panel save schema', () => {
+    const save = makeSave();
+    const extended = { ...layout(), tools: { pos: { x: 1, y: 2, z: 3 }, quat: IDENT } };
+    setLayout(save, 0, extended);
+    expect(save.xrLayouts?.['0']).toEqual(layout());
+  });
+});
+
+describe('reusable local layouts', () => {
+  it('round-trips validated layouts through localStorage', () => {
+    localStorage.clear();
+    expect(saveCustomLayout(' Desk ', layout())).toBe(true);
+    expect(getCustomLayouts().Desk).toEqual(layout());
+    expect(saveCustomLayout('bad', { broken: true })).toBe(false);
+    expect(getCustomLayouts().Desk).toEqual(layout());
   });
 });

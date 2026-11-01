@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Keep the movable whole-picture view open during XR building, support grip manipulation with either controller, make the lower upright VR library movable, and save a reusable custom workspace layout on the device.
+
 ### Added
 
 - XR color focus, targeted-cell magnifier and snap settings, workspace layouts, whole-picture panel selection, physical-building guidance and a drawing editor. Gallery transfer instructions explain how to export and import project copies.

@@ -91,6 +91,8 @@ The Settings control is available in the library and build workspace. It offers 
 
 The workspace also offers Focus for the selected color, a Picture overview for choosing a panel, a Build guide for tracking a physical mosaic, and Layout presets. XR settings include an optional targeted-cell magnifier and adjustable snap radius. Drawings open in a separate XR editor with palette selection, brush, eraser, picker, symmetry and undo/redo. Gallery export/import transfers project copies between devices without automatic synchronization. These additions require headset acceptance.
 
+The Picture view remains open during placement and can be moved with either grip. Either controller can grip and adjust workspace objects independently, including the library panel. Save stores one reusable custom layout on the device, and Layout cycles through it alongside the built-in presets. Headset acceptance remains pending.
+
 ## 6. Phases
 
 Each phase ends with the full gate green (`make checkall`; `checkall-ci`

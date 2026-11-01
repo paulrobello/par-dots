@@ -441,6 +441,12 @@ export function mountPanelPlay(
           },
           buildWorld: (studio) => {
             let swap: ReturnType<typeof wrld.createSwapWorld> | null = null;
+            const overviewState: NonNullable<
+              import('../xr/world').PanelWorldDeps['overviewState']
+            > = {
+              layout: undefined,
+              visible: false,
+            };
             const makeWorld = (index: number): ReturnType<typeof wrld.createPanelWorld> => {
               const activeSession = index === panel ? session : new PanelSession(save, index);
               const activeTimer =
@@ -461,6 +467,7 @@ export function mountPanelPlay(
               const world = wrld.createPanelWorld(studio, xrSession, {
                 panel: activeSession,
                 save,
+                overviewState,
                 onPanelSelect: (next) => {
                   if (next === index || advancing) return;
                   advancing = true;

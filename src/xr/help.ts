@@ -51,15 +51,15 @@ export function createHelp(): {
     const rows = [
       'Trigger       Place / select',
       'A + trigger   Sweep across studs',
-      'Grip          Grab and move objects',
+      'Either grip   Grab and move objects',
       'Grip + stick  Left / right: rotate',
       'Grip + stick  Up / down: push / pull',
       'Grip + trigger + stick  Up / down: scale',
       'X             Toggle reference frame',
       'B             Exit VR',
       'Ghost         Toggle plate overlay',
-      'Settings      World, audio and haptics',
-      'Trigger reference image  Select its color',
+      'Picture       Show / hide whole picture',
+      'Save / Layout Save and recall workspace',
     ];
     rows.forEach((row, i) => {
       ctx.fillText(row, 52, 160 + i * 58);
