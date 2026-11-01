@@ -122,6 +122,98 @@ function requiredObject(f: Fixture, name: string): THREE.Object3D {
 }
 
 describe('XR workspace controls', () => {
+  it.each([0, 1])('points and grips a distant workspace object with controller %i', (index) => {
+    const f = fixture();
+    const world = panel(f);
+    f.connect(index);
+    const frame = requiredObject(f, 'xr-frame');
+    frame.position.set(0, 2, -2);
+    frame.quaternion.identity();
+    f.grips[index].position.set(0, 1, 0);
+    f.aim(index, new THREE.Vector3(0, 2, 0), new THREE.Vector3(0, 0, -1));
+    world.update(0);
+    const line = f.targets[index].children.find(
+      (child) => child instanceof THREE.Line,
+    ) as THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>;
+    expect(line.material.color.getHex()).toBe(0x56dbb1);
+    expect(line.scale.z).toBeGreaterThan(1.5);
+    f.buttons[index][1].pressed = true;
+    world.update(16);
+    f.grips[index].position.x += 0.2;
+    f.scene.updateMatrixWorld(true);
+    world.update(32);
+    expect(frame.position.x).toBeCloseTo(0.2);
+    f.buttons[index][1].pressed = false;
+    world.update(48);
+    f.grips[index].position.x += 0.2;
+    f.scene.updateMatrixWorld(true);
+    world.update(64);
+    expect(frame.position.x).toBeCloseTo(0.2);
+    f.aim(index, new THREE.Vector3(0, 3, 0), new THREE.Vector3(0, 1, 0));
+    world.update(80);
+    expect(line.material.color.getHex()).toBe(0x8fd0ff);
+    expect(line.scale.z).toBe(1);
+    world.dispose();
+  });
+
+  it.each([
+    ['xr-plate', new THREE.Vector3(0, 1, 0)],
+    ['xr-tray', new THREE.Vector3(0, 1, 0)],
+    ['xr-tools', new THREE.Vector3(0, 0, 1)],
+  ])('grips the distant %s via its visible geometry', (name, localNormal) => {
+    const f = fixture();
+    const world = panel(f);
+    f.connect(1);
+    const object = requiredObject(f, name);
+    object.position.set(2, 2, -2);
+    object.quaternion.identity();
+    f.grips[1].position.set(0, 1, 0);
+    f.scene.updateMatrixWorld(true);
+    const origin = object.position.clone().addScaledVector(localNormal, 2);
+    f.aim(1, origin, localNormal.clone().negate());
+    world.update(0);
+    f.buttons[1][1].pressed = true;
+    world.update(16);
+    f.grips[1].position.x += 0.2;
+    f.scene.updateMatrixWorld(true);
+    world.update(32);
+    expect(object.position.x).toBeCloseTo(2.2);
+    world.dispose();
+  });
+
+  it.each([0, 1])('points and grips the distant library with controller %i', (index) => {
+    const f = fixture();
+    const world = createLibraryWorld(f.studio, f.session, {
+      rows: () => [{ id: 'one', label: 'One' }],
+      onPick: vi.fn(),
+      onExit: vi.fn(),
+    });
+    f.connect(index);
+    const library = requiredObject(f, 'xr-library');
+    library.position.set(0, 1.15, -2);
+    f.grips[index].position.set(0, 1, 0);
+    f.aim(index, new THREE.Vector3(0, 1.15, 0), new THREE.Vector3(0, 0, -1));
+    world.update(0);
+    const line = f.targets[index].children.find(
+      (child) => child instanceof THREE.Line,
+    ) as THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>;
+    expect(line.material.color.getHex()).toBe(0x56dbb1);
+    expect(line.scale.z).toBeGreaterThan(1.5);
+    f.buttons[index][1].pressed = true;
+    world.update(16);
+    f.grips[index].position.x += 0.2;
+    f.scene.updateMatrixWorld(true);
+    world.update(32);
+    expect(library.position.x).toBeCloseTo(0.2);
+    f.buttons[index][1].pressed = false;
+    world.update(48);
+    f.grips[index].position.x += 0.2;
+    f.scene.updateMatrixWorld(true);
+    world.update(64);
+    expect(library.position.x).toBeCloseTo(0.2);
+    world.dispose();
+  });
+
   it('moves two different objects independently with simultaneous left and right grips', () => {
     const f = fixture();
     const world = panel(f);

@@ -51,7 +51,7 @@ export function createHelp(): {
     const rows = [
       'Trigger       Place / select',
       'A + trigger   Sweep across studs',
-      'Either grip   Grab and move objects',
+      'Point + grip  Grab and move objects',
       'Grip + stick  Left / right: rotate',
       'Grip + stick  Up / down: push / pull',
       'Grip + trigger + stick  Up / down: scale',

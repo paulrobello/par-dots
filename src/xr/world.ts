@@ -131,11 +131,13 @@ const createHintLabel = (
 /** Attach tracked controller poses in every world and remove only this world's visuals. */
 function attachControllers(studio: Studio): {
   markers: THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>[];
+  lines: THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>[];
   dispose(): void;
 } {
   const visuals: THREE.Object3D[] = [];
   const listeners: Array<() => void> = [];
   const markers: THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>[] = [];
+  const lines: THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>[] = [];
   for (let i = 0; i < 2; i++) {
     const target = studio.renderer.xr.getController(i);
     const grip = studio.renderer.xr.getControllerGrip(i);
@@ -172,9 +174,11 @@ function attachControllers(studio: Studio): {
     studio.scene.add(grip);
     visuals.push(line, marker);
     markers.push(marker);
+    lines.push(line);
   }
   return {
     markers,
+    lines,
     dispose() {
       for (const remove of listeners) remove();
       for (const visual of visuals) {
@@ -532,7 +536,7 @@ export function createPanelWorld(
 
   const grabBounds = new THREE.Box3();
   const gripPosition = new THREE.Vector3();
-  const grabRoots = [
+  const grabRoots: THREE.Object3D[] = [
     plate.root,
     frame.root,
     tray.root,
@@ -656,19 +660,6 @@ export function createPanelWorld(
         : actionPad;
     magnifier.update(getSettings().xrMagnifier && !modal && !inputPad?.grip ? snap : null);
     model.update(modal || inputPad?.grip ? null : snap, inputPad);
-    for (let i = 0; i < controllers.markers.length; i++) {
-      const marker = controllers.markers[i];
-      marker.getWorldPosition(gripPosition);
-      const near =
-        placed &&
-        grabRoots.some((root) => {
-          if (!root.visible) return false;
-          grabBounds.setFromObject(root);
-          return grabBounds.distanceToPoint(gripPosition) <= 0.015;
-        });
-      marker.material.color.setHex(near || grabbed[i] !== null ? 0x56dbb1 : 0xd6d8dc);
-      marker.material.emissive.setHex(near ? 0x195a48 : 0x000000);
-    }
     for (let i = 0; i < 2; i++) {
       const ctl = studio.renderer.xr.getController(i);
       const source = ctl.userData.xrSource as XRInputSource | undefined;
@@ -677,6 +668,33 @@ export function createPanelWorld(
       const direction = new THREE.Vector3(0, 0, -1).transformDirection(ctl.matrixWorld);
       const grabBlocked = completion.root.visible || help.root.visible || settings.root.visible;
       updateGrab(grabBlocked ? null : grabPad, i, origin, direction, dt);
+      const marker = controllers.markers[i];
+      marker.getWorldPosition(gripPosition);
+      const roots = grabRoots.filter(
+        (root) => root.visible && !grabbed.some((held, j) => j !== i && held === root),
+      );
+      const near =
+        !!grabPad &&
+        !grabBlocked &&
+        placed &&
+        roots.some((root) => grabBounds.setFromObject(root).distanceToPoint(gripPosition) <= 0.015);
+      raycaster.set(origin, direction);
+      const aimedHit =
+        grabPad && !grabBlocked && placed
+          ? raycaster.intersectObjects(roots, true).find((hit) => {
+              let node: THREE.Object3D | null = hit.object;
+              while (node && !roots.includes(node)) {
+                if (!node.visible) return false;
+                node = node.parent;
+              }
+              return node !== null;
+            })
+          : undefined;
+      const targetable = near || !!aimedHit || grabbed[i] !== null;
+      marker.material.color.setHex(targetable ? 0x56dbb1 : 0xd6d8dc);
+      marker.material.emissive.setHex(targetable ? 0x195a48 : 0x000000);
+      controllers.lines[i].material.color.setHex(targetable ? 0x56dbb1 : 0x8fd0ff);
+      controllers.lines[i].scale.z = (aimedHit?.distance ?? 1.2) / 1.2;
     }
     if (overview && deps.overviewState) {
       deps.overviewState.visible = overview.root.visible;
@@ -821,7 +839,14 @@ export function createPanelWorld(
         ) ?? null;
       if (!grabbed[index]) {
         raycaster.set(o, d);
-        const hits = raycaster.intersectObjects(roots, true);
+        const hits = raycaster.intersectObjects(roots, true).filter((hit) => {
+          let node: THREE.Object3D | null = hit.object;
+          while (node && !roots.includes(node)) {
+            if (!node.visible) return false;
+            node = node.parent;
+          }
+          return node !== null;
+        });
         if (hits.length > 0) {
           let cur: THREE.Object3D = hits[0].object;
           while (cur.parent && cur.parent !== studio.scene) cur = cur.parent;
@@ -1016,6 +1041,10 @@ export function createLibraryWorld(
       const ctl = studio.renderer.xr.getController(index);
       const source = ctl.userData.xrSource as XRInputSource | undefined;
       if (!source?.gamepad) {
+        controllers.markers[index].material.color.setHex(0xd6d8dc);
+        controllers.markers[index].material.emissive.setHex(0x000000);
+        controllers.lines[index].material.color.setHex(0x8fd0ff);
+        controllers.lines[index].scale.z = 1;
         ready[index] = false;
         prevTrigger[index] = false;
         prevB[index] = false;
@@ -1040,14 +1069,24 @@ export function createLibraryWorld(
       stickHeld[index] = Math.abs(pad.stickX) > 0.3;
       pos.setFromMatrixPosition(ctl.matrixWorld);
       dir.set(0, 0, -1).transformDirection(ctl.matrixWorld);
+      bounds.setFromObject(library.root);
+      studio.renderer.xr.getControllerGrip(index).getWorldPosition(gripPosition);
+      raycaster.set(pos, dir);
+      const libraryHit = raycaster.intersectObject(library.root, true)[0];
+      const targetable =
+        !settings.root.visible &&
+        (heldBy < 0 || heldBy === index) &&
+        (heldBy === index || bounds.distanceToPoint(gripPosition) <= 0.015 || !!libraryHit);
+      controllers.markers[index].material.color.setHex(targetable ? 0x56dbb1 : 0xd6d8dc);
+      controllers.markers[index].material.emissive.setHex(targetable ? 0x195a48 : 0x000000);
+      controllers.lines[index].material.color.setHex(targetable ? 0x56dbb1 : 0x8fd0ff);
+      controllers.lines[index].scale.z =
+        (!settings.root.visible ? (libraryHit?.distance ?? 1.2) : 1.2) / 1.2;
       if (pad.grip && !prevGrip[index] && heldBy < 0 && !settings.root.visible) {
         studio.renderer.xr.getControllerGrip(index).getWorldPosition(gripPosition);
         bounds.setFromObject(library.root);
         raycaster.set(pos, dir);
-        if (
-          bounds.distanceToPoint(gripPosition) <= 0.015 ||
-          raycaster.intersectObject(library.root, true).length
-        ) {
+        if (bounds.distanceToPoint(gripPosition) <= 0.015 || libraryHit) {
           heldBy = index;
           grab = createGrab(library.root, studio.renderer.xr.getControllerGrip(index));
         }

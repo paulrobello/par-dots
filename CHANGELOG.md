@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- XR controller lasers extend to distant grabbable objects and turn green with the grip marker, making point-and-grip movement discoverable.
+
 - XR tool and drawing controls show a readable label when targeted with a controller.
 
 - Buy parts in the Parts sheet: download the picture's (or one panel's) dot counts, plus the build kit (black 16x16 pin-hole canvases, three Technic pins per joined edge, two wall-mount panels, and an optional raised frame), as a BrickLink wanted-list XML or a Rebrickable part-list CSV. LEGO palette mode only; free shades have no catalog color.
