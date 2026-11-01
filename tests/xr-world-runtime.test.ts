@@ -357,6 +357,8 @@ it('selects a tray chip, updates its ring, and grabs the tool panel on contact',
   f.aim(ghostButton.clone().addScaledVector(toolsNormal, 0.15), toolsNormal.clone().negate());
   f.buttons[0].pressed = false;
   world.update(5);
+  const tooltip = tools.getObjectByName('xr-hover-tooltip');
+  expect(tooltip?.visible).toBe(true);
   f.buttons[0].pressed = true;
   world.update(6);
   const studs = f.scene.getObjectByName('xr-plate-studs') as THREE.InstancedMesh;
@@ -374,6 +376,8 @@ it('selects a tray chip, updates its ring, and grabs the tool panel on contact',
   world.update(8);
   const help = f.scene.getObjectByName('xr-help') as THREE.Object3D;
   expect(help.visible).toBe(true);
+  world.update(8.5);
+  expect(tooltip?.visible).toBe(false);
   help.updateWorldMatrix(true, true);
   const close = new THREE.Vector3(0.13, 0.1, 0).applyMatrix4(help.matrixWorld);
   const helpNormal = new THREE.Vector3(0, 0, 1).transformDirection(help.matrixWorld);

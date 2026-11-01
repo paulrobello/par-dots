@@ -7,6 +7,7 @@
  */
 
 import * as THREE from 'three';
+import { createXrTooltip } from './tooltip';
 
 export type ToolId =
   | 'place'
@@ -55,6 +56,7 @@ export interface ToolsHandle {
   setActive(id: 'place' | 'remove' | null): void;
   setGhostActive(on: boolean): void;
   setFocusActive(on: boolean): void;
+  setHover(id: ToolId | null): void;
   dispose(): void;
 }
 
@@ -75,6 +77,22 @@ const LABELS: Record<ToolId, string> = {
   guide: 'Build',
   help: 'Help',
   settings: 'Settings',
+};
+
+const TOOLTIPS: Record<ToolId, string> = {
+  place: 'Place dots',
+  remove: 'Remove dots',
+  hint: 'Show mistakes',
+  undo: 'Undo last move',
+  redo: 'Redo last move',
+  ghost: 'Show reference on plate',
+  focus: 'Highlight selected color',
+  workspace: 'Change workspace layout',
+  'save-layout': 'Save workspace layout',
+  picture: 'Show whole picture',
+  guide: 'Physical building guide',
+  help: 'Controller help',
+  settings: 'Open settings',
 };
 
 function drawToolIcon(ctx: CanvasRenderingContext2D, id: ToolId, x: number, color: string): void {
@@ -191,6 +209,9 @@ export function createTools(): ToolsHandle & { flash(id: ToolId): void } {
   let ghostActive = false;
   let focusActive = false;
   const flashing = new Set<ToolId>();
+  const tooltip = createXrTooltip(root, 0.19);
+  const tooltipMesh = root.getObjectByName('xr-hover-tooltip');
+  if (tooltipMesh) tooltipMesh.position.set(0, 0.055, 0.002);
 
   /** Repaint the whole strip (state changes are rare; five 128px slots are cheap). */
   const paint = (): void => {
@@ -289,11 +310,15 @@ export function createTools(): ToolsHandle & { flash(id: ToolId): void } {
     for (const t of flashTimers.values()) clearTimeout(t);
     flashTimers.clear();
     flashing.clear();
+    tooltip.dispose();
     tex.dispose();
     mat.dispose();
     strip.geometry.dispose();
   };
 
   paint();
-  return { root, pickTool, setActive, setGhostActive, setFocusActive, dispose, flash };
+  const setHover = (id: ToolId | null): void => {
+    tooltip.set(id ? TOOLTIPS[id] : null, id ? slotCenter(id) : 0);
+  };
+  return { root, pickTool, setActive, setGhostActive, setFocusActive, setHover, dispose, flash };
 }

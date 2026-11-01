@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { DrawSession, type DrawTool, type Symmetry } from '../game';
 import { EMPTY, type PictureSave } from '../types';
 import type { Studio, XrWorld } from './scene';
+import { createXrTooltip } from './tooltip';
 
 export interface DrawWorldDeps {
   studio: Studio;
@@ -49,6 +50,9 @@ export function createDrawWorld(deps: DrawWorldDeps): XrWorld {
   let paintedHover: { x: number; y: number } | null = null;
   let dirty = true;
   const controls = ['brush', 'erase', 'pick', 'undo', 'redo', 'symmetry', 'exit'] as const;
+  const tooltip = createXrTooltip(root, 0.25);
+  const tooltipMesh = root.getObjectByName('xr-hover-tooltip');
+  if (tooltipMesh) tooltipMesh.position.set(0, HEIGHT / 2 + 0.04, 0.002);
 
   const paint = (): void => {
     ctx.fillStyle = deps.save.drawBackground ?? '#111820';
@@ -211,20 +215,34 @@ export function createDrawWorld(deps: DrawWorldDeps): XrWorld {
     });
   });
   const update = (): void => {
+    let hoverControl: string | null = null;
     controllers.forEach((controller, index) => {
       const source = controller.userData.xrSource as XRInputSource | undefined;
       const trigger = Boolean(source?.gamepad?.buttons[0]?.pressed);
+      if (!source) {
+        prev[index] = false;
+        return;
+      }
       if (drawingOwner !== null && drawingOwner !== index) {
         prev[index] = trigger;
         return;
       }
       const position = new THREE.Vector3().setFromMatrixPosition(controller.matrixWorld);
       const dir = new THREE.Vector3(0, 0, -1).transformDirection(controller.matrixWorld);
+      const control = controlAt(position, dir);
+      if (!hoverControl && drawingOwner === null && control) {
+        hoverControl = control.startsWith('palette:')
+          ? (deps.save.palette[Number(control.slice(8))]?.name ?? 'Color')
+          : control === 'pick'
+            ? 'Pick color'
+            : control === 'exit'
+              ? 'Exit drawing'
+              : control[0].toUpperCase() + control.slice(1);
+      }
       const cell = cellAt(position, dir);
       hovered = cell;
       if (hovered?.x !== paintedHover?.x || hovered?.y !== paintedHover?.y) dirty = true;
       if (trigger && !prev[index]) {
-        const control = controlAt(position, dir);
         if (control) {
           if (control.startsWith('palette:')) {
             session.setPrimary(Number(control.slice('palette:'.length)));
@@ -278,6 +296,7 @@ export function createDrawWorld(deps: DrawWorldDeps): XrWorld {
       }
       prev[index] = trigger;
     });
+    tooltip.set(hoverControl);
     if (dirty) {
       paintedHover = hovered ? { ...hovered } : null;
       paint();
@@ -299,6 +318,7 @@ export function createDrawWorld(deps: DrawWorldDeps): XrWorld {
       }
     }
     for (const controller of controllers) controller.removeFromParent();
+    tooltip.dispose();
     root.removeFromParent();
     texture.dispose();
     mesh.geometry.dispose();

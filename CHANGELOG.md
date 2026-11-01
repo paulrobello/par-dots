@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- XR tool and drawing controls show a readable label when targeted with a controller.
+
 - Buy parts in the Parts sheet: download the picture's (or one panel's) dot counts, plus the build kit (black 16x16 pin-hole canvases, three Technic pins per joined edge, two wall-mount panels, and an optional raised frame), as a BrickLink wanted-list XML or a Rebrickable part-list CSV. LEGO palette mode only; free shades have no catalog color.
 - Google Analytics 4 measures visits and hash-route page views. The script is allowlisted in the production content-security policy; the dev server has no CSP.
 - Overlay marks each empty stud with its color's symbol, as on the building sheets, and shows the symbols on the tray dots while it is on.

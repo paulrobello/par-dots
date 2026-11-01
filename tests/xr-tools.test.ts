@@ -102,6 +102,22 @@ describe('createTools strip texture and flash (recording 2D context)', () => {
     tools.dispose();
   });
 
+  it('shows and clears the targeted tool tooltip', () => {
+    const tools = createTools();
+    const tooltip = tools.root.getObjectByName('xr-hover-tooltip');
+    if (!tooltip) throw new Error('tooltip missing');
+    expect(tooltip.visible).toBe(false);
+    tools.setHover('undo');
+    expect(tooltip.visible).toBe(true);
+    expect(log.texts.at(-1)).toBe('Undo last move');
+    tools.setHover('redo');
+    expect(log.texts.at(-1)).toBe('Redo last move');
+    tools.setHover(null);
+    expect(tooltip.visible).toBe(false);
+    tools.dispose();
+    expect(tooltip.parent).toBeNull();
+  });
+
   it('flash highlights the given tool and restores it when the timer fires', () => {
     vi.useFakeTimers();
     try {

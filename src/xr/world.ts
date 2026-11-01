@@ -612,6 +612,7 @@ export function createPanelWorld(
       settings.root.visible ||
       overviewHit !== null ||
       noticeHit;
+    tools.setHover(!modalAtStart && !pad?.grip && (!isAr || placed) ? tool : null);
     if (noticeHit) {
       if (down) {
         suppressTriggerUntilRelease = true;

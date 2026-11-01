@@ -109,3 +109,38 @@ it('paints through the controller ray and persists the shared save', () => {
   expect(persist).toHaveBeenCalled();
   world.dispose();
 });
+
+it('shows a tooltip when a connected controller points at a drawing tool', () => {
+  const scene = new THREE.Scene();
+  const controllers = [new THREE.Group(), new THREE.Group()];
+  controllers[0].userData.xrSource = { gamepad: { buttons: [{ pressed: false }] } };
+  const studio = {
+    scene,
+    renderer: { xr: { getController: (i: number) => controllers[i] } },
+  } as unknown as Studio;
+  const world = createDrawWorld({
+    studio,
+    xrSession: {} as XRSession,
+    save: save(),
+    persist: vi.fn(),
+    onExit: vi.fn(),
+  });
+  scene.updateMatrixWorld(true);
+  const board = scene.getObjectByName('xr-draw-world');
+  if (!board) throw new Error('draw world missing');
+  const point = new THREE.Vector3(-0.34, 0.35, 0).applyMatrix4(board.matrixWorld);
+  const normal = new THREE.Vector3(0, 0, 1).transformDirection(board.matrixWorld);
+  controllers[0].position.copy(point).addScaledVector(normal, 0.2);
+  controllers[0].quaternion.setFromUnitVectors(
+    new THREE.Vector3(0, 0, -1),
+    normal.clone().negate(),
+  );
+  scene.updateMatrixWorld(true);
+  world.update(0);
+  const tooltip = board.getObjectByName('xr-hover-tooltip');
+  expect(tooltip?.visible).toBe(true);
+  controllers[0].userData.xrSource = undefined;
+  world.update(1);
+  expect(tooltip?.visible).toBe(false);
+  world.dispose();
+});
