@@ -44,6 +44,7 @@ export interface Settings {
   xrEnvironment: XrEnvironment;
   /** Number of adjacent studs considered by XR snap assist (0 to 2). */
   xrSnapRadius: number;
+  xrWorkspacePreset: number | null;
   /** Show the enlarged neighborhood of the targeted XR stud. */
   xrMagnifier: boolean;
   /** Play background music. Default true. */
@@ -67,6 +68,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   background: 'gray',
   xrEnvironment: 'studio',
   xrSnapRadius: 2,
+  xrWorkspacePreset: null,
   xrMagnifier: false,
   music: true,
   musicTrack: 'happy',
@@ -98,6 +100,8 @@ function sanitize(raw: unknown): Settings {
       s.xrEnvironment = r.xrEnvironment as XrEnvironment;
     if (typeof r.xrSnapRadius === 'number' && Number.isInteger(r.xrSnapRadius))
       s.xrSnapRadius = Math.max(0, Math.min(2, r.xrSnapRadius));
+    if (typeof r.xrWorkspacePreset === 'number' && Number.isInteger(r.xrWorkspacePreset))
+      s.xrWorkspacePreset = Math.max(0, Math.min(3, r.xrWorkspacePreset));
     if (typeof r.xrMagnifier === 'boolean') s.xrMagnifier = r.xrMagnifier;
     if (typeof r.music === 'boolean') s.music = r.music;
     if (MUSIC_TRACKS.includes(r.musicTrack as MusicTrack))

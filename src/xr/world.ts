@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { play } from '../audio/sfx';
 import type { PanelSession } from '../game/panelSession';
-import { getSettings } from '../storage/settings';
+import { getSettings, setSettings } from '../storage/settings';
 import type { PictureSave, XrPanelLayout } from '../types';
 import { getUpdateStatus, requestUpdate } from '../updateState';
 import { createBridge } from './bridge';
@@ -402,7 +402,26 @@ export function createPanelWorld(
   let removeMode = false;
   let referenceOverlay = false;
   let focus = false;
-  let workspacePreset = 0;
+  const savedWorkspacePreset = getSettings().xrWorkspacePreset;
+  let workspacePreset = savedWorkspacePreset ?? 0;
+  if (workspacePreset === 3 && !getCustomLayouts().Custom) workspacePreset = 0;
+  const applyWorkspacePreset = (): void => {
+    const custom = getCustomLayouts().Custom;
+    if (workspacePreset === 3 && custom) {
+      applyLayout(custom);
+    } else {
+      const p = plate.root.position.clone();
+      const yaw = plate.root.rotation.y;
+      placeWorld({ x: p.x, y: p.y, z: p.z }, yaw);
+      plate.root.rotation.x = workspacePreset === 1 ? Math.PI / 3 : 0;
+      plate.root.scale.setScalar(workspacePreset === 2 ? 1.8 : 1);
+    }
+  };
+  if (workspacePreset !== 0) applyWorkspacePreset();
+  else if (savedWorkspacePreset !== null && deps.layout) {
+    plate.root.rotation.x = 0;
+    plate.root.scale.setScalar(1);
+  }
   let initialCompletionPending = bridge.isComplete();
   const mode = (): 'paint' | 'remove' => (removeMode ? 'remove' : 'paint');
   const syncToolsActive = (): void => tools.setActive(removeMode ? 'remove' : 'place');
@@ -431,17 +450,9 @@ export function createPanelWorld(
     } else if (id === 'workspace') {
       const custom = getCustomLayouts().Custom;
       workspacePreset = (workspacePreset + 1) % (custom ? 4 : 3);
-      if (workspacePreset === 3 && custom) {
-        applyLayout(custom);
-        hintLabel.show('Custom layout');
-      } else {
-        const p = plate.root.position.clone();
-        const yaw = plate.root.rotation.y;
-        placeWorld({ x: p.x, y: p.y, z: p.z }, yaw);
-        plate.root.rotation.x = workspacePreset === 1 ? Math.PI / 3 : 0;
-        plate.root.scale.setScalar(workspacePreset === 2 ? 1.8 : 1);
-        hintLabel.show(['Desk', 'Easel', 'Close-up'][workspacePreset]);
-      }
+      setSettings({ xrWorkspacePreset: workspacePreset });
+      applyWorkspacePreset();
+      hintLabel.show(['Desk', 'Easel', 'Close-up', 'Custom layout'][workspacePreset]);
       if (hintTimer !== null) clearTimeout(hintTimer);
       hintTimer = setTimeout(() => {
         hintTimer = null;
@@ -529,6 +540,7 @@ export function createPanelWorld(
   const prevGrip = [false, false];
   let prevOverlayX = false;
   let prevSelectTrig = false;
+  let dragging = false;
   let awaitTriggerRelease = true;
   let suppressTriggerUntilRelease = false;
   let suppressBUntilRelease = false;
@@ -574,6 +586,8 @@ export function createPanelWorld(
     else if (pad.grip) suppressTriggerUntilRelease = true;
     const actionPad =
       pad && (pad.grip || suppressTriggerUntilRelease) ? { ...pad, trigger: false } : pad;
+    if (!actionPad?.trigger) dragging = false;
+    else if (!prevSelectTrig) dragging = actionPad.a;
     let snap: Cell | null = null;
     let chip: number | null = null;
     let referenceColor: number | null = null;
@@ -592,14 +606,16 @@ export function createPanelWorld(
           snap = plate.pickCell(
             { origin: plateRay.origin, dir: plateRay.direction },
             mode(),
-            getSettings().xrSnapRadius,
+            dragging ? 0 : getSettings().xrSnapRadius,
           );
         }
       }
     }
     const down = actionPad?.trigger === true && !prevSelectTrig;
-    const noticeHit = index >= 0 && !pad?.grip && updateNotice.hit(pos, dir);
+    const noticeHit =
+      !settings.root.visible && index >= 0 && !pad?.grip && updateNotice.hit(pos, dir);
     const overviewHit =
+      !settings.root.visible &&
       overview?.root.visible &&
       index >= 0 &&
       !pad?.grip &&
@@ -694,7 +710,10 @@ export function createPanelWorld(
       marker.material.color.setHex(targetable ? 0x56dbb1 : 0xd6d8dc);
       marker.material.emissive.setHex(targetable ? 0x195a48 : 0x000000);
       controllers.lines[i].material.color.setHex(targetable ? 0x56dbb1 : 0x8fd0ff);
-      controllers.lines[i].scale.z = (aimedHit?.distance ?? 1.2) / 1.2;
+      const settingsHit = settings.root.visible
+        ? raycaster.intersectObject(settings.root, true)[0]
+        : undefined;
+      controllers.lines[i].scale.z = (settingsHit?.distance ?? aimedHit?.distance ?? 1.2) / 1.2;
     }
     if (overview && deps.overviewState) {
       deps.overviewState.visible = overview.root.visible;
@@ -1080,8 +1099,13 @@ export function createLibraryWorld(
       controllers.markers[index].material.color.setHex(targetable ? 0x56dbb1 : 0xd6d8dc);
       controllers.markers[index].material.emissive.setHex(targetable ? 0x195a48 : 0x000000);
       controllers.lines[index].material.color.setHex(targetable ? 0x56dbb1 : 0x8fd0ff);
+      const settingsHit = settings.root.visible
+        ? raycaster.intersectObject(settings.root, true)[0]
+        : undefined;
       controllers.lines[index].scale.z =
-        (!settings.root.visible ? (libraryHit?.distance ?? 1.2) : 1.2) / 1.2;
+        (settingsHit?.distance ??
+          (!settings.root.visible ? libraryHit?.distance : undefined) ??
+          1.2) / 1.2;
       if (pad.grip && !prevGrip[index] && heldBy < 0 && !settings.root.visible) {
         studio.renderer.xr.getControllerGrip(index).getWorldPosition(gripPosition);
         bounds.setFromObject(library.root);
@@ -1102,7 +1126,7 @@ export function createLibraryWorld(
         continue;
       }
       const down = ready[index] && pad.trigger && !prevTrigger[index];
-      if (updateNotice.hit(pos, dir)) {
+      if (!settings.root.visible && updateNotice.hit(pos, dir)) {
         if (down && !pickedThisFrame) {
           pickedThisFrame = true;
           ready[index] = false;

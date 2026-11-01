@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PanelSession } from '../src/game/panelSession';
+import { resetSettingsCache, setSettings } from '../src/storage/settings';
 import { EMPTY, PANEL_SIZE, type PictureSave } from '../src/types';
 import { getCustomLayouts } from '../src/xr/layout';
 import type { Studio } from '../src/xr/scene';
@@ -23,6 +24,7 @@ interface Fixture {
 
 beforeEach(() => {
   localStorage.clear();
+  resetSettingsCache();
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
     new Proxy({}, { get: () => () => undefined, set: () => true }) as CanvasRenderingContext2D,
   );
@@ -122,6 +124,75 @@ function requiredObject(f: Fixture, name: string): THREE.Object3D {
 }
 
 describe('XR workspace controls', () => {
+  it('does not paint neighboring studs while a drag remains on one peg', () => {
+    const f = fixture();
+    const picture = save();
+    const world = panel(f, { panel: new PanelSession(picture, 0) });
+    f.connect(1);
+    const plate = requiredObject(f, 'xr-plate');
+    plate.updateWorldMatrix(true, true);
+    const point = new THREE.Vector3(-0.004, 0, -0.004).applyMatrix4(plate.matrixWorld);
+    const normal = new THREE.Vector3(0, 1, 0).transformDirection(plate.matrixWorld);
+    f.aim(1, point.clone().addScaledVector(normal, 0.2), normal.negate());
+    world.update(0);
+    f.buttons[1][4].pressed = true;
+    f.buttons[1][0].pressed = true;
+    for (let time = 16; time <= 160; time += 16) world.update(time);
+    expect(Array.from(picture.placed).filter((value) => value !== EMPTY)).toHaveLength(1);
+    world.dispose();
+  });
+
+  it('restores the last selected workspace preset in a new world', () => {
+    const f = fixture();
+    const world = panel(f);
+    f.connect(1);
+    pointAtTool(f, 'workspace');
+    world.update(0);
+    f.buttons[1][0].pressed = true;
+    world.update(16);
+    world.dispose();
+    resetSettingsCache();
+    const next = panel(f);
+    expect(requiredObject(f, 'xr-plate').rotation.x).toBeCloseTo(Math.PI / 3);
+    next.dispose();
+  });
+
+  it('restores Desk even when the panel has an older Easel layout', () => {
+    setSettings({ xrWorkspacePreset: 0 });
+    const f = fixture();
+    const initial = panel(f);
+    const oldLayout = initial.layout();
+    if (!oldLayout) throw new Error('Missing panel layout');
+    initial.dispose();
+    oldLayout.plate.quat = { x: Math.sin(Math.PI / 6), y: 0, z: 0, w: Math.cos(Math.PI / 6) };
+    oldLayout.plate.scale = 1.8;
+    const world = panel(f, { layout: oldLayout });
+    const plate = requiredObject(f, 'xr-plate');
+    expect(plate.rotation.x).toBeCloseTo(0);
+    expect(plate.scale.x).toBeCloseTo(1);
+    world.dispose();
+  });
+
+  it('stops the controller ray at the open settings card', () => {
+    const f = fixture();
+    const world = panel(f);
+    f.connect(1);
+    pointAtTool(f, 'settings');
+    world.update(0);
+    f.buttons[1][0].pressed = true;
+    world.update(16);
+    f.buttons[1][0].pressed = false;
+    const card = requiredObject(f, 'xr-settings');
+    card.updateWorldMatrix(true, true);
+    const point = new THREE.Vector3().setFromMatrixPosition(card.matrixWorld);
+    const normal = new THREE.Vector3(0, 0, 1).transformDirection(card.matrixWorld);
+    f.aim(1, point.clone().addScaledVector(normal, 0.3), normal.negate());
+    world.update(32);
+    const line = f.targets[1].children.find((child) => child instanceof THREE.Line) as THREE.Line;
+    expect(line.scale.z * 1.2).toBeCloseTo(0.3);
+    world.dispose();
+  });
+
   it.each([0, 1])('points and grips a distant workspace object with controller %i', (index) => {
     const f = fixture();
     const world = panel(f);
